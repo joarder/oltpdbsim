@@ -1,0 +1,263 @@
+
+	// Stream a single Transaction from the specified stored file
+//	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
+//			WorkloadBatch wb, Slide slide) {
+//		
+//		int type, line;
+//		
+//		// Check whether sliding is required or not
+//		if(slide.pointer == slide.end)
+//			slide.sliding(false);
+//		
+//		// Track line numbers for generating repeated Transactions
+//		if(slide.pointer == (slide.start+Global.slidingWindow/2))
+//			slide.trackLines();
+//			
+//		// Streaming another Transaction		
+//		Transaction tr = null;		
+//		
+//		// Advancing Transaction type pointer
+//		++slide.pointer;		
+//		type = trType[slide.pointer - 1];
+//		
+//		// Advancing corresponding line pointer
+//		++Global.tpccLineNumbers[type -1];
+//		line = Global.tpccLineNumbers[type - 1];
+//		
+//		// Create entry for frequent transactions if not exist
+//		if(!wb.getTrMap().containsKey(type) || !frequentTrMap.containsKey(type)) {
+//			wb.getTrMap().put(type, new TreeMap<Integer, Transaction>());
+//			frequentTrMap.put(type, new TreeMap<Integer, Integer>());
+//		}		
+//		
+//		// Identify a repeated Transaction
+//		if(frequentTrMap.get(type).containsKey(line)) {
+//			
+//			int tr_id = frequentTrMap.get(type).get(line);
+//			tr = wb.getTrMap().get(type).get(tr_id);
+//			
+//			tr.incTr_frequency();
+//			
+//			if(!tr.isTemporal()) {
+//				tr.decTr_temporalWeight();
+//				tr.setTemporal(true);
+//			}
+//			
+//			//tr.calculateDTImapct();
+//			
+//		} else { // Create a fresh Transaction
+//			
+//	    	File trFile = new File(Global.wrl_dir+"/"+"run"+Global.repeated_runs+"/"+"t"+type+".tr");
+//			IndexedFileReader reader = null;
+//			SortedMap<Integer, String> trStream = null;		
+//					
+//			try {	
+//				reader = new IndexedFileReader(trFile);
+//				trStream = reader.readLines(line, line);
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			} finally {
+//				try {
+//					reader.close();
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				}
+//			}
+//					
+//			// Process a single stream to convert it to a Transaction
+//			String[] dataStream = null;
+//			Set<Integer> trDataSet = new TreeSet<Integer>();
+//			
+//			for(Entry<Integer, String> entry : trStream.entrySet()) {
+//				dataStream = entry.getValue().split(" ");
+//				
+//				for(String d : dataStream) {					
+//					int tpl_id = Integer.parseInt(d);				
+//					
+//					if(!deletedTuples.contains(tpl_id)) {
+//					
+//						String[] parts = cluster.breakDataId(tpl_id);					
+//						int tpl_pk = Integer.parseInt(parts[0]);
+//						int tbl_id = Integer.parseInt(parts[1]);
+//						
+//						Tuple tpl = db.getTupleById(tbl_id, tpl_id);
+//						Data data = null;
+//						int data_id = 0;						
+//						
+//						if(tpl.getTuple_action().equals("insert")) {
+//							data_id = cluster.insertData(tpl_id);
+//							trDataSet.add(data_id); // Insert into Cluster, already in the Database
+//							
+//							// Marking involved Transactions
+//							data = cluster.getData(data_id);
+//							data.addInvolvedTransaction();
+//							
+//						} else if (tpl.getTuple_action().equals("delete")) {
+//							
+//							if(!Cluster._setup) {
+//								cluster.deleteData(tpl_id); // Remove from Cluster
+//								db.deleteTupleByPk(tbl_id, tpl_pk); // Remove from Database
+//								
+//								deletedTuples.add(tpl_id);
+//							}
+//							
+//						} else {
+//							data_id = cluster.getDataIdFromTupleId(tpl_id);
+//							trDataSet.add(data_id);
+//							
+//							// Marking involved Transactions
+//							data = cluster.getData(data_id);
+//							data.addInvolvedTransaction();
+//						}
+//						
+//					} // end--if()
+//				} // Tuple
+//			} // Stream
+//			
+//			// Create a new Transaction
+//			++unique_transactions;
+//			++Global.global_trSeq;
+//			tr = new Transaction(Global.global_trSeq, type, trDataSet);							
+//				
+//			// Add the newly created Transaction in the Workload Transaction map	
+//			wb.getTrMap().get(type).put(Global.global_trSeq, tr);
+//			
+//			// Add an entry to check for duplicate Transaction in future
+//			frequentTrMap.get(type).put(line, Global.global_trSeq);
+//		}
+//		
+//		// Statistic collection
+//		batch_total_transactions += 1;			
+//		
+//		return tr;
+//	}
+
+----------------------------------------------------------------------------------------
+
+
+//	// Main simulation entry point
+//	public void execute(Database db, Cluster cluster) throws IOException {
+//		
+//		Global.LOGGER.info("Generating approximately "+targeted_transactions+" transactions per workload batch.");
+//						
+//		int batch = 1;		
+//		Global.global_trSeq = 0;
+//		Slide slide = new Slide();
+//		
+//		while(batch <= Global.workloadBatches) {
+//			
+//			// Stream a new Workload Batch
+//			WorkloadBatch wb = simulateOneBatch(db, cluster, slide, batch);			
+//			
+//			// Perform workload-aware data re/partitioning
+//			DataMovement data_movement = new DataMovement();
+//			
+//			if(Global.workloadAware && incremental && !Global.compressionBeforeSetup) {
+//			
+//				// Initialisation
+//				WorkloadFileGenerator workloadFileGenerator = new WorkloadFileGenerator();
+//				ClusterIdMapper cluster_id_mapper = new ClusterIdMapper();				
+//					
+//				// Prepare workloads for further processing
+//				wb.prepare(cluster);		
+//				
+//				//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)		
+//				Global.LOGGER.info("Starting data stream mining to identify the transactions containing distributed semi-frequent closed sets of data tuples ...");
+//				
+//				switch(Global.trClassificationStrategy) {
+//				case "basic":
+//					TransactionClassifier.classifyMovableDTs(cluster, wb);
+//					break;
+//					
+//				case "fd":
+//					TransactionClassifier.classifyMovableFD(cluster, wb);
+//					break;
+//					
+//				case "fdfnd":
+//					TransactionClassifier.classifyMovableFDFND(cluster, wb);
+//					break;						
+//				}					
+//				
+//				// Assign shadow data id and generate workload and fix files
+//				workloadFileGenerator.assignShadowDataId(cluster, wb);		
+//				Global.LOGGER.info("Total "+wb.getWrl_totalTransactions()+" transactions containing "+wb.getWrl_totalDataObjects()+" data tuples have identified for repartitioning.");
+//				Global.LOGGER.info("-----------------------------------------------------------------------------");
+//				
+//				// Generate workload file
+//				boolean empty = workloadFileGenerator.generateWorkloadFile(cluster, wb);
+//				
+//				int virtual_data = 0;
+//				if(Global.workloadRepresentation == "chg") {
+//					virtual_data = workloadFileGenerator.getVirtual_data();
+//					//Global.LOGGER.info("-->> virtual data = "+virtual_data);
+//				}
+//				
+//				if(!empty) {			
+//					//int partitions = sampled_workload.getTransactionalPartitions();
+//					int partitions = Global.partitions;
+//					Global.LOGGER.info("Starting partitioner to repartition the workload into "+partitions+" clusters ...");	
+//					
+//					// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
+//					MinCut.runMinCut(wb, partitions, true);
+//
+//					// Mapping cluster id to partition id
+//					Global.LOGGER.info("Applying data movement strategies for database ("+db.getDb_name()+") ...");
+//					cluster_id_mapper.processPartFile(cluster, wb, partitions, virtual_data);					
+//					
+//					// Perform data movement
+//					data_movement.performDataMovement(cluster, wb, Global.dataMovementStrategy, Global.workloadRepresentation);					
+//					
+//					// Update Node level load
+//					cluster.updateLoad();
+//					
+//					// Display the Cluster status
+//					cluster.show();
+//					
+//					Global.LOGGER.info("=======================================================================================================================");
+//					
+//				} else {
+//					
+//					data_movement.setEnvironment(cluster, wb);
+//					data_movement.wrappingUp(true, Global.dataMovementStrategy, cluster, wb, Global.workloadRepresentation);
+//					
+//					// Update Node level load
+//					cluster.updateLoad();								
+//
+//					// Display the Cluster status
+//					cluster.show();
+//					
+//					Global.LOGGER.info("No changes are required for database ("+db.getDb_name()+")");
+//					Global.LOGGER.info("Repartitioning run round aborted for database ("+db.getDb_name()+")");
+//					Global.LOGGER.info("=======================================================================================================================");
+//				}				
+//			} else { // Actions for SWORD
+//				Global.LOGGER.info("SWORD actions ...");
+//
+//				
+//				
+//				// Update Node level load
+//				cluster.updateLoad();								
+//
+//				// Display the Cluster status
+//				cluster.show();
+//				
+//				Global.LOGGER.info("=======================================================================================================================");
+//			}
+//			
+//			// Stops incremental repartitioning after the first repartitioning process
+//			if(!Global.incrementalRepartition)
+//				incremental = false;
+//
+//			if(batch == Global.workloadBatches)
+//				collectStatistics(cluster, wb, batch);
+//			
+//			// Moving forward			
+//			simTimeInHours += 1;			
+//			batch_total_transactions = 0;
+//
+//			++batch;
+//		} // end-while() -- 3600 Transactions batch
+//		
+//		Global.LOGGER.info("Total "+Global.global_trSeq+" unique transactions have seen so far.");
+//		Global.LOGGER.info("Total time: "+simTimeInHours+" Hours");
+//	}

@@ -1,0 +1,91 @@
+package main.java.repartition;
+
+import java.util.ArrayList;
+import main.java.entry.Global;
+
+public class Slide {
+	public int id;
+	public int start; 
+	public int end;
+	public int pointer;
+	public int initial_trSeq;
+	public ArrayList<Integer> line_numbers;
+	
+	public Slide() {
+		id = 1;
+		start = 0; 
+		pointer = start; 
+		end = 900;// Global.slidingWindow;		
+		initial_trSeq = 0;
+		line_numbers = new ArrayList<Integer>();
+	}
+	
+	public void trackLines() {
+		for(int i = 0; i < Global.tpccLineNumbers.length; i++) {
+			this.line_numbers.add(Global.tpccLineNumbers[i]);
+		}
+	}
+	
+	// Perform sliding over the transactional stream
+	public void sliding(boolean batch_ending) {
+		
+//		Global.LOGGER.info("> slide.start = "+this.start);
+//		Global.LOGGER.info("> slide.end = "+this.end);
+//		Global.LOGGER.info("> trTypePointer = "+this.pointer);
+		
+		Global.LOGGER.info("Slide contains "+(Global.global_trSeq - this.initial_trSeq)+" unique transactions.");
+		Global.LOGGER.info("Slide contains total "+(this.pointer - this.start)+" transactions.");
+		
+		if(batch_ending) {
+			//Global.LOGGER.info("Restoring slide and type pointer for the next workload batch ...");
+			Global.LOGGER.info(".............................................................................");
+			
+			if(this.id > 3) {
+				this.start -= Global.slidingWindow/2;
+				this.end -= Global.slidingWindow/2;
+				
+			} else {
+				this.start += Global.slidingWindow/2;
+				this.end += Global.slidingWindow/2;				
+			}
+			
+			this.id = 1;
+		
+		} else {
+			
+			//Global.LOGGER.info("Slide contains "+(Global.global_trSeq - this.initial_trSeq)+" unique transactions.");
+			//Global.LOGGER.info("Slide contains total "+(this.pointer - this.start)+" transactions.");			
+			Global.LOGGER.info("Sliding forward ...");
+			Global.LOGGER.info(".............................................................................");
+				
+			// Advancing slide
+			this.start += Global.slidingWindow/2;
+			this.end += Global.slidingWindow/2;
+			++this.id;
+			
+			Global.LOGGER.info("Slide "+this.id+" ...");
+			
+			// Holding back the line numbers. This will generate frequent/duplicate transactions
+			if(!batch_ending) {
+				for(int i = 0; i < Global.tpccLineNumbers.length; i++) {
+					//Global.tpccLineNumbers[i] /= 2; 
+					Global.tpccLineNumbers[i] = this.line_numbers.get(i);
+				}
+				
+				this.line_numbers = new ArrayList<Integer>();
+			}
+		}
+		
+		this.pointer = this.start;
+		this.initial_trSeq = Global.global_trSeq;
+		
+//		Global.LOGGER.info("@ slide.start = "+slide.start);
+//		Global.LOGGER.info("@ slide.end = "+slide.end);
+//		Global.LOGGER.info("@ trTypePointer = "+trTypePointer);
+//		Global.LOGGER.info("@ tpccLineNumbers[0] = "+Global.tpccLineNumbers[0]);
+//		Global.LOGGER.info("@ tpccLineNumbers[1] = "+Global.tpccLineNumbers[1]);
+//		Global.LOGGER.info("@ tpccLineNumbers[2] = "+Global.tpccLineNumbers[2]);
+//		Global.LOGGER.info("@ tpccLineNumbers[3] = "+Global.tpccLineNumbers[3]);
+//		Global.LOGGER.info("@ tpccLineNumbers[4] = "+Global.tpccLineNumbers[4]);
+	}
+}

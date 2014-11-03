@@ -1,0 +1,347 @@
+/* *****************************************************************************
+ * Simulation of a simple M/M/1 queue (Grocery).
+ * Class: Simulation - Modeling and Performance Analysis 
+ *        with Discrete-Transaction Simulation
+ *        RWTH Aachen, Germany, 2007
+ *        
+ * Author: Dr. Mesut Günes, guenes@cs.rwth-aachen.de        
+ * 
+ * Notice: 
+ * This code is based on the example presented in the very nice book of 
+ * Jerry Banks, John S. Carson II, Barry L. Nelson, David M. Nicol: 
+ * Discrete-Transaction System Simulation, Fourth Edition, Prentice Hall, 2005.
+ * 
+ * However, the code is not exactly the same ;-)
+ *  
+ ******************************************************************************/
+package main.java.workload;
+
+import main.java.global.Global;
+
+public class WorkloadExecutor {
+	
+	private boolean inService;
+    
+	private double sumResponseTime;
+    private double lastTransactionTime; 
+    private double totalBusy;
+    private double clock;         
+    private long numberOfReplies; 
+    
+    private final static int request = 1;
+    private final static int reply = 2;
+    
+    private WorkloadQueue wrl_queue;
+    private TransactionCoordinator tr_coordinator;    
+    
+    public WorkloadExecutor() {
+    	this.setWrl_queue(new WorkloadQueue());
+    	this.setTr_coordinator(new TransactionCoordinator());
+    	
+        this.clock = 0.0;
+        this.lastTransactionTime = 0.0;
+        this.totalBusy = 0;
+        this.sumResponseTime = 0;
+        this.numberOfReplies = 0;        
+
+        // Create first Transaction request
+        Transaction tr = new Transaction(0, WorkloadExecutor.request, exponential(Global.meanInterArrivalTime));
+        this.getWrl_queue().enqueue(tr);
+    }
+
+	public WorkloadQueue getWrl_queue() {
+		return wrl_queue;
+	}
+
+	public void setWrl_queue(WorkloadQueue wrl_queue) {
+		this.wrl_queue = wrl_queue;
+	}
+
+	public TransactionCoordinator getTr_coordinator() {
+		return tr_coordinator;
+	}
+
+	public void setTr_coordinator(TransactionCoordinator tr_coordinator) {
+		this.tr_coordinator = tr_coordinator;
+	}
+	
+    // Main execution method
+    public void execute() {
+    	Global.LOGGER.info("Starting workload execution ... ");
+    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
+    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);
+
+        while (this.numberOfReplies < Global.global_tr_count) {
+            Transaction tr = (Transaction) this.getWrl_queue().get();
+            this.getWrl_queue().dequeue();
+            
+            // Advance simulation time
+            this.clock = tr.getTr_processing_time();
+            
+            if (tr.getTr_processing_type() == WorkloadExecutor.request)
+            	this.processRequest(tr);
+            else
+            	this.processReply(tr);
+        }
+        
+        this.reportGeneration();        
+    }
+    
+    // Process Request
+    private void processRequest(Transaction tr) {
+        this.getTr_coordinator().enqueue(tr);                
+        this.getWrl_queue().incQueueLength();
+        
+        // If the Workload Executor is idle, then fetch the Transaction, 
+        // collect the statistics and put into service
+        if (!this.inService)
+            scheduleReply();
+        else
+            this.totalBusy += (this.clock - this.lastTransactionTime); // WE is busy
+
+        // Adjust max queue length statistics
+        if (this.getWrl_queue().getMaxQueueLength() < this.getWrl_queue().getQueueLength())
+        	this.getWrl_queue().setMaxQueueLength(this.getWrl_queue().getQueueLength());
+
+        // Schedule the next Transaction
+        Transaction tr_next = new Transaction(0, WorkloadExecutor.request, this.clock + exponential(Global.meanInterArrivalTime));
+        getWrl_queue().enqueue(tr_next);
+        
+        this.lastTransactionTime = this.clock;
+    }
+
+    // Schedule Reply
+    private void scheduleReply() {
+        Transaction tr_reply = new Transaction(0, WorkloadExecutor.reply, this.clock + exponential(Global.meanServiceTime));
+        this.getWrl_queue().enqueue(tr_reply);
+        
+        this.inService = true;
+        this.getWrl_queue().decQueueLength();
+    }
+
+    // Process Reply
+    private void processReply(Transaction tr) {
+        // Get a Transaction
+        Transaction tr_processed = (Transaction) tr_coordinator.dequeue();
+        
+        // Measure the response time and add to the sum
+        double response = (this.clock - tr_processed.getTr_processing_time());
+
+        this.sumResponseTime += response;        
+        this.totalBusy += (this.clock - this.lastTransactionTime);
+        ++this.numberOfReplies;
+        this.lastTransactionTime = this.clock;
+        
+        // If there are Transactions in the queue, then schedule the departure of the next one
+        if (this.getWrl_queue().getQueueLength() > 0)
+            scheduleReply();
+        else
+        	this.inService = false;        
+    }
+    
+    public static double exponential(double mean) {
+        return -mean * Math.log(Global.rand.nextDouble());
+    }      
+    
+    private void reportGeneration() {
+	    double rho = this.totalBusy / this.clock;
+	    double avgr = this.sumResponseTime / Global.global_tr_count;
+	
+	    System.out.println("SINGLE SERVER QUEUE SIMULATION");
+	    System.out.println("\tMEAN INTERARRIVAL TIME                         " + Global.meanInterArrivalTime);
+	    System.out.println("\tMEAN SERVICE TIME                              " + Global.meanServiceTime);
+	    System.out.println("\tNUMBER OF Transactions SERVED                     " + Global.global_tr_count);
+	    System.out.println("\tSERVER UTILIZATION                             " + rho);
+	    System.out.println("\tMAXIMUM LINE LENGTH                            " + this.getWrl_queue().getMaxQueueLength());
+	    System.out.println("\tAVERAGE RESPONSE TIME                          " + avgr + "  MINUTES");
+	    System.out.println("\tSIMULATION RUNLENGTH                           " + this.clock + " MINUTES");
+	    System.out.println("\tNUMBER OF DEPARTURES                           " + Global.global_tr_count);
+	}
+}
+
+
+
+
+
+
+------------------------
+
+    	
+    	// Sleep for 1000 milliseconds or 1 second
+    	try {
+    	    Thread.sleep(100);
+    		//TimeUnit.MILLISECONDS.sleep(1);
+    	    //TimeUnit.SECONDS.sleep(1);
+    	} catch(InterruptedException ex) {
+    	    Thread.currentThread().interrupt();
+    	}
+    	
+-------------------------
+
+	private void init() {
+		Transaction tr = this.getTransaction(this.trType[0], "arrival");
+		this.getWrlQueue().enqueue(tr);
+		++this.trSequence;
+		
+		System.out.println("--> Enqueue in WRLQ: "+tr.toString());
+	}
+	
+	public void executeTrStream() {
+		this.targeted_transactions = (Global.global_tr_count - 5*Global.streamSize);
+        this.trType = this.trDistribution.sample((int) targeted_transactions);
+		
+		Transaction tr = null;
+		//long sliding_window = 0;		
+				
+		init();
+		
+		while(this.numberOfReplies < 5) {//targeted_transactions) {
+			tr = (Transaction) this.getWrlQueue().getMin();
+			this.wrlQueue.dequeue();
+			System.out.println("----------------------------------------");
+			System.out.println("Get more transactions ... ");
+			System.out.println("--> Dequeue from WRLQ: "+tr.toString());
+			
+			this.clock = tr.getTr_processing_time();
+			
+			if(tr.getTr_category() == "arrival")
+				this.processRequest(tr);
+			else
+				this.processReply();
+		}	
+			
+		this.reportGeneration();	
+			
+			
+			// Stream 100 transaction at a time from tr files following the popularity profile
+			// Push the transactions into Workload Queue
+			
+			//System.out.println("Generating another batch of stream "+this.trSequence);			
+			
+//			if(sliding_window < Global.slidingWindow) {
+//				
+//				// Execute
+//				while(this.getWrlQueue().size() != 0) {
+//					Transaction tr = (Transaction) this.getWrlQueue().dequeue();
+//					//System.out.println(tr.toString());
+//										
+//		            // Advance simulation time
+//		            this.clock = tr.getTr_processing_time();
+//		            
+//		            // Process the Transaction
+//		            this.processRequest(tr);		            
+//		            
+//		            if(!tr.isTr_processed()) {
+//		            	this.processRequest(tr);		            	
+//		            } else {
+//		            	Transaction tr_processed = (Transaction) trCoordinator.dequeue();
+//		            	this.processReply(tr_processed);
+//		            }		            	
+//				}
+//				
+//				++sliding_window;
+//			} else {
+//				// Workload-aware re-partitioning
+//								
+//				sliding_window = Global.slidingWindow/2;
+//			}
+			
+//		} //--end-while()				
+	}
+    
+    // Process Request
+    private void processRequest(Transaction tr) {
+    	System.out.println("Processing request ...");
+    	
+        this.getTrCoordinator().enqueue(tr);
+        System.out.println("--> Enqueue in TRCQ: "+tr.toString());
+        ++this.queueLength;
+        
+        if (!this.inService) { // WE is free
+            scheduleReply(tr);
+            //tr.setTr_processed(true);
+        } else
+            this.totalBusy += (this.clock - this.lastTransactionTime); // WE is busy
+
+        // Adjust max queue length statistics
+        if (this.maxQueueLength < this.queueLength)
+        	this.maxQueueLength = this.queueLength;
+        
+        // Next arrival
+        Transaction next = this.getTransaction(this.trType[this.trSequence], "arrival");
+        this.wrlQueue.enqueue(next);        
+        ++this.trSequence;
+        System.out.println("--> Enqueue [next] in WRLQ: "+next.toString());
+        
+        this.lastTransactionTime = this.clock;
+    }
+
+    // Schedule Reply
+    private void scheduleReply(Transaction tr) {
+    	System.out.println("Scheduling reply ... ");    	
+    	
+    	//Transaction departure = this.getTransaction(this.trType[this.trSequence], "departure");
+    	tr.setTr_category("departure");
+    	//this.trCoordinator.enqueue(tr);
+    	//this.wrlQueue.enqueue(departure);
+    	this.wrlQueue.enqueue(tr);
+    	System.out.println("--> Enqueue [departure] in WRLQ: "+tr.toString());
+    	//System.out.println("--> Enqueue [departure] in TRCQ: "+tr.toString());
+    	
+        this.inService = true;        
+        --this.queueLength;
+    }
+
+    // Process Reply
+    private void processReply() {
+    	Transaction finished = (Transaction) this.trCoordinator.dequeue();
+    	System.out.println("Processing reply of "+finished.toString());
+    	System.out.println("--> Dequeue [finished] from TRCQ: "+finished.toString());
+    	
+        // Measure the response time and add to the sum
+        double response = (this.clock - finished.getTr_processing_time());
+        finished.setTr_response_time(response);
+        this.sumResponseTime += response;
+        
+        this.totalBusy += (this.clock - this.lastTransactionTime);
+        this.lastTransactionTime = this.clock;
+        
+        ++this.numberOfReplies;
+                        
+        // If there are Transactions in the queue, then schedule the departure of the next one
+        if (this.queueLength > 0)
+            scheduleReply((Transaction) this.getWrlQueue().getMin());
+        else
+        	this.inService = false;
+        
+        //System.out.println(" >> "+this.clock+"|"+response);    	
+    } 
+---------------------
+
+private void reportGeneration() {
+	    double rho = this.totalBusy / this.clock;
+	    double avgr = this.sumResponseTime / (Global.global_tr_count - Global.streamSize);
+	
+	    System.out.println("SINGLE SERVER QUEUE SIMULATION");
+	    System.out.println("\tMEAN INTERARRIVAL TIME                         " + Global.meanInterArrivalTime);
+	    System.out.println("\tMEAN SERVICE TIME                              " + Global.meanServiceTime);
+	    System.out.println("\tNUMBER OF Transactions SERVED                  " + (Global.global_tr_count - 5*Global.streamSize));
+	    System.out.println("\tSERVER UTILIZATION                             " + rho);
+	    System.out.println("\tMAXIMUM LINE LENGTH                            " + this.maxQueueLength);
+	    System.out.println("\tAVERAGE RESPONSE TIME                          " + avgr + "  MINUTES");
+	    System.out.println("\tSIMULATION RUNLENGTH                           " + this.clock + " MINUTES");
+	    System.out.println("\tNUMBER OF DEPARTURES                           " + (Global.global_tr_count - 5*Global.streamSize));
+	}
+	
+	    	------------------------------
+	    	
+	    		private boolean inService;    
+	private double sumResponseTime;
+    private double lastTransactionTime; 
+    private double totalBusy;             
+    private long numberOfReplies;
+    
+    this.lastTransactionTime = 0.0;
+        this.totalBusy = 0;
+        this.sumResponseTime = 0;
+        this.numberOfReplies = 0;
