@@ -34,8 +34,7 @@ public class WorkloadBatchProcessor {
 		boolean empty = false;
 
 		// Workload file
-		String wrl_file_name = Global.repartitioningCycle+"-"+Global.simulation+"-"+Global.workloadRepresentation
-				+"-"+Global.wrl_file_name; 
+		String wrl_file_name = Global.repartitioningCycle+"-"+Global.simulation; 
 		String wrl_abs_file_name = Global.part_dir+Global.getRunDir()+wrl_file_name;				
 		
 		File workloadFile = new File(wrl_abs_file_name);
@@ -316,7 +315,7 @@ public class WorkloadBatchProcessor {
 		String wrl_file_name = null;
 		String part_file_name = null;
 		
-		wrl_file_name = Global.repartitioningCycle+"-"+Global.simulation+"-"+Global.workloadRepresentation+"-"+Global.wrl_file_name;		
+		wrl_file_name = Global.repartitioningCycle+"-"+Global.simulation;		
 		part_file_name = wrl_file_name+".part."+partition_numbers;	
 			
 		File part_file = new File(Global.part_dir+Global.getRunDir()+part_file_name);
@@ -337,15 +336,17 @@ public class WorkloadBatchProcessor {
 		
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		for(Entry<Integer, Map<Integer, Transaction>> entry : wb.getTrMap().entrySet()) {
-			for(Entry<Integer, Transaction> tr_entry : entry.getValue().entrySet()) {				
-				Transaction transaction = tr_entry.getValue();
+		//for(Entry<Integer, Map<Integer, Transaction>> entry : wb.getTrMap().entrySet()) {
+			//for(Entry<Integer, Transaction> tr_entry : entry.getValue().entrySet()) {			
+				//Transaction transaction = tr_entry.getValue();
+		for(SimpleHEdge h : wb.hgr.getEdges()) {	
+				Transaction tr = wb.getTransaction(h.getId());
 				
-				for(Integer data_id : transaction.getTr_dataSet()) {				
-					Data data = cluster.getData(data_id);
+				for(Integer d : tr.getTr_dataSet()) {				
+					Data data = cluster.getData(d);
 					
-					if(!dataSet.contains(data_id) && data.isData_inUse()) {
-						dataSet.add(data_id);
+					if(!dataSet.contains(d) && data.isData_inUse()) {
+						dataSet.add(d);
 						
 						int shadow_id = -1;
 						int cluster_id = -1;
@@ -387,6 +388,6 @@ public class WorkloadBatchProcessor {
 					}
 				} // end -- for()-Data
 			} // end -- for()-Transaction
-		} // end -- for()-Transaction Types
+		//} // end -- for()-Transaction Types
 	}
 }

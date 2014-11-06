@@ -91,8 +91,10 @@ public class ReadConfig {
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
 			Global.workloadChangeProbability = Double.parseDouble((String) config_param.getProperty("workload.change.probability"));			
-			Global.dtChangePercentage = Double.parseDouble((String) config_param.getProperty("dt.change.percentage"));
-			Global.initialWorkloadSize = Integer.parseInt((String) config_param.getProperty("initial.workload.size"));	
+			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("dt.change.percentage"));			
+			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
+			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));
+			Global.oldTransactionTimestamp = Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);
@@ -103,26 +105,30 @@ public class ReadConfig {
 			// Read configuration parameters			
 			Global.simulation = (String) config_param.getProperty("simulation.name");
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
+			Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation name: "+Global.simulation);
 			Global.LOGGER.info("Workload aware: "+Global.workloadAware);
+			Global.LOGGER.info("Workload representation: "+Global.workloadRepresentation);
 			
 			if(Global.workloadAware) {
+				
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
-				Global.staticRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("static.repartitioning"));
+				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));
+												
+				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
+				Global.dataMigrationStrategy = (String) config_param.getProperty("data.migration.strategy");
+				
+				
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
-				Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
-				Global.dataMigrationStrategy = (String) config_param.getProperty("data.migration.strategy");
-				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
 				
-				Global.LOGGER.info("-----------------------------------------------------------------------------");
-				Global.LOGGER.info("Workload representation: "+Global.workloadRepresentation);
-				Global.LOGGER.info("Static repartitioning enabled: "+Global.staticRepartitioning);
-				Global.LOGGER.info("Incremental repartitioning enabled: "+Global.incrementalRepartitioning);
+				Global.LOGGER.info("-----------------------------------------------------------------------------");				
+				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);
+				Global.LOGGER.info("Transaction classification: "+Global.enableTrClassification);
 				
-				Global.LOGGER.info("-----------------------------------------------------------------------------");
+				Global.LOGGER.info("-----------------------------------------------------------------------------");				
 				Global.LOGGER.info("Transaction classification strategy: "+Global.trClassificationStrategy);
 				Global.LOGGER.info("Data movement strategy: "+Global.dataMigrationStrategy);
 				
@@ -130,14 +136,9 @@ public class ReadConfig {
 				Global.LOGGER.info("Workload compression enabled: "+Global.compressionEnabled);
 				Global.LOGGER.info("Compression before setup enabled: "+Global.compressionBeforeSetup);
 	
-				if(Global.workloadRepresentation.equals("chg") || Global.compressionBeforeSetup) {
+				if(Global.compressionEnabled || Global.compressionBeforeSetup) {
 					Global.compressionRatio = Double.parseDouble((String) config_param.getProperty("sword.compression.ratio"));
 					Global.LOGGER.info("Compression ratio: "+Global.compressionRatio);
-					
-					if(Global.compressionBeforeSetup) {
-						Global.swordThreshold = Double.parseDouble((String) config_param.getProperty("sword.dt.threshold"));
-						Global.LOGGER.info("Sword threshold (in %): "+Global.swordThreshold);
-					}
 				}
 			}
 			

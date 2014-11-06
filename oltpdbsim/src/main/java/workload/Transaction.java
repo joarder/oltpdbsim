@@ -3,8 +3,11 @@ package main.java.workload;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
+
+import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
+import main.java.entry.Global;
 
 public class Transaction implements Comparable<Transaction>, java.io.Serializable {
 
@@ -36,7 +39,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private Set<Integer> tr_serverSet;
 	private String tr_class;
 	
-	private double timeOfOccurence;
+	private double timestamp;
 	
 	Transaction(int id, Set<Integer> dataSet) {		
 		this.setTr_id(id);
@@ -74,7 +77,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		
 		this.setTr_class(null);
 		
-		this.setTimeOfOccurence(time);
+		this.setTimestamp(time);
 	}
 	
 	public int getTr_id() {
@@ -246,12 +249,12 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.tr_class = tr_class;
 	}
 	
-	public double getTimeOfOccurence() {
-		return timeOfOccurence;
+	public double getTimestamp() {
+		return timestamp;
 	}
 
-	public void setTimeOfOccurence(double timeOfOccurence) {
-		this.timeOfOccurence = timeOfOccurence;
+	public void setTimestamp(double timestamp) {
+		this.timestamp = timestamp;
 	}
 
 	public void incTr_frequency() {
@@ -262,6 +265,15 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	public void decTr_temporalWeight() {
 		int tr_temporal_weight = this.getTr_temporal_weight();
 		this.setTr_temporal_weight(--tr_temporal_weight);
+	}
+	
+	public boolean isOld() {
+		
+		if(Sim.time() - this.getTimestamp() > Global.oldTransactionTimestamp) {//(3600/Global.workloadChangeProbability)) {		
+			return true;
+		}
+		
+		return false;
 	}
 	
 	// This function will calculate the Node and Partition Span Cost for the representative Transaction

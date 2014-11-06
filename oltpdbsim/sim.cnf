@@ -1,28 +1,28 @@
-simulation.name=static-hgr-random
+simulation.name=baseline
 
-workload.aware=true
-workload.representation=hgr
-
+workload.aware=false
 incremental.repartitioning=false
-static.repartitioning=false
+transaction.classification=false
 
+workload.representation=hgr
 transaction.classification.strategy=basic
-data.migration.strategy=random
+data.migration.strategy=msm
 
 compression.enabled=false
 compression.before.setup=false
-sword.compression.ratio=6
-sword.dt.threshold=0.5
+compression.ratio=6
 
 initial.servers=2
 server.capacity=10000
-fixed.partitions=4
+fixed.partitions=64
 number.of.replicas=1
 
-simulation.period=21600
+simulation.period=36000
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
 workload.change.probability=0.5
-dt.change.percentage=0.5
-initial.workload.size=3600
+dt.change.percentage=0.1
+initial.detection.time=3600
+dynamic.dt.margin=false
+old.transaction.timestamp=3600

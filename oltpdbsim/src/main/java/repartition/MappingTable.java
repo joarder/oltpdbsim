@@ -4,16 +4,14 @@
 
 package main.java.repartition;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.Map.Entry;
-
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
+import main.java.utils.graph.SimpleHEdge;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
@@ -52,40 +50,39 @@ public class MappingTable {
 				
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		for(Entry<Integer, Map<Integer, Transaction>> entry : wb.getTrMap().entrySet()) {
-			for(Entry<Integer, Transaction> tr_entry : entry.getValue().entrySet()) {
-				Transaction tr = tr_entry.getValue();
+		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			
-				for(Integer data_id : tr.getTr_dataSet()) {
-					Data data = cluster.getData(data_id);
+			Transaction tr = wb.getTransaction(h.getId());
+			
+			for(Integer data_id : tr.getTr_dataSet()) {
+				Data data = cluster.getData(data_id);
+				
+				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
+					dataSet.add(data.getData_id());
 					
-					if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
-						dataSet.add(data.getData_id());
+					partition_id = data.getData_partition_id();
+					
+					switch(Global.workloadRepresentation) {
+					case "hgr":
+						cluster_id = data.getData_hmetisClusterId();
+						break;
 						
-						partition_id = data.getData_partition_id();
+					case "chg":
+						cluster_id = data.getData_chmetisClusterId();
+						break;
 						
-						switch(Global.workloadRepresentation) {
-						case "hgr":
-							cluster_id = data.getData_hmetisClusterId();
-							break;
-							
-						case "chg":
-							cluster_id = data.getData_chmetisClusterId();
-							break;
-							
-						case "gr":
-							cluster_id = data.getData_metisClusterId();
-							break;
-						}					
-																
-						//System.out.println("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										
-						me = mapping[partition_id][cluster_id];
-						//System.out.println("@debug >> Row = "+me.getRow_pos()+"| Col ="+me.getCol_pos());
-						me.setCounts(me.getCounts()+1);
-					}
-				} // end -- for()-Data
-			} // end -- for()-Transaction
-		} // end -- for()-Transaction Types
+					case "gr":
+						cluster_id = data.getData_metisClusterId();
+						break;
+					}					
+															
+					//System.out.println("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										
+					me = mapping[partition_id][cluster_id];
+					//System.out.println("@debug >> Row = "+me.getRow_pos()+"| Col ="+me.getCol_pos());
+					me.setCounts(me.getCounts()+1);
+				}
+			} // end -- for()-Data
+		} // end -- for()
 
 		// Create the Movement Matrix
 		return (new Matrix(mapping));		 

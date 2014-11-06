@@ -180,14 +180,13 @@ public class Cluster {
 			//this.warmup(db, wrl);
 		}
 		
-		// Update Server load statistics
+		// Update server-level load statistic and show
 		this.updateLoad();
+		this.show();
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Total data within the Cluster: "+Global.global_dataCount);
 		Global.LOGGER.info("Cluster setup has finished.");
-		
-		this.show();	
 	}
 
 	// Physical Data distribution
@@ -227,7 +226,7 @@ public class Cluster {
 		// Stream a new Workload Batch
 		Global.global_trSeq = 0;
 		WorkloadBatch wb = this.warmupSword(db, this, wrl);
-		Global.LOGGER.info("Total "+wb.getWrl_totalTransactions()+" transactions containing "
+		Global.LOGGER.info("Total "+Global.global_trSeq+" transactions containing "
 				+wb.getWrl_totalDataObjects()+" data rows have generated.");
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
@@ -260,10 +259,8 @@ public class Cluster {
 			// Perform data movement			
 			DataMovement.performDataMovement(cluster, wb, "random", Global.workloadRepresentation);					
 			
-			// Update Node level load
+			// Update server-level load statistic and show
 			cluster.updateLoad();
-			
-			// Display the Cluster status
 			//cluster.show();
 			
 			Global.LOGGER.info("=======================================================================================================================");
@@ -306,7 +303,6 @@ public class Cluster {
 			}			
 		}
 
-		wb.setWrl_totalTransaction(Global.global_trSeq);
 		wb.setWrl_totalDataObjects(Global.global_dataCount);
 		wb.setDb_tuple_counts(db.getDb_tuple_counts());
 		

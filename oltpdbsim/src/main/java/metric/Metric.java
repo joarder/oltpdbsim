@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
@@ -70,7 +71,7 @@ public class Metric implements java.io.Serializable {
 		intra_server_dmv = new ArrayList<Integer>();
 		
 		// Creating a metric file
-		file = new File(Global.metric_dir+"run"+Global.repartitioningCycle+"/"
+		file = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
 		
 		try {			
@@ -83,16 +84,16 @@ public class Metric implements java.io.Serializable {
 	
 	public static void collect(Cluster cluster, WorkloadBatch wb) {
 				
-		mean_throughput.add(wb.getWrl_throughput());				
-		mean_response_time.add(wb.getWrl_response_time());
+		mean_throughput.add(wb.get_throughput());				
+		mean_response_time.add(wb.get_response_time());
 	
-		mean_trFreq.add(wb.getWrl_mean_trFreq());
-		mean_dti.add(wb.getWrl_mean_dti());
-		percentage_dt.add(wb.getWrl_percentage_dt());
-		percentage_ndt.add(wb.getWrl_percentage_ndt());
+		mean_trFreq.add(wb.get_mean_trFreq());
+		mean_dti.add(wb.get_mean_dti());
+		percentage_dt.add(wb.get_percentage_dt());
+		percentage_ndt.add(wb.get_percentage_ndt());
 		
-		intra_server_dmv.add(wb.getWrl_intra_dmv());
-		inter_server_dmv.add(wb.getWrl_inter_dmv());
+		intra_server_dmv.add(wb.get_intra_dmv());
+		inter_server_dmv.add(wb.get_inter_dmv());
 
 		getServerStatistic(cluster);
 		getPartitionStatistic(cluster);
@@ -137,15 +138,16 @@ public class Metric implements java.io.Serializable {
 	
 	public static void report() {
 		
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("-----------------------------------------------------------------------------");		
+		Global.LOGGER.info("Reporting simulation statistic ...");
+		Global.LOGGER.info("Simulation time: "+Sim.time()/3600+" hrs");
 		
 		if(Global.incrementalRepartitioning)
-			Global.LOGGER.info("Reporting simulation statistic for initial state and each incremental repartitioning cycle ...");
-		else
-			Global.LOGGER.info("Reporting simulation statistic for initial state and the single repartitioning cycle ...");
+			Global.LOGGER.info("Incremental repartitioning cycle: "+Global.repartitioningCycle);
 		
-		//Global.LOGGER.info("*****************************************************************************");
-		Global.LOGGER.info("Total number of incremental repartitioning cycle: "+Global.repartitioningCycle);
+		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
+		Global.LOGGER.info("Total Unique transactions processed: "+Global.global_trSeq);
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
@@ -184,8 +186,10 @@ public class Metric implements java.io.Serializable {
 		return prWriter;
 	}
 	
+	public static int metricCollectionCycle = 0;
+	
 	public static void write() {
-		int index = Global.repartitioningCycle;
+		int index = Metric.metricCollectionCycle;
 		PrintWriter prWriter = Utility.getPrintWriter(Global.metric_dir, file);
 		
 		try {
@@ -210,5 +214,7 @@ public class Metric implements java.io.Serializable {
 		} finally {
 			prWriter.close();
 		}
+		
+		++Metric.metricCollectionCycle;
 	}
 }

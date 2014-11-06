@@ -10,26 +10,24 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.Map.Entry;
-
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.cluster.VirtualData;
 import main.java.entry.Global;
-import main.java.metric.Metric;
 import main.java.repartition.MappingTable;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
+import main.java.utils.graph.SimpleHEdge;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
 public class DataMovement {
-	private static int intra_server_dmv;
-	private static int inter_server_dmv;	
+	private static int intra_server_dmv = 0;
+	private static int inter_server_dmv = 0;	
 
-	public static void setEnvironment(Cluster cluster, WorkloadBatch wb) {
+	private static void setEnvironment(Cluster cluster) {
 		intra_server_dmv = 0;
 		inter_server_dmv = 0;		
 				
@@ -42,12 +40,6 @@ public class DataMovement {
 			partition.setPartition_inflow(0);
 			partition.setPartition_outflow(0);
 		}
-	}
-	
-	public static void wrappingUp(boolean movement, String message, Cluster cluster, WorkloadBatch wb, 
-			String type) {
-		wb.setWrl_hasDataMoved(true);
-		wb.setMessage(message);
 	}
 	
 	public static void performDataMovement(Cluster cluster, WorkloadBatch wb, String strategy, String partitioner) {
@@ -92,7 +84,7 @@ public class DataMovement {
 	}
 	
 	private static void baseRandom(Cluster cluster, WorkloadBatch wb, String partitioner) {
-		setEnvironment(cluster, wb);
+		setEnvironment(cluster);
 		
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
@@ -123,12 +115,11 @@ public class DataMovement {
 		}
 		
 		// Perform Actual Data Movement
-		move(cluster, wb, keyMap, partitioner);		
-		wrappingUp(true, "random", cluster, wb, partitioner);
+		move(cluster, wb, keyMap, partitioner);
 	}
 	
 	private static void strategyMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
-		setEnvironment(cluster, wb);
+		setEnvironment(cluster);
 		
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
@@ -146,12 +137,11 @@ public class DataMovement {
 		}
 		
 		// Perform Actual Data Movement
-		move(cluster, wb, keyMap, partitioner);
-		wrappingUp(true, "mc", cluster, wb, partitioner);		
+		move(cluster, wb, keyMap, partitioner);	
 	}
 	
 	private static void strategyMSM(Cluster cluster, WorkloadBatch wb, String partitioner) {	
-		setEnvironment(cluster, wb);
+		setEnvironment(cluster);
 		
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
@@ -178,7 +168,7 @@ public class DataMovement {
 
 		// @debug
 		Global.LOGGER.info("Creating Movement Matrix after Sub Matrix Max calculation ...");
-		mapping.print();
+		//mapping.print();
 		
 		// Step-2 :: PID Conversion		
 		// Create the PID conversion Key Map
@@ -190,15 +180,17 @@ public class DataMovement {
 	
 		// Perform Actual Data Movement	
 		move(cluster, wb, keyMap, partitioner);
-		wrappingUp(true, "msm", cluster, wb, partitioner);
 	}
 	
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
+		setEnvironment(cluster);
 		
 	}
 	
-	private static void updateData(Cluster cluster, Data data, int dst_partition_id, int dst_server_id, boolean roaming) {		
+	private static void updateData(Cluster cluster, Data data, 
+			int dst_partition_id, int dst_server_id, boolean roaming) {
+		
 		data.setData_partion_id(dst_partition_id);					
 		data.setData_server_id(dst_server_id);
 		
@@ -209,6 +201,7 @@ public class DataMovement {
 		        
         // Only for Sword
         if(Global.compressionBeforeSetup) {
+        	
         	VirtualData v = cluster.getVdataSet().get(data.getData_vdata_id());
         	v.setVdata_partition_id(dst_partition_id);
         	v.setVdata_server_id(dst_server_id);
@@ -228,7 +221,8 @@ public class DataMovement {
         			d.setData_isRoaming(false);
         		
         		updatePartition(cluster, d, d.getData_partition_id(), dst_partition_id);
-        		updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+        		updateMovementCounts(cluster, dst_server_id, current_server_id, 
+        				dst_partition_id, current_partition_id);
         	}
         }
 	}
@@ -249,16 +243,22 @@ public class DataMovement {
         updateLookupTable(home_partition, dst_partition_id, data);
 	}
 	
-	private static void updateLookupTable(Partition home_partition, int dst_partition_id, Data data) {
+	private static void updateLookupTable(Partition home_partition, int dst_partition_id, 
+			Data data) {
+		
 		if(home_partition.getPartition_dataLookupTable().containsKey(data.getData_id())) {
+			
         	home_partition.getPartition_dataLookupTable().remove(data.getData_id());
         	home_partition.getPartition_dataLookupTable().put(data.getData_id(), dst_partition_id);
+        	
         } else {
+        	
         	home_partition.getPartition_dataLookupTable().put(data.getData_id(), dst_partition_id);
         }
 	}
 	
-	private static void updateMovementCounts(Cluster cluster, int dst_server_id, int current_server_id, int dst_partition_id, int current_partition_id) {
+	private static void updateMovementCounts(Cluster cluster, int dst_server_id, 
+			int current_server_id, int dst_partition_id, int current_partition_id) {
 		
 		cluster.getPartition(dst_partition_id).incPartition_inflow();		 
 		cluster.getPartition(current_partition_id).incPartition_outflow();
@@ -277,92 +277,99 @@ public class DataMovement {
 	}		
 	
 	// Perform Actual Data Movement
-	private static void move(Cluster cluster, WorkloadBatch wb, Map<Integer, Integer> keyMap, String type) {
+	private static void move(Cluster cluster, WorkloadBatch wb, Map<Integer, Integer> keyMap, 
+			String type) {
+		
 		Partition home_partition = null;
 		Partition current_partition = null;
 		Partition dst_partition = null;
+		
 		int home_partition_id = -1;
 		int current_partition_id = -1;
 		int dst_partition_id = -1;		
 		int current_server_id = -1;		
 		int dst_server_id = -1;		
 		
-		Set<Integer> dataSet = new TreeSet<Integer>();
+		Set<Integer> dataSet = new TreeSet<Integer>();			
+						
+		for(SimpleHEdge h : wb.hgr.getEdges()) {
+			
+			Transaction tr = wb.getTransaction(h.getId());
 		
-		for(Entry<Integer, Map<Integer, Transaction>> entry : wb.getTrMap().entrySet()) {
-			for(Entry<Integer, Transaction> tr_entry : entry.getValue().entrySet()) {				
-				Transaction transaction = tr_entry.getValue();				
+			for(Integer d : tr.getTr_dataSet()) {
 				
-				for(Integer data_id : transaction.getTr_dataSet()) {					
-					Data data = cluster.getData(data_id);
+				Data data = cluster.getData(d);
+				
+				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
+					dataSet.add(data.getData_id());
 					
-					if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
-						dataSet.add(data.getData_id());
-						
-						home_partition_id = data.getData_homePartitionId();
-						home_partition = cluster.getPartition(data.getData_homePartitionId());																		
-						
-						current_partition_id = data.getData_partition_id();									
-						current_partition = cluster.getPartition(current_partition_id);
-						current_server_id = data.getData_server_id();			
-						
-						switch(type) {
-						case "hgr":
-							dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
-							data.setData_hmetisClusterId(-1);
-							break;
-						case "chg":
-							dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
-							data.setData_chmetisClusterId(-1);
-							break;
-						case "gr":
-							dst_partition_id = keyMap.get(data.getData_metisClusterId());
-							data.setData_metisClusterId(-1);
-							break;
-						}
-						
-						//System.out.println("@debug >> P"+dst_partition_id);
-						dst_partition = cluster.getPartition(dst_partition_id);
-						dst_server_id = dst_partition.getPartition_serverId();												
-						
-						if(dst_partition_id != current_partition_id) { // Data needs to be moved					
-							if(data.isData_isRoaming()) { // Data is already Roaming
-								if(dst_partition_id == home_partition_id) {
-									updateData(cluster, data, dst_partition_id, dst_server_id, false);
-									updatePartition(cluster, data, current_partition_id, dst_partition_id);
-									updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);																		
-									
-									current_partition.decPartition_foreign_data();
-									home_partition.decPartition_roaming_data();
-									
-								} else if(dst_partition_id == current_partition_id) {									
-									// Nothing to do									
-								} else {
-									updateData(cluster, data, dst_partition_id, dst_server_id, true);
-									updatePartition(cluster, data, current_partition_id, dst_partition_id);
-									updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
-									
-									dst_partition.incPartition_foreign_data();
-									current_partition.decPartition_foreign_data();
-									
-								}
+					home_partition_id = data.getData_homePartitionId();
+					home_partition = cluster.getPartition(data.getData_homePartitionId());																		
+					
+					current_partition_id = data.getData_partition_id();									
+					current_partition = cluster.getPartition(current_partition_id);
+					current_server_id = data.getData_server_id();			
+					
+					switch(type) {
+					case "hgr":
+						dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
+						data.setData_hmetisClusterId(-1);
+						break;
+					case "chg":
+						dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
+						data.setData_chmetisClusterId(-1);
+						break;
+					case "gr":
+						dst_partition_id = keyMap.get(data.getData_metisClusterId());
+						data.setData_metisClusterId(-1);
+						break;
+					}
+					
+					//System.out.println("@debug >> P"+dst_partition_id);
+					dst_partition = cluster.getPartition(dst_partition_id);
+					dst_server_id = dst_partition.getPartition_serverId();												
+					
+					if(dst_partition_id != current_partition_id) { // Data needs to be moved					
+						if(data.isData_isRoaming()) { // Data is already Roaming
+							if(dst_partition_id == home_partition_id) {
+								updateData(cluster, data, dst_partition_id, dst_server_id, false);
+								updatePartition(cluster, data, current_partition_id, dst_partition_id);
+								updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);																		
+								
+								current_partition.decPartition_foreign_data();
+								home_partition.decPartition_roaming_data();
+								
+							} else if(dst_partition_id == current_partition_id) {									
+								// Nothing to do									
 							} else {
 								updateData(cluster, data, dst_partition_id, dst_server_id, true);
 								updatePartition(cluster, data, current_partition_id, dst_partition_id);
 								updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
 								
-								dst_partition.incPartition_foreign_data();								
-								home_partition.incPartition_roaming_data();
+								dst_partition.incPartition_foreign_data();
+								current_partition.decPartition_foreign_data();
+								
 							}
+						} else {
+							updateData(cluster, data, dst_partition_id, dst_server_id, true);
+							updatePartition(cluster, data, current_partition_id, dst_partition_id);
+							updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+							
+							dst_partition.incPartition_foreign_data();								
+							home_partition.incPartition_roaming_data();
 						}
-						
-						data.setData_inUse(false);
-					} // end -- if()-Data
-				} // end -- for()-Data
-			} // end -- for()-Transaction
-		} // end -- for()-Transaction-Type		
+					}
+					
+					data.setData_inUse(false);
+				} // end -- if()-Data
+			} // end -- for()-Data
+			
+			if(tr.isDt())
+				wb.hCut.add(tr.getTr_id());
+			
+		} // end -- for()		
 		
-		wb.setWrl_intra_dmv(intra_server_dmv);
-		wb.setWrl_inter_dmv(inter_server_dmv);	
+		wb.set_intra_dmv(intra_server_dmv);
+		wb.set_inter_dmv(inter_server_dmv);	
 	}
 }

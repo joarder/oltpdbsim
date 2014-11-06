@@ -12,6 +12,7 @@ public final class Global implements java.io.Serializable {
 	
 	// Global variables
 	public static int global_trSeq = 0;
+	public static int total_transactions = 0;
 	public static int global_tupleSeq = 0;
 	public static int global_dataCount = 0;
 	
@@ -63,28 +64,31 @@ public final class Global implements java.io.Serializable {
 	public static double meanInterArrivalTime; 
     public static double meanServiceTime;
 	public static double workloadChangeProbability;
-	public static double dtChangePercentage;
-	public static int initialWorkloadSize;       
+	public static double percentageChangeDt;
+	public static int initialDetectionTime;
+	public static int oldTransactionTimestamp;
+	public static double nextCollection = 3600.0;
+	public static boolean dynamicDtMargin;
 	
     // Workload mining
     public static int mining_serial = 0;
     
     // Simulation specific
-    public static String simulation; // none, static, increp, sword
-    public static String workloadRepresentation; // none (null), static(hgr/gr/chg), increp (hgr/gr/chg), sword (hgr)
-    public static boolean workloadAware;
-    public static boolean incrementalRepartitioning;
-    public static boolean staticRepartitioning;
-    public static boolean compressionEnabled;
-    public static boolean compressionBeforeSetup;
-    public static double compressionRatio;
-    public static String dataMigrationStrategy;
-    public static String trClassificationStrategy;
-    public static int repartitioningCycle = 0;
+    public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)
     
-    // Sword specific
-    public static double swordThreshold;
-    public static int virtualNodes;    
+    public static boolean workloadAware; // true/false
+    public static boolean incrementalRepartitioning; // true/false
+    public static boolean enableTrClassification;
+    
+    public static String workloadRepresentation; // gr/cgr/hgr/chg
+    public static String trClassificationStrategy; // basic/fd/fdfnd
+    public static String dataMigrationStrategy; // random/mc/msm/sword
+    
+    public static boolean compressionEnabled;	// true/false
+    public static boolean compressionBeforeSetup;
+    public static double compressionRatio;    
+    
+    public static int repartitioningCycle = 0;  
     
     // TPC-C specific
     public static final int[] tpccTrTypes = {1, 2, 3, 4, 5};
@@ -92,7 +96,9 @@ public final class Global implements java.io.Serializable {
     public static int[] tpccLineNumbers = new int[5];
     
 	// Logger
-	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);	
+	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);
+
+	public static int virtualNodes;	
 	
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);

@@ -1,15 +1,14 @@
 package main.java.repartition;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.VirtualData;
@@ -35,6 +34,7 @@ public class Sword {
 		v_cut = new TreeSet<Integer>();
 	}
 	
+	@SuppressWarnings("unused")
 	public void init(Cluster cluster, WorkloadBatch wb) {
 		
 		double c_e = 0;
@@ -90,6 +90,7 @@ public class Sword {
 		}
 	}
 	
+	@SuppressWarnings("unused")
 	private void addNHValues(Cluster cluster, WorkloadBatch wb, Transaction tr, CompressedHEdge e) {
 		
 		for(Integer d_id : tr.getTr_dataSet()) {
