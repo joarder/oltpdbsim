@@ -11,16 +11,10 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
 import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.entry.Global;
-import main.java.utils.Permutation;
-import main.java.utils.VertexPair;
-import main.java.utils.graph.SimGraph;
-import main.java.utils.graph.SimHypergraph;
-import main.java.utils.graph.SimpleEdge;
-import main.java.utils.graph.SimpleGraph;
+import main.java.utils.graph.SHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
@@ -32,8 +26,7 @@ public class WorkloadBatch {
 	private SortedMap<Integer, Map<Integer, Transaction>> trMap;
 	private SortedMap<Integer, ArrayList<Integer>> trBuffer;	
 	
-	// Graph, Hypergraph
-	public SimpleGraph<SimpleVertex, SimpleEdge> gr;
+	// Hypergraph	
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
 	public Set<Integer> hCut;
 		
@@ -65,12 +58,15 @@ public class WorkloadBatch {
 	private int _old_ndt_nums;
 	private int _ndt_nums;
 	private int _old_ndti_sum;
+	private int _dt_original;
+	private int _dt_new;
 	private double _mean_trFreq;
 	private double _throughput;
 	private double _response_time;
 	private double _mean_dti;
 	private double _percentage_dt;
 	private double _percentage_ndt;
+	private double _percentage_change_in_dt;
 	private int _intra_dmv;
 	private int _inter_dmv;
 	private double _percentage_intra_dmv;
@@ -89,26 +85,22 @@ public class WorkloadBatch {
 		this.setWrl_dataId_clusterId_map(new TreeMap<Integer, Integer>());
 		this.setWrl_virtualDataId_clusterId_map(new TreeMap<Integer, Integer>());		
 		
+		this.hgr = new SHypergraph<SimpleVertex, SimpleHEdge>();
+		this.hCut = new TreeSet<Integer>();
+		
 		switch(Global.workloadRepresentation) {
 			case "gr":
-				this.gr = new SimGraph<SimpleVertex, SimpleEdge>();
-				this.edge_id_map = new TreeMap<Integer, Set<Integer>>();
-				
 				if(Global.compressionEnabled)
 					this.cEdge_id_map = new TreeMap<Integer, Integer>();
 					
 				break;
 				
 			case "hgr":
-				this.hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();
-				
 				if(Global.compressionEnabled)
 					this.cHEdge_id_map = new TreeMap<Integer, Integer>();
 				
 				break;
 		}
-		
-		this.hCut = new TreeSet<Integer>();
 	}
 
 	public int getWrl_id() {
@@ -191,6 +183,14 @@ public class WorkloadBatch {
 		this._dt_nums = wrl_dt_nums;
 	}
 	
+	public int get_dt_new() {
+		return _dt_new;
+	}
+
+	public void set_dt_new(int _dt_new) {
+		this._dt_new = _dt_new;
+	}
+
 	public void inc_dt_nums() {
 		int dt_nums = this.get_dt_nums();
 		this.set_dt_nums(++dt_nums);
@@ -225,6 +225,14 @@ public class WorkloadBatch {
 		this._old_ndti_sum = _old_ndti_sum;
 	}
 
+	public int get_dt_original() {
+		return _dt_original;
+	}
+
+	public void set_dt_original(int _dt_original) {
+		this._dt_original = _dt_original;
+	}
+
 	public int get_ndt_nums() {
 		return _ndt_nums;
 	}
@@ -249,6 +257,14 @@ public class WorkloadBatch {
 
 	public void set_percentage_ndt(double wrl_percentage_ndt) {
 		this._percentage_ndt = wrl_percentage_ndt;
+	}
+
+	public double get_percentage_change_in_dt() {
+		return _percentage_change_in_dt;
+	}
+
+	public void set_percentage_change_in_dt(double _percentage_change_in_dt) {
+		this._percentage_change_in_dt = _percentage_change_in_dt;
 	}
 
 	public double get_throughput() {
@@ -386,44 +402,22 @@ public class WorkloadBatch {
 		this.set_mean_trFreq(freq);
 	}
 	
-	// Adding graph edges from a single transaction
-	public void addGraphEdges(Transaction tr) {
+	public void calculatePercentageChangeInDt() {
+		double val = (double) (this.get_dt_new() - this.get_dt_original()) 
+				/ (double) this.get_dt_original();
+				
+		double _change = Math.round(val * 100.0) / 100.0;
 		
-		Set<VertexPair> permutations = Permutation.getPermutations(tr.getTr_dataSet());
-		Set<Integer> edgeSet = new TreeSet<Integer>();
-				
-		for(VertexPair pair : permutations) {
-
-			SimpleVertex v1 = this.gr.getVertex(pair.x);
-			SimpleVertex v2 = this.gr.getVertex(pair.y);			
-			SimpleEdge e = null;
-			
-			if(v1 != null && v2 != null)
-				e = this.gr.findEdge(v1, v2);
-				
-			if(e != null) {
-				e.incWeight(1);
-				
-			} else {
-				
-				v1 = new SimpleVertex(pair.x, 1);
-				v2 = new SimpleVertex(pair.y, 1);
-								
-				this.gr.addEdge(new SimpleEdge(++Global.edgeSeq, tr.getTr_frequency()), v1, v2);
-				edgeSet.add(Global.edgeSeq);				
-			}
-		}
-		
-		this.edge_id_map.put(tr.getTr_id(), edgeSet);
+		this.set_percentage_change_in_dt(_change);
 	}
 	
 	// Adding a hyperedge from a single transaction
 	public void addHGraphEdge(Transaction tr) {	
 		
-		SimpleHEdge hEdge = this.hgr.getHEdge(tr.getTr_id());
+		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
 				
-		if(hEdge != null)
-			hEdge.incWeight(1);			
+		if(h != null)
+			h.setWeight(tr.getTr_frequency());			
 		else {
 			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr.getTr_frequency()), 
 					this.getVertices(tr.getTr_dataSet()));
@@ -450,6 +444,41 @@ public class WorkloadBatch {
 		
 		return null;
 	}
+	
+	// Removes edges and hyperedges from the graphs and hypergraphs
+	// Remove the nonDT non-movable edges from Graph and Hypergraph
+	public void removeTransaction(Transaction tr) {
+		
+		for(Integer d : tr.getTr_dataSet())
+			this.deleteTrDataFromWorkload(d);
+		
+		this.getTrMap().get(tr.getTr_type()).remove(tr);
+		
+		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
+		this.hgr.removeEdge(h);
+//		
+//		switch(Global.workloadRepresentation) {
+//			case "gr":
+//				Set<Integer> edgeSet = this.edge_id_map.get(tr.getTr_id());
+//				for(Integer e_i : edgeSet) {
+//					SimpleEdge e = this.gr.getEdge(e_i);
+//					this.gr.removeEdge(e);
+//					//wb.gr.removeGraphEdge(e);
+//				}
+//				
+//				this.edge_id_map.remove(tr.getTr_id());
+//				
+//				break;
+//				
+//			case "hgr":
+//				SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
+//				this.hgr.removeEdge(h);
+//				// wb.hgr.removeHEdge(h);
+//				
+//				break;
+//				
+//		} //end-switch()
+	}	
 	
 	// Unused function
 	// Remove a set of transactions from the Workload
@@ -552,24 +581,22 @@ public class WorkloadBatch {
 				
 			}
 		} // end -- for()		
-		
+				
 		this.set_dt_nums(dt_nums);
 		this.set_ndt_nums(ndt_nums);
 		
-//		System.out.println("--> tr = "+this.hgr.getEdgeCount());
-//		System.out.println("--> *tr = "+this.get_tr_nums());
-//		System.out.println("--> dt = "+dt_nums+" | dti = "+dti_sum);
-//		System.out.println("--> ndt = "+(ndt_nums+this.get_old_ndt_nums())
-//				+" |old_ndt_nums = "+ this.get_old_ndt_nums()+" | ndt_nums = "+ndt_nums+" | ndti = "+ndti_sum);
-//		
+		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
+		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
+		Global.LOGGER.info("Number of non-DTs before statistic collection: "+this.get_old_ndt_nums());
+		
 		if(this.get_dt_nums() != 0)
 			dt_percentage = (Math.round(((double)dt_nums 
 					/ (double)this.get_tr_nums()) * 100.00) / 100.00) * 100.00;
-		System.out.println("--> % dt = "+dt_percentage);
+
 		if(this.get_ndt_nums() != 0)
 			ndt_percentage = (Math.round((((double)(ndt_nums + this.get_old_ndt_nums())) 
 					/ (double)this.get_tr_nums()) * 100.0) / 100.00) * 100.00;
-		System.out.println("--> % ndt = "+ndt_percentage);
+
 		// following equation 3 of the UCC 2014 paper
 		mean_dti = Math.round(((double)dti_sum 
 				/ ((double)(dti_sum + ndti_sum + this.get_old_ndti_sum()))) * 100.00) / 100.00;

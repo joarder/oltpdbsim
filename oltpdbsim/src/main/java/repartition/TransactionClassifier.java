@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
@@ -15,7 +16,6 @@ import main.java.incmine.core.SemiFCI;
 import main.java.incmine.learners.IncMine;
 import main.java.incmine.streams.ZakiFileStream;
 import main.java.utils.Utility;
-import main.java.utils.graph.SimpleEdge;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -36,6 +36,30 @@ public class TransactionClassifier {
 	private static Set<Integer> frequent_sfci = new TreeSet<Integer>();
 	private static Set<Integer> movable = new TreeSet<Integer>();
 	private static Set<Integer> toBeRemoved;
+	
+	// Removal of old transactions
+	public static void removeOldTransactions(Cluster cluster, WorkloadBatch wb) {
+		
+		toBeRemoved = new TreeSet<Integer>();
+		
+		//Find the distributed movable transactions
+		for(SimpleHEdge h : wb.hgr.getEdges()) {
+			Transaction tr = wb.getTransaction(h.getId());
+			
+			if(tr.isOld()) {				
+				++tr_old;
+				toBeRemoved.add(tr.getTr_id());
+			}
+		}
+		
+		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
+		
+		TransactionClassifier.remove(wb);
+		
+		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
+		
+		tr_old = 0;
+	}
 	
 	// Basic classification
 	public static void classifyMovableDTs(Cluster dbCluster, WorkloadBatch wb) {
@@ -65,21 +89,7 @@ public class TransactionClassifier {
 			}
 		}
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount());
-		wb.set_old_dt_nums(tr_red);
-		wb.set_old_ndt_nums(tr_orange + tr_green);
-		wb.set_old_ndti_sum(old_ndti_sum);
-		
-		TransactionClassifier.remove(wb);
-		
-		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
-		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
-		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
-		
-		tr_red = 0;
-		tr_orange = 0;
-		tr_green = 0;
+		wrapup(wb);
 	}
 	
 	public static void init() {
@@ -116,6 +126,8 @@ public class TransactionClassifier {
 	// DSM (FD)
 	public static void classifyMovableFD(Cluster cluster, WorkloadBatch wb) {		
 		
+		toBeRemoved = new TreeSet<Integer>();
+		
 		init();
 		
 		//Find the list of semi-FCI
@@ -148,8 +160,10 @@ public class TransactionClassifier {
 			// Infrequent Transactions
 			if(!isFrequent(tr, semiFCIList)){
 				
-				if(!toBeRemoved.contains(tr.getTr_id()))
+				if(!toBeRemoved.contains(tr.getTr_id())) {
+					++tr_old;
 					toBeRemoved.add(tr.getTr_id());
+				}
 				
 			} else { // Frequent Transactions
 											
@@ -165,8 +179,10 @@ public class TransactionClassifier {
 						
 					} else { // Distributed Transactions containing Non-Distributed Semi-FCI
 						
-						if(!toBeRemoved.contains(tr.getTr_id()))
+						if(!toBeRemoved.contains(tr.getTr_id())) {
+							++tr_old;
 							toBeRemoved.add(tr.getTr_id());
+						}
 						
 					} //end-if-else()
 					
@@ -178,23 +194,13 @@ public class TransactionClassifier {
 			} //end-if-else()
 		} //end-for()
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount());
-		wb.set_old_dt_nums(tr_red);
-		wb.set_old_ndt_nums(tr_orange + tr_green);
-		
-		TransactionClassifier.remove(wb);
-		
-		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
-		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
-		
-		tr_red = 0;
-		tr_orange = 0;
-		tr_green = 0;
+		wrapup(wb);
 	}
 	
 	// DSM - (FD+FND)
 	public static void classifyMovableFDFND(Cluster cluster, WorkloadBatch wb) {
+		
+		toBeRemoved = new TreeSet<Integer>();
 		
 		init();
 		
@@ -224,8 +230,10 @@ public class TransactionClassifier {
 			// Infrequent Transactions
 			if(!isFrequent(tr, semiFCIList)){
 				
-				if(!toBeRemoved.contains(tr.getTr_id()))
+				if(!toBeRemoved.contains(tr.getTr_id())) {
+					++tr_old;				
 					toBeRemoved.add(tr.getTr_id());
+				}
 				
 			} else { // Frequent Transactions
 											
@@ -243,21 +251,30 @@ public class TransactionClassifier {
 				}
 			} //end-if-else()
 		} //end-for()
+				
+		wrapup(wb);
+	}		
+	
+	private static void wrapup(WorkloadBatch wb) {
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount());
+		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
 		wb.set_old_dt_nums(tr_red);
-		wb.set_old_ndt_nums(tr_orange + tr_green);
+		wb.set_old_ndt_nums(tr_green);
+		wb.set_old_ndti_sum(old_ndti_sum);
 		
 		TransactionClassifier.remove(wb);
 		
+		Global.LOGGER.info("Total transactions: "+wb.hgr.getEdgeCount());
 		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
 		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");	
+		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
+		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
 		
 		tr_red = 0;
 		tr_orange = 0;
 		tr_green = 0;
-	}		
+		tr_old = 0;
+	}
 	
 	// Returns true if a transaction contains any of the mined semi-FCI
 	private static boolean isFrequent(Transaction transaction, ArrayList<List<Integer>> semiFCIList){
@@ -359,26 +376,8 @@ public class TransactionClassifier {
 	private static void remove(WorkloadBatch wb) {
 		
 		for(Integer i : toBeRemoved) {
-			
-			switch(Global.workloadRepresentation) {
-				case "gr":
-					Set<Integer> edgeSet = wb.edge_id_map.get(i);
-					for(Integer e_i : edgeSet) {
-						SimpleEdge e = wb.gr.getEdge(e_i);
-						wb.gr.removeEdge(e);
-					}
-					
-					wb.edge_id_map.remove(i);
-					
-					break;
-					
-				case "hgr":
-					SimpleHEdge h = wb.hgr.getHEdge(i);
-					wb.hgr.removeEdge(h);
-					
-					break;
-					
-			} //end-switch()
-		} //end-for()
+			SimpleHEdge h = wb.hgr.getHEdge(i);
+			wb.hgr.removeHEdge(h);
+		}		
 	}
 }

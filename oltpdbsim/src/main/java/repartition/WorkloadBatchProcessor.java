@@ -21,8 +21,8 @@ import java.util.Map.Entry;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
-import main.java.utils.graph.CompressedHEdge;
-import main.java.utils.graph.CompressedVertex;
+import main.java.utils.graph.CHEdge;
+import main.java.utils.graph.CVertex;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -30,7 +30,9 @@ import main.java.workload.WorkloadBatch;
 
 public class WorkloadBatchProcessor {
 	
-	public static boolean generateWorkloadFile(Cluster cluster, WorkloadBatch wb) throws IOException {
+	public static boolean generateWorkloadFile(Cluster cluster, WorkloadBatch wb) 
+			throws IOException {
+		
 		boolean empty = false;
 
 		// Workload file
@@ -45,12 +47,12 @@ public class WorkloadBatchProcessor {
 		// Generates specified workload file for repartitioning
 		switch(Global.workloadRepresentation) {
 			case "hgr":
-				empty = generateHGraphWorkloadFile(cluster, wb);			
-				break;
-			
-			case "chg":
-				empty = generateCHGraphWorkloadFile(cluster, wb);			
-				break;
+				if(Global.compressionEnabled)
+					empty = generateCHGraphWorkloadFile(cluster, wb);
+				else
+					empty = generateHGraphWorkloadFile(cluster, wb);			
+				
+				break;			
 			
 			case "gr":
 				empty = generateGraphWorkloadFile(cluster, wb);			
@@ -61,6 +63,7 @@ public class WorkloadBatchProcessor {
 	}
 	
 	private static Map<Integer, Integer> vertex_id_map;
+	private static Map<Integer, Integer> vvertex_id_map;
 	
 	// Generates Workload File for Hypergraph partitioning
 	private static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
@@ -143,24 +146,31 @@ public class WorkloadBatchProcessor {
 	// Generates Workload File for Compressed Hypergraph based repartitioning
 	private static boolean generateCHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
 		
-		Map<CompressedHEdge, Set<CompressedVertex>> vedge = new TreeMap<CompressedHEdge, Set<CompressedVertex>>();
-		Set<CompressedVertex> vvertex = new TreeSet<CompressedVertex>();
+		Map<CHEdge, Set<CVertex>> vedge = new TreeMap<CHEdge, Set<CVertex>>();
+		Set<CVertex> vvertex = new TreeSet<CVertex>();
+		
+		//Global.LOGGER.info("--> Total vedges = "+wb.hgr.getcHEdges().size());
 		
 		// Only select the compressed hyperedges having at least two compressed vertices
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
+		for(Entry<CHEdge, Set<CVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
 			if(entry.getValue().size() >= 2) {
 				vedge.put(entry.getKey(), entry.getValue());
 				vvertex.addAll(entry.getValue());				
+			} else {
+				System.out.println("Compressed hyperedge with only 1 compressed vertex !!!");
 			}
 		}
 		
-		Map<Integer, Integer> vvertex_id_map = new TreeMap<Integer, Integer>();
+		//Global.LOGGER.info("vedges = "+vedge.size()+" | vvertex = "+vvertex.size());
+		
+		vvertex_id_map = new TreeMap<Integer, Integer>();
 		int vvertex_id = 0;
 		
-		for(CompressedVertex cv : vvertex) {
+		for(CVertex cv : vvertex) {
 			vvertex_id_map.put(cv.getId(), ++vvertex_id);
 			
 			for(Entry<Integer, SimpleVertex> entry : cv.getVSet().entrySet()) {
+				//System.out.println("@ "+entry.getValue().toString());
 				Data data = cluster.getData(entry.getValue().getId());
 				data.setData_virtual_data_id(cv.getId());
 				data.setData_inUse(true);
@@ -168,7 +178,7 @@ public class WorkloadBatchProcessor {
 		}
 		
 		// Creating Compressed Hyper-graph Workload File
-		Global.LOGGER.info("Total "+vedge.size()+" virtual transactions containing "+vvertex.size()
+		Global.LOGGER.info("Total "+vedge.size()+" virtual hyperedges containing "+vvertex.size()
 				+" virtual tuples have been identified for repartitioning.");
 		Global.LOGGER.info("Generating workload file for compressed hypergraph based repartitioning ...");
 			
@@ -195,13 +205,13 @@ public class WorkloadBatchProcessor {
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
 					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
 					
-					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : vedge.entrySet()) {
+					for(Entry<CHEdge, Set<CVertex>> entry : vedge.entrySet()) {
 						
 						// Writing e' weight
 						writer.write(Integer.toString(entry.getKey().getWeight())+" ");
 								
 						// Writing v' incident on e'
-						Iterator<CompressedVertex> cv_itr =  entry.getValue().iterator();
+						Iterator<CVertex> cv_itr =  entry.getValue().iterator();
 						while(cv_itr.hasNext()) {						
 							writer.write(Integer.toString(vvertex_id_map.get(cv_itr.next().getId())));
 							
@@ -213,7 +223,7 @@ public class WorkloadBatchProcessor {
 					}
 	
 					// Writing v' weight					
-					Iterator<CompressedVertex> cv_itr = vvertex.iterator();
+					Iterator<CVertex> cv_itr = vvertex.iterator();
 					while(cv_itr.hasNext()) {
 						String cv_weight = Integer.toString(cv_itr.next().getWeight());
 						writer.write(cv_weight);
@@ -238,36 +248,54 @@ public class WorkloadBatchProcessor {
 		
 	// Generates Workload File for Graph partitioning
 	private static boolean generateGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) throws IOException {
-		
+
 		vertex_id_map = new TreeMap<Integer, Integer>();
+		
 		int vertex_id = 0;
 		
-		for(SimpleVertex v : wb.gr.getVertices()) {
-			vertex_id_map.put(v.getId(), ++vertex_id);
+		for(SimpleVertex v : wb.hgr.getVertices()) {
 			
-			Data data = cluster.getData(v.getId());
-			data.setData_shadowId(++vertex_id);
-			data.setData_inUse(true);						
+			vertex_id_map.put(v.getId(), ++vertex_id);
+				
+			Data data = cluster.getData(v.getId());			
+			data.setData_shadowId(vertex_id);
+			data.setData_inUse(true);			
+		}		
+		
+		int edges = 0;		
+		int vertices = wb.hgr.getVertexCount();
+		int hasTransactionWeight = 1;
+		int hasDataWeight = 1;
+		
+		String content = "";		
+		for(SimpleVertex v : wb.hgr.getVertices()) {
+
+			String str = Integer.toString(v.getWeight())+" ";
+			
+			for(SimpleVertex _v : wb.hgr.getNeighbors(v)) {
+				if(!v.equals(_v)) {
+					SimpleHEdge _h = wb.hgr.findEdge(v, _v);
+					
+					++edges;
+					
+					String _id = Integer.toString(vertex_id_map.get(_v.getId()));
+					String _edge_weight = Integer.toString(_h.getWeight());
+					
+					str += _id+" "+_edge_weight+" ";
+				}
+			}
+
+			str += "\n";
+			content += str;
 		}
-		
-		int edges = wb.gr.getEdgeCount();
-		int vertices = wb.gr.getVertexCount();
-		
-		// Creating Graph Workload File
-		Global.LOGGER.info("Total "+edges+" transactional edges containing "+vertices
-				+" tuples have been identified for repartitioning.");
-		Global.LOGGER.info("Generating workload file for graph based repartitioning ...");
-				
-		int hasEdgeWeight = 1;
-		int hasVertexWeight = 1;		
-				
-		// Write in a file		
-		if(edges <= 1) { 
+					
+		// Writing in a file
+		if(edges <= 1 ) {			
 			Global.LOGGER.info("Only "+edges+" edges present in the workload graph network.");
 			Global.LOGGER.info("Repartitioning will be aborted for this run ...");			
 			return true;
 			
-		}else{		
+		} else {		
 			try {
 				wb.getWrl_file().getParentFile().mkdirs();
 				wb.getWrl_file().createNewFile();
@@ -277,20 +305,8 @@ public class WorkloadBatchProcessor {
 				try {
 					writer = new BufferedWriter(new OutputStreamWriter(
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
-					writer.write(vertices+" "+edges+" "+hasVertexWeight+""+hasEdgeWeight); // edges/2
-				
-					for(SimpleVertex v : wb.gr.getVertices()) {
-						writer.write(Integer.toString(v.getWeight())+" ");
-						
-						for(SimpleVertex n : wb.gr.getNeighbors(v)) {
-							String n_id = Integer.toString(vertex_id_map.get(n.getId()));
-							String n_edge_weight = Integer.toString(wb.gr.findEdge(v, n).getWeight());
-							
-							writer.write(n_id+" "+n_edge_weight+" ");
-						}
-						
-						writer.write("\n");
-					}
+					writer.write(vertices+" "+(edges/2)+" "+hasDataWeight+""+hasTransactionWeight
+							+"\n"+content);
 					
 				} catch(IOException e) {
 					e.printStackTrace();
@@ -299,14 +315,15 @@ public class WorkloadBatchProcessor {
 				}
 			} catch (IOException e) {		
 				e.printStackTrace();
-			}	
+			}
 			
 			Global.LOGGER.info("Workload file generation for graph based repartitioning has completed.");
+			Global.LOGGER.info("Total edges: "+edges);
+			Global.LOGGER.info("Total vertices: "+vertices);
+			
 			return false;
 		}		
-	}
-	
-	
+	}	
 	
 	public static void processPartFile(Cluster cluster, WorkloadBatch wb, int partition_numbers) 
 			throws IOException {
@@ -336,58 +353,55 @@ public class WorkloadBatchProcessor {
 		
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		//for(Entry<Integer, Map<Integer, Transaction>> entry : wb.getTrMap().entrySet()) {
-			//for(Entry<Integer, Transaction> tr_entry : entry.getValue().entrySet()) {			
-				//Transaction transaction = tr_entry.getValue();
 		for(SimpleHEdge h : wb.hgr.getEdges()) {	
-				Transaction tr = wb.getTransaction(h.getId());
+			Transaction tr = wb.getTransaction(h.getId());
+			
+			for(Integer d : tr.getTr_dataSet()) {				
+				Data data = cluster.getData(d);
 				
-				for(Integer d : tr.getTr_dataSet()) {				
-					Data data = cluster.getData(d);
+				if(!dataSet.contains(d) && data.isData_inUse()) {
+					dataSet.add(d);
 					
-					if(!dataSet.contains(d) && data.isData_inUse()) {
-						dataSet.add(d);
-						
-						int shadow_id = -1;
-						int cluster_id = -1;
-						int virtual_id = -1;
-						
-						switch(Global.workloadRepresentation) {
-							case "hgr":
+					int shadow_id = -1;
+					int cluster_id = -1;
+					int virtual_id = -1;
+					
+					switch(Global.workloadRepresentation) {
+					
+						case "hgr":
+							if(Global.compressionEnabled) {
+								//System.out.println(">> x="+"|keyMap.get(x)="+keyMap.get(x));									
+								//virtual_id = data.getData_virtual_data_id();
+								virtual_id = vvertex_id_map.get(data.getData_virtual_data_id());
+								cluster_id = keyMap.get(virtual_id)+1;
+								data.setData_chmetisClusterId(cluster_id);
+								wb.getWrl_virtualDataId_clusterId_map().put(data.getData_virtual_data_id(), cluster_id);
+								wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
+								
+							} else {							
 								shadow_id = vertex_id_map.get(data.getData_id());
 								cluster_id = keyMap.get(shadow_id)+1;
 								data.setData_hmetisClusterId(cluster_id);
 								wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
-								
-								break;
-								
-							case "chg":
-								//System.out.println(">> x="+"|keyMap.get(x)="+keyMap.get(x));
-											
-								virtual_id = data.getData_virtual_data_id();
-								cluster_id = keyMap.get(virtual_id)+1;
-								data.setData_chmetisClusterId(cluster_id);
-								wb.getWrl_virtualDataId_clusterId_map().put(data.getData_virtual_data_id(), cluster_id);
-								wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);							
-								
-								break;
-								
-							case "gr":
-								shadow_id = vertex_id_map.get(data.getData_id());
-								cluster_id = keyMap.get(shadow_id)+1;
-								data.setData_metisClusterId(cluster_id);
-								wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
-								
-								break;
-						}						
+							}
+							
+							break;
+							
+						case "gr":
+							shadow_id = vertex_id_map.get(data.getData_id());
+							cluster_id = keyMap.get(shadow_id)+1;
+							data.setData_metisClusterId(cluster_id);
+							wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
+							
+							break;
+					}						
 
-						//System.out.println("@debug >> "+data.toString()+" | S="+shadow_id+" | C="+cluster_id+" | V="+virtual_id);
-						
-						data.setData_shadowId(-1);
-						data.setData_hasShadowId(false);					
-					}
-				} // end -- for()-Data
-			} // end -- for()-Transaction
-		//} // end -- for()-Transaction Types
+					//System.out.println("@debug >> "+data.toString()+" | S="+shadow_id+" | C="+cluster_id+" | V="+virtual_id);
+					
+					data.setData_shadowId(-1);
+					data.setData_hasShadowId(false);					
+				}
+			} // end -- for()-Data
+		} // end -- for()-Transaction		
 	}
 }

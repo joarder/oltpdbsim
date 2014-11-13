@@ -5,7 +5,7 @@ incremental.repartitioning=true
 transaction.classification=true
 
 workload.representation=hgr
-transaction.classification.strategy=fdfnd
+transaction.classification.strategy=basic
 data.migration.strategy=random
 
 compression.enabled=true

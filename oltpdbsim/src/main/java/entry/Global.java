@@ -79,6 +79,7 @@ public final class Global implements java.io.Serializable {
     public static boolean workloadAware; // true/false
     public static boolean incrementalRepartitioning; // true/false
     public static boolean enableTrClassification;
+    public static boolean staticRun = true;
     
     public static String workloadRepresentation; // gr/cgr/hgr/chg
     public static String trClassificationStrategy; // basic/fd/fdfnd

@@ -63,17 +63,18 @@ public class MappingTable {
 					partition_id = data.getData_partition_id();
 					
 					switch(Global.workloadRepresentation) {
-					case "hgr":
-						cluster_id = data.getData_hmetisClusterId();
-						break;
+					
+						case "hgr":
+							if(Global.compressionEnabled)
+								cluster_id = data.getData_chmetisClusterId();
+							else
+								cluster_id = data.getData_hmetisClusterId();
+							
+							break;
 						
-					case "chg":
-						cluster_id = data.getData_chmetisClusterId();
-						break;
-						
-					case "gr":
-						cluster_id = data.getData_metisClusterId();
-						break;
+						case "gr":
+							cluster_id = data.getData_metisClusterId();
+							break;
 					}					
 															
 					//System.out.println("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										

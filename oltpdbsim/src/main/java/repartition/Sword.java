@@ -12,7 +12,7 @@ import java.util.TreeSet;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.VirtualData;
-import main.java.utils.graph.CompressedHEdge;
+import main.java.utils.graph.CHEdge;
 import main.java.utils.queue.PQ;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
@@ -23,14 +23,14 @@ public class Sword {
 	public SortedMap<Integer, SortedMap<Integer, Integer>> dt_cnSet; 	
 	public SortedMap<Integer, SortedMap<Integer, Integer>> ndt_cnSet;
 	
-	public PQ<CompressedHEdge> pq; 	// Priority Queue of Hyperedges
+	public PQ<CHEdge> pq; 	// Priority Queue of Hyperedges
 	public Set<Integer> v_cut;
 	
 	public Sword() {
 		dt_cnSet = new TreeMap<Integer, SortedMap<Integer, Integer>>();
 		ndt_cnSet = new TreeMap<Integer, SortedMap<Integer, Integer>>();
 		
-		pq = new PQ<CompressedHEdge>(1000, Collections.reverseOrder());
+		pq = new PQ<CHEdge>(1000, Collections.reverseOrder());
 		v_cut = new TreeSet<Integer>();
 	}
 	
@@ -91,7 +91,7 @@ public class Sword {
 	}
 	
 	@SuppressWarnings("unused")
-	private void addNHValues(Cluster cluster, WorkloadBatch wb, Transaction tr, CompressedHEdge e) {
+	private void addNHValues(Cluster cluster, WorkloadBatch wb, Transaction tr, CHEdge e) {
 		
 		for(Integer d_id : tr.getTr_dataSet()) {
 			Data d = cluster.getData(d_id);
@@ -148,7 +148,7 @@ public class Sword {
 	}
 	
 	// Calculates the swapping gain
-	public boolean calculateSG(CompressedHEdge e) {
+	public boolean calculateSG(CHEdge e) {
 		int SG1 = 0, SG2 = 0;
 		int[] arr = new int[2];
 		

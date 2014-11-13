@@ -3,11 +3,12 @@ package main.java.utils.graph;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.HashMap;
 import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.HashSet;
 import java.util.Map.Entry;
 
-public class CompressedHEdge extends SimpleHEdge {
+public class CHEdge extends SimpleHEdge {
 
 	private Map<Integer, SimpleHEdge> HSet;
 	
@@ -17,13 +18,13 @@ public class CompressedHEdge extends SimpleHEdge {
 	double c_e; // C_e
 	int ndt_e;	// ndt_e
 	
-	public CompressedHEdge(int id, int weight) {
+	public CHEdge(int id, int weight) {
 		super(id, weight);		
-		HSet = new TreeMap<Integer, SimpleHEdge>();
+		HSet = new HashMap<Integer, SimpleHEdge>();
 		
 		nh_i = new TreeMap<Integer, SortedMap<Integer, Integer>>();
-		v_i = new TreeSet<Integer>();
-		s_i = new TreeSet<Integer>();
+		v_i = new HashSet<Integer>();
+		s_i = new HashSet<Integer>();
 		c_e = 0.0;
 		ndt_e = 0;		
 	}	
@@ -89,14 +90,36 @@ public class CompressedHEdge extends SimpleHEdge {
 		return sum;
 	}
 		
+//	@Override
+//	public void incWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w + weight);
+//	}
+//	
+//	@Override
+//	public void decWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w - weight);
+//	}
+
+	public void updateWeight() {
+		int weight = 0;
+		
+		for(Entry<Integer, SimpleHEdge> h : HSet.entrySet()) {
+			weight += h.getValue().getWeight();
+		}
+		
+		this.setWeight(weight);
+	}
+	
 	@Override
 	public boolean equals(Object object) {
-		if (!(object instanceof CompressedHEdge)) {
+		if (!(object instanceof CHEdge)) {
 			return false;
 		}
 		
-		CompressedHEdge c = (CompressedHEdge) object;
-		return (this.getId() == c.getId());
+		CHEdge ce = (CHEdge) object;
+		return (this.getId() == ce.getId());
 	}
 
 	@Override
@@ -106,10 +129,10 @@ public class CompressedHEdge extends SimpleHEdge {
 		result = prime * result + this.getId();
 		return result;
 	}
-
-	public int compareTo(CompressedHEdge c) {		
-		return (((int)this.getId() < (int)c.getId()) ? -1 : 
-			((int)this.getId() > (int)c.getId()) ? 1 : 0);		
+	
+	public int compareTo(CHEdge ce) {		
+		return (((int)this.getId() < (int)ce.getId()) ? -1 : 
+			((int)this.getId() > (int)ce.getId()) ? 1 : 0);		
 	}
 	
 	@Override

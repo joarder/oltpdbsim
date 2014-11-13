@@ -1,7 +1,5 @@
 package main.java.utils.graph;
 
-import main.java.cluster.Data;
-
 public class SimpleVertex implements Comparable<SimpleVertex> {
 	
 	private int id;
@@ -28,10 +26,15 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 		this.weight = weight;
 	}
 	
-	public void incWeight(int weight) {
-		int w = this.getWeight();
-		this.setWeight(weight + w);
-	}
+//	public void incWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w + weight);
+//	}
+//	
+//	public void decWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w - weight);
+//	}
 	
 	@Override
 	public String toString() {		
@@ -40,7 +43,7 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 		
 	@Override
 	public boolean equals(Object object) {
-		if (!(object instanceof Data)) {
+		if (!(object instanceof SimpleVertex)) {
 			return false;
 		}
 		
@@ -56,6 +59,7 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 		return result;
 	}
 	
+	@Override
 	public int compareTo(SimpleVertex v) {		
 		return (((int)this.getId() < (int)v.getId()) ? -1 : 
 			((int)this.getId() > (int)v.getId()) ? 1 : 0);		

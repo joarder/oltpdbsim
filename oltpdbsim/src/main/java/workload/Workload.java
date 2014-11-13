@@ -16,6 +16,7 @@ import main.java.db.Tuple;
 import main.java.db.Database;
 import main.java.db.Table;
 import main.java.entry.Global;
+import main.java.utils.graph.SimpleVertex;
 
 import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -169,18 +170,12 @@ public class Workload implements java.io.Serializable {
 						data_id = cluster.getDataIdFromTupleId(tpl_id);
 						wb.deleteTrDataFromWorkload(data_id);
 						
-						switch(Global.workloadRepresentation) {
-							case "gr":
-								if(wb.gr.getVertex(data_id) != null)
-									wb.gr.removeVertex(wb.gr.getVertex(data_id));
-								
-								break;
-								
-							case "hgr":
-								if(wb.hgr.getVertex(data_id) != null)
-									wb.hgr.removeVertex(wb.hgr.getVertex(data_id));
-								
-								break;
+						SimpleVertex v = wb.hgr.getVertex(data_id);
+						if(v != null) {
+							wb.hgr.removeVertex(v);
+							
+							if(Global.compressionEnabled)
+				        		wb.hgr.removeCVertex(v);
 						}
 						
 						deletedTuples.add(tpl_id);						

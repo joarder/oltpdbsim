@@ -28,6 +28,7 @@ public class Metric implements java.io.Serializable {
 	public static ArrayList<Double> mean_dti;
 	public static ArrayList<Double> percentage_dt;
 	public static ArrayList<Double> percentage_ndt;
+	public static ArrayList<Double> percentageChangeInDt;
 	
 	public static ArrayList<Long> total_data;
 	
@@ -54,6 +55,7 @@ public class Metric implements java.io.Serializable {
 		mean_dti = new ArrayList<Double>();
 		percentage_dt = new ArrayList<Double>();
 		percentage_ndt = new ArrayList<Double>();
+		percentageChangeInDt = new ArrayList<Double>();
 		
 		total_data = new ArrayList<Long>();
 		
@@ -91,6 +93,7 @@ public class Metric implements java.io.Serializable {
 		mean_dti.add(wb.get_mean_dti());
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
+		percentageChangeInDt.add(wb.get_percentage_change_in_dt());
 		
 		intra_server_dmv.add(wb.get_intra_dmv());
 		inter_server_dmv.add(wb.get_inter_dmv());
@@ -152,24 +155,25 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
 		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Percentage change in distributed transactions: "+percentageChangeInDt+" %");
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
 		Global.LOGGER.info("Average impact of distributed transactions: "+mean_dti);
 		Global.LOGGER.info("Average transactional frequency: "+mean_trFreq);
-		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Average Partition's data inflow: "+mean_partition_inflow);
-		Global.LOGGER.info("Average Partition's data outflow: "+mean_partition_outflow);
-		Global.LOGGER.info("Average Partition's data count: "+mean_partition_data);
-		Global.LOGGER.info("Standard deviation of Partition's data count: "+sd_partition_data);
-		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Average Server's data inflow: "+mean_server_inflow);
-		Global.LOGGER.info("Average Server's data outflow: "+mean_server_outflow);
-		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
-		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
-		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
-		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
-		Global.LOGGER.info("Total data count: "+total_data);
+//		Global.LOGGER.info("_____________________________________________________________________________");
+//		Global.LOGGER.info("Average Partition's data inflow: "+mean_partition_inflow);
+//		Global.LOGGER.info("Average Partition's data outflow: "+mean_partition_outflow);
+//		Global.LOGGER.info("Average Partition's data count: "+mean_partition_data);
+//		Global.LOGGER.info("Standard deviation of Partition's data count: "+sd_partition_data);
+//		Global.LOGGER.info("_____________________________________________________________________________");
+//		Global.LOGGER.info("Average Server's data inflow: "+mean_server_inflow);
+//		Global.LOGGER.info("Average Server's data outflow: "+mean_server_outflow);
+//		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
+//		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
+//		Global.LOGGER.info("_____________________________________________________________________________");
+//		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
+//		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
+//		Global.LOGGER.info("Total data count: "+total_data);
 		Global.LOGGER.info("*****************************************************************************");
 		
 	}

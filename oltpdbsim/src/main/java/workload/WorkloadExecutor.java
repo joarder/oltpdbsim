@@ -56,14 +56,16 @@ public class WorkloadExecutor {
 	// State observation and statistic collectors
 	static boolean initial = true;
     static boolean changeDetected = false;
-    static int dtCount = 0;
-    static int dtMargin = 0;
-	static int last_observed_dtCount = 0;	
+    static boolean noChangeRequired = false;
+    
+    static int dt_new = 0;
+    static int dt_original = 0;
+    
 	static int total_trFrequency = 0;
 	static double total_response_time = 0.0;	
 	
 	// Seed
-	static long[] seed = new long[10];
+	static long[] seed = new long[10];	
 	
     public WorkloadExecutor() {
         
@@ -134,26 +136,20 @@ public class WorkloadExecutor {
 			//System.out.println("-->> killing existing transaction ...");
 			//t = Global.rand.nextInt(wb.getTrBuffer().get(type).size());			
 			//wb.getTrBuffer().get(type).remove(t);
-			wb.getTrBuffer().get(type).remove(0);			
+			wb.getTrBuffer().get(type).remove(0);
+			//tr.setTimestamp(Integer.MAX_VALUE); // For removing old transactions
+			//wb.removeTransaction(tr);
 		}	
 		
 		tr.calculateSpans(cluster);
 		
 		if(tr.isDt() && !tr.isVisited()) {			
-			++dtCount;
+			++dt_new;
 			tr.setVisited(true);		
 		}
 		
-		// Add edges and hyperedge to Workload Graph and Hypergraph
-		switch(Global.workloadRepresentation) {
-			case "gr":
-				wb.addGraphEdges(tr);
-				break;
-				
-			case "hgr":
-				wb.addHGraphEdge(tr);
-				break;
-		}
+		// Add a hyperedge to Workload Hypergraph
+		wb.addHGraphEdge(tr);		
 		
 		return tr;
 	}
@@ -216,21 +212,100 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" Hours");		
 					
 		// Statistic preparation, calculation, and reporting		
-		collectStatistics(cluster, wb);
+		//collectStatistics(cluster, wb);
 	}
 	
 	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
-		cluster.updateLoad();
+		if(!WorkloadExecutor.noChangeRequired) { 
+			cluster.updateLoad();
+			
+			wb.calculateDTI(cluster);		
+			wb.calculateThroughput(Global.total_transactions);
+			wb.calculateResponseTime(Global.total_transactions, total_response_time);
+			wb.calculateAverageTrFreq(Global.total_transactions, total_trFrequency);
+	
+			WorkloadExecutor.dt_original = wb.get_dt_nums(); // Will initiate dynamic dt margin
+			WorkloadExecutor.dt_new = wb.get_dt_nums();
+			
+			Metric.collect(cluster, wb);			
+			Metric.report();
+			Metric.write();
+		}
+	}
+	
+	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {
 		
-		wb.calculateDTI(cluster);		
-		wb.calculateThroughput(Global.total_transactions);
-		wb.calculateResponseTime(Global.total_transactions, total_response_time);
-		wb.calculateAverageTrFreq(Global.total_transactions, total_trFrequency);
+		if(Sim.time() >= Global.nextCollection) {
+			
+			Global.LOGGER.info("<-- Hourly Statistics -->");
+			
+			// Statistic preparation, calculation, and reporting			
+			WorkloadExecutor.collectStatistics(cluster, wb);
+			Global.nextCollection += 3600.0;
+		}
+	}		
+	
+	public static void detectChangeInDt(WorkloadBatch wb) {
+				
+		double _change = Math.round(((double) (dt_new - dt_original) 
+				/ (double) dt_original) * 100.0) / 100.0;
+					
+		if(_change >= Global.percentageChangeDt) {
+			
+			Global.LOGGER.info("Percentage increase in DT has reached the set threshold !!!");
+			Global.LOGGER.info("Number of DTs before a new incremental repartitioning: "+dt_new);
+			
+			wb.set_percentage_change_in_dt(_change * 100.0);
+			WorkloadExecutor.changeDetected = true;
+			WorkloadExecutor.noChangeRequired = false;
+		}		
+	}
+	
+	public static void runRepartitioner(Cluster cluster, WorkloadBatch wb) {
+		// Generate workload file
+		boolean empty = false;
+		try {
+			empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		
-		Metric.collect(cluster, wb);			
-		Metric.report();
-		Metric.write();
-	}	
+		if(!empty) {
+			
+			int partitions = Global.partitions;
+			Global.LOGGER.info("Starting partitioner to repartition the workload into "
+					+partitions+" clusters ...");	
+			
+			// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
+			MinCut.runMinCut(wb, partitions, true);
+
+			// Mapping cluster id to partition id
+			Global.LOGGER.info("Applying data movement strategies ...");
+			
+			try {
+				WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}					
+			
+			// Perform data movement
+			DataMovement.performDataMovement(cluster, wb, Global.dataMigrationStrategy, Global.workloadRepresentation);
+			
+			Global.LOGGER.info("=======================================================================================================================");
+	
+		} else {			
+			// Update server-level load statistic and show
+			cluster.updateLoad();								
+			//cluster.show();
+			
+			WorkloadExecutor.noChangeRequired = true;
+			
+			Global.LOGGER.info("No changes are required !!!");
+			Global.LOGGER.info("Repartitioning run aborting ...");
+			Global.LOGGER.info("=======================================================================================================================");
+		}
+	}
+	
 } // end-Class
 
 //=======================================================================================
@@ -277,6 +352,22 @@ class Arrival extends Event {
 			
 			new Departure().schedule(tr.getTr_service_time());
 		}
+
+		// Setting initial DT margin
+		if(Sim.time() >= Global.initialDetectionTime && WorkloadExecutor.initial) {
+			
+			WorkloadExecutor.dt_original = WorkloadExecutor.dt_new;
+
+			Global.LOGGER.info("-----------------------------------------------------------------------------");
+			Global.LOGGER.info("Setting an initial DT threshold of "+WorkloadExecutor.dt_original
+					+" DT based on workload characteristics of the initial "+(Sim.time()/3600)+" hr.");
+			
+			// Statistic preparation, calculation, and reporting
+			wb.set_tr_nums(wb.hgr.getEdgeCount());			
+			WorkloadExecutor.collectStatistics(cluster, wb);			
+			
+			WorkloadExecutor.initial = false;
+		}
 		
 		/**
 		 * Three options:
@@ -303,174 +394,90 @@ class Arrival extends Event {
 		 *  
 		 */
 		
-		if(Global.workloadAware) {
+		if(!WorkloadExecutor.initial) {
+			wb.set_tr_nums(wb.hgr.getEdgeCount());
 			
+			if(Global.workloadAware) {
+								
+				// Detecting % increase in DT
+				WorkloadExecutor.detectChangeInDt(wb);
+				
+				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
+					
+					if(WorkloadExecutor.changeDetected) {
+					
+						++Global.repartitioningCycle;
+						
+						Global.LOGGER.info("-----------------------------------------------------------------------------");
+						Global.LOGGER.info((Global.percentageChangeDt * 100) 
+								+"% increase in DT detected !!!");
 			
-		} else {
+						Global.LOGGER.info("Number of DT have increased from "
+								+WorkloadExecutor.dt_original+" to "
+								+WorkloadExecutor.dt_new+".");
+						
+						Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
+						Global.LOGGER.info("Total Unique transactions processed: "+Global.global_trSeq);
 			
-			// Hourly statistic collection
-			if(Sim.time() >= Global.nextCollection) {
-				// Statistic preparation, calculation, and reporting
-				wb.set_tr_nums(wb.hgr.getEdgeCount());
-				WorkloadExecutor.collectStatistics(cluster, wb);
-				Global.nextCollection += 3600.0;
+						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
+			
+						Global.LOGGER.info("-----------------------------------------------------------------------------");
+						Global.LOGGER.info("Starting database repartitioning ...");
+						
+						//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
+						if(Global.enableTrClassification) {
+							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+							
+							switch(Global.trClassificationStrategy) {
+								case "basic":
+									TransactionClassifier.classifyMovableDTs(cluster, wb);
+									break;
+									
+								case "fd":
+									Global.LOGGER.info("Discarding transactions which are not frequent ...");
+									TransactionClassifier.classifyMovableFD(cluster, wb);
+									break;
+									
+								case "fdfnd":
+									Global.LOGGER.info("Discarding transactions which are not frequent ...");
+									TransactionClassifier.classifyMovableFDFND(cluster, wb);
+									break;						
+							}
+						} else {
+							Global.LOGGER.info("Discarding old transactions ...");
+							TransactionClassifier.removeOldTransactions(cluster, wb);							
+						}
+						
+						Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
+								+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
+						Global.LOGGER.info("-----------------------------------------------------------------------------");
+
+						WorkloadExecutor.runRepartitioner(cluster, wb);
+						WorkloadExecutor.collectStatistics(cluster, wb);
+						
+						WorkloadExecutor.changeDetected = false;
+					}
+					
+				} else { // 2. Static Repartitioning
+					
+					if(Global.staticRun && WorkloadExecutor.changeDetected) {
+						
+						WorkloadExecutor.runRepartitioner(cluster, wb);
+						WorkloadExecutor.collectStatistics(cluster, wb);
+						Global.staticRun = false;
+						
+					} else if(!Global.staticRun)
+						// Hourly statistic collection
+						WorkloadExecutor.collectHourlyStatistics(cluster, wb);				
+				}
+				
+			} else { // 1. Baseline
+				
+				// Hourly statistic collection
+				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 			}
 		}
-		
-//		// Setting initial DT margin
-//		if(Sim.time() >= Global.initialDetectionTime && WorkloadExecutor.initial) {
-//			
-//			WorkloadExecutor.dtMargin = (int) ((WorkloadExecutor.dtCount * Global.percentageChangeDt) 
-//					+ WorkloadExecutor.dtCount);
-//
-//			Global.LOGGER.info("-----------------------------------------------------------------------------");
-//			Global.LOGGER.info("Setting a DT margin of "+WorkloadExecutor.dtMargin
-//					+" distributed transactions.");
-//			Global.LOGGER.info(WorkloadExecutor.dtCount
-//					+" distributed transactions present in the current workload of total "
-//					+Global.total_transactions+" transaction of them "
-//					+Global.global_trSeq+" are unique.");
-//			
-//			// Statistic preparation, calculation, and reporting
-//			wb.set_tr_nums(wb.hgr.getEdgeCount());
-//			WorkloadExecutor.collectStatistics(cluster, wb);			
-//			
-//			WorkloadExecutor.last_observed_dtCount += WorkloadExecutor.dtCount;
-//			WorkloadExecutor.initial = false;
-//		}
-//		
-//		// Detecting % increase in DT
-//		if(!WorkloadExecutor.initial && WorkloadExecutor.dtCount >= WorkloadExecutor.dtMargin)			
-//			WorkloadExecutor.changeDetected = true;
-//		
-//		if(WorkloadExecutor.changeDetected) {				
-//			Global.LOGGER.info("-----------------------------------------------------------------------------");
-//			Global.LOGGER.info((Global.percentageChangeDt * 100) + "% increase in DT detected !!!");
-//
-//			Global.LOGGER.info("Number of DT have increased from "
-//					+WorkloadExecutor.last_observed_dtCount+" to "+WorkloadExecutor.dtCount+".");
-//			
-//			Global.LOGGER.info("Total "+Global.total_transactions+" transactions have processed "
-//					+ "by the Transaction Coordinator so far and of them "
-//					+Global.global_trSeq+" are unique.");
-//
-//			Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");					
-//			
-//			
-//			if(Global.workloadAware && Global.incrementalRepartitioning) {
-//
-//				++Global.repartitioningCycle;				
-//				
-//				Global.LOGGER.info("-----------------------------------------------------------------------------");
-//				Global.LOGGER.info("Starting database repartitioning ...");
-//				
-//				//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)		
-//				Global.LOGGER.info("Identifying most frequently occurred transactions ...");
-//				
-//				switch(Global.trClassificationStrategy) {
-//					case "basic":
-//						Global.LOGGER.info("Discarding transactions older than last one hour ...");
-//						TransactionClassifier.classifyMovableDTs(cluster, wb);
-//						break;
-//						
-//					case "fd":
-//						Global.LOGGER.info("Discarding transactions which are not frequent ...");
-//						TransactionClassifier.classifyMovableFD(cluster, wb);
-//						break;
-//						
-//					case "fdfnd":
-//						Global.LOGGER.info("Discarding transactions which are not frequent ...");
-//						TransactionClassifier.classifyMovableFDFND(cluster, wb);
-//						break;						
-//				}
-//				
-//				Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
-//						+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
-//				Global.LOGGER.info("-----------------------------------------------------------------------------");
-//				
-//				// Generate workload file
-//				boolean empty = false;
-//				try {
-//					empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
-//				} catch (IOException e) {
-//					e.printStackTrace();
-//				}
-//				
-//				if(!empty) {
-//					
-//					int partitions = Global.partitions;
-//					Global.LOGGER.info("Starting partitioner to repartition the workload into "
-//							+partitions+" clusters ...");	
-//					
-//					// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
-//					MinCut.runMinCut(wb, partitions, true);
-//
-//					// Mapping cluster id to partition id
-//					Global.LOGGER.info("Applying data movement strategies for database ("
-//							+db.getDb_name()+") ...");
-//					
-//					try {
-//						WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
-//					} catch (IOException e) {
-//						e.printStackTrace();
-//					}					
-//					
-//					// Perform data movement
-//					DataMovement.performDataMovement(cluster, wb, Global.dataMigrationStrategy, Global.workloadRepresentation);					
-//					
-//					// Update server-level load statistic and show
-//					cluster.updateLoad();
-//					//cluster.show();
-//					
-//					Global.LOGGER.info("=======================================================================================================================");
-//					
-//				} else {
-//											
-//					// Update server-level load statistic and show
-//					cluster.updateLoad();								
-//					//cluster.show();
-//					
-//					Global.LOGGER.info("No changes are required for database ("+db.getDb_name()+")");
-//					Global.LOGGER.info("Repartitioning run round aborted for database ("+db.getDb_name()+")");
-//					Global.LOGGER.info("=======================================================================================================================");
-//				}
-//				
-//				wrapup(cluster, wb);
-//				
-//			} else { // Baseline run
-//				
-//			} 
-//			
-//			// Actions for SWORD
-//			if(Global.compressionBeforeSetup) { 
-//				Global.LOGGER.info("SWORD actions ...");
-//
-//				wrapup(cluster, wb);
-//			}
-//
-//			WorkloadExecutor.changeDetected = false;
-//		}				
 	}
-	 
-	private static void wrapup(Cluster cluster, WorkloadBatch wb) {
-		// Statistic preparation, calculation, and reporting								
-		WorkloadExecutor.collectStatistics(cluster, wb);
-		
-		// Setting new DT margin
-		Global.LOGGER.info("Number of DTs before repartitioning "+WorkloadExecutor.dtCount);
-		Global.LOGGER.info("Number of DTs after repartitioning "+wb.get_dt_nums());
-		
-		WorkloadExecutor.dtCount = wb.get_dt_nums();
-		
-		if(Global.dynamicDtMargin) {
-			
-			WorkloadExecutor.dtMargin = (int) ((WorkloadExecutor.dtCount * Global.percentageChangeDt) 
-					+ WorkloadExecutor.dtCount);
-			
-			Global.LOGGER.info("Setting a new DT margin of "+WorkloadExecutor.dtMargin+".");
-		}
-	}
-	
 }
 
 //=======================================================================================

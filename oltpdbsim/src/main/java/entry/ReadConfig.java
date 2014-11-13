@@ -91,7 +91,7 @@ public class ReadConfig {
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
 			Global.workloadChangeProbability = Double.parseDouble((String) config_param.getProperty("workload.change.probability"));			
-			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("dt.change.percentage"));			
+			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("threshold.change.in.dt"));			
 			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
 			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));
 			Global.oldTransactionTimestamp = Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
@@ -136,8 +136,8 @@ public class ReadConfig {
 				Global.LOGGER.info("Workload compression enabled: "+Global.compressionEnabled);
 				Global.LOGGER.info("Compression before setup enabled: "+Global.compressionBeforeSetup);
 	
-				if(Global.compressionEnabled || Global.compressionBeforeSetup) {
-					Global.compressionRatio = Double.parseDouble((String) config_param.getProperty("sword.compression.ratio"));
+				if(Global.compressionEnabled) {
+					Global.compressionRatio = Double.parseDouble((String) config_param.getProperty("compression.ratio"));
 					Global.LOGGER.info("Compression ratio: "+Global.compressionRatio);
 				}
 			}

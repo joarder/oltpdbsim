@@ -170,7 +170,11 @@ public class Cluster {
 			Global.LOGGER.info("Key range for "+p.getPartition_label()+": "
 					+"Start["+p.getPartition_start_key()+"], "
 					+"End["+p.getPartition_end_key()+"]");			
-		}	
+		}
+		
+		//
+		if(Global.compressionEnabled)
+			Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
 		// Physical Data Distribution
 		if(Global.compressionBeforeSetup)
@@ -214,7 +218,7 @@ public class Cluster {
 	private void vdataDistribution(Database db, Cluster cluster, Workload wrl) {
 		_setup = true;
 		
-		Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+		//Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");		
 		Global.LOGGER.info("Creating "+Global.virtualNodes+" virtual nodes from "

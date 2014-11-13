@@ -269,9 +269,10 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	
 	public boolean isOld() {
 		
-		if(Sim.time() - this.getTimestamp() > Global.oldTransactionTimestamp) {//(3600/Global.workloadChangeProbability)) {		
+		if(Sim.time() - this.getTimestamp() > Global.oldTransactionTimestamp) //(3600/Global.workloadChangeProbability))		
 			return true;
-		}
+		else if(this.getTimestamp() >= Integer.MAX_VALUE)
+			return true;
 		
 		return false;
 	}

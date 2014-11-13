@@ -3,7 +3,7 @@ package main.java.utils;
 public class VertexPair {
     public int x, y;
     
-    VertexPair(int x, int y) {
+    public VertexPair(int x, int y) {
         this.x = x;
         this.y = y;
     }

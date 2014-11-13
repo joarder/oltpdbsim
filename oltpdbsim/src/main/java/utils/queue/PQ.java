@@ -2,12 +2,12 @@ package main.java.utils.queue;
 
 import java.util.Comparator;
 import java.util.PriorityQueue;
-import main.java.utils.graph.CompressedHEdge;
+import main.java.utils.graph.CHEdge;
 
 @SuppressWarnings("serial")
 public class PQ<E> extends PriorityQueue<E> {
 
-	public PQ(int i, Comparator<CompressedHEdge> reverseOrder) {
+	public PQ(int i, Comparator<CHEdge> reverseOrder) {
 		super();
 	}
 

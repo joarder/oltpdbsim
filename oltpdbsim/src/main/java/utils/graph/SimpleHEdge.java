@@ -24,12 +24,17 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 	
 	public void setWeight(int weight) {
 		this.weight = weight;
-	}	
-	
-	public void incWeight(int weight) {
-		int w = this.getWeight();
-		this.setWeight(w + weight);
 	}
+	
+//	public void incWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w + weight);
+//	}
+//		
+//	public void decWeight(int weight) {
+//		int w = this.getWeight();
+//		this.setWeight(w - weight);
+//	}
 	
 	@Override
 	public String toString() {		

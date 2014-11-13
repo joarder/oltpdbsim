@@ -311,18 +311,22 @@ public class DataMovement {
 					current_server_id = data.getData_server_id();			
 					
 					switch(type) {
-					case "hgr":
-						dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
-						data.setData_hmetisClusterId(-1);
-						break;
-					case "chg":
-						dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
-						data.setData_chmetisClusterId(-1);
-						break;
-					case "gr":
-						dst_partition_id = keyMap.get(data.getData_metisClusterId());
-						data.setData_metisClusterId(-1);
-						break;
+					
+						case "hgr":
+							if(Global.compressionEnabled) {
+								dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
+								data.setData_chmetisClusterId(-1);
+								
+							} else {
+								dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
+								data.setData_hmetisClusterId(-1);
+							}
+							break;
+													
+						case "gr":
+							dst_partition_id = keyMap.get(data.getData_metisClusterId());
+							data.setData_metisClusterId(-1);
+							break;
 					}
 					
 					//System.out.println("@debug >> P"+dst_partition_id);
