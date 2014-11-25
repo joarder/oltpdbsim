@@ -186,6 +186,7 @@ public class DataMovement {
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
 		setEnvironment(cluster);
 		
+		
 	}
 	
 	private static void updateData(Cluster cluster, Data data, 
@@ -369,7 +370,7 @@ public class DataMovement {
 			} // end -- for()-Data
 			
 			if(tr.isDt())
-				wb.hCut.add(tr.getTr_id());
+				wb.sword.hCut.add(h);
 			
 		} // end -- for()		
 		

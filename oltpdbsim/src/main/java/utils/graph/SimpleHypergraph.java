@@ -3,6 +3,7 @@ package main.java.utils.graph;
 import java.util.Map;
 import java.util.Set;
 
+import main.java.workload.WorkloadBatch;
 import edu.uci.ics.jung.graph.Hypergraph;
 
 public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
@@ -17,5 +18,12 @@ public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	boolean removeCHEdge(H h);
 	boolean addCVertex(V v);
 	boolean removeCVertex(V v);
-	Map<CHEdge, Set<CVertex>> getcHEdges();	
+	Map<CompressedHEdge, Set<CompressedVertex>> getcHEdges();
+	CompressedHEdge getCHEdge(H h);
+	CompressedHEdge getCHEdge(Set<CompressedVertex> vSet);
+	CompressedHEdge getCHEdge(int id);
+	boolean isCHEdgeDT(WorkloadBatch wb, CompressedHEdge ch);
+	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);
+	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
+	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);
 }

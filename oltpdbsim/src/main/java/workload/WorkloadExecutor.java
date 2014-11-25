@@ -136,9 +136,11 @@ public class WorkloadExecutor {
 			//System.out.println("-->> killing existing transaction ...");
 			//t = Global.rand.nextInt(wb.getTrBuffer().get(type).size());			
 			//wb.getTrBuffer().get(type).remove(t);
+			
 			wb.getTrBuffer().get(type).remove(0);
-			//tr.setTimestamp(Integer.MAX_VALUE); // For removing old transactions
-			//wb.removeTransaction(tr);
+			
+			if(Global.transactionExpiration)
+				tr.setTimestamp(Integer.MAX_VALUE); // For removing old transactions						
 		}	
 		
 		tr.calculateSpans(cluster);
@@ -250,11 +252,7 @@ public class WorkloadExecutor {
 		double _change = Math.round(((double) (dt_new - dt_original) 
 				/ (double) dt_original) * 100.0) / 100.0;
 					
-		if(_change >= Global.percentageChangeDt) {
-			
-			Global.LOGGER.info("Percentage increase in DT has reached the set threshold !!!");
-			Global.LOGGER.info("Number of DTs before a new incremental repartitioning: "+dt_new);
-			
+		if(_change >= Global.percentageChangeDt) {			
 			wb.set_percentage_change_in_dt(_change * 100.0);
 			WorkloadExecutor.changeDetected = true;
 			WorkloadExecutor.noChangeRequired = false;
@@ -286,13 +284,8 @@ public class WorkloadExecutor {
 				WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
 			} catch (IOException e) {
 				e.printStackTrace();
-			}					
+			}
 			
-			// Perform data movement
-			DataMovement.performDataMovement(cluster, wb, Global.dataMigrationStrategy, Global.workloadRepresentation);
-			
-			Global.LOGGER.info("=======================================================================================================================");
-	
 		} else {			
 			// Update server-level load statistic and show
 			cluster.updateLoad();								
@@ -444,15 +437,26 @@ class Arrival extends Event {
 									break;						
 							}
 						} else {
-							Global.LOGGER.info("Discarding old transactions ...");
-							TransactionClassifier.removeOldTransactions(cluster, wb);							
+							
+							if(Global.transactionExpiration) {
+								Global.LOGGER.info("Discarding old transactions ...");
+								TransactionClassifier.removeOldTransactions(cluster, wb);
+							}
 						}
 						
 						Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
 								+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 
-						WorkloadExecutor.runRepartitioner(cluster, wb);
+						if(!Global.compressionBeforeSetup)
+							WorkloadExecutor.runRepartitioner(cluster, wb);
+						
+						// Perform data movement
+						DataMovement.performDataMovement(cluster, wb, 
+								Global.dataMigrationStrategy, Global.workloadRepresentation);
+
+						Global.LOGGER.info("=======================================================================================================================");						
+						
 						WorkloadExecutor.collectStatistics(cluster, wb);
 						
 						WorkloadExecutor.changeDetected = false;

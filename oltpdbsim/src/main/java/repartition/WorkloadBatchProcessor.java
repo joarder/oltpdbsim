@@ -21,8 +21,8 @@ import java.util.Map.Entry;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
-import main.java.utils.graph.CHEdge;
-import main.java.utils.graph.CVertex;
+import main.java.utils.graph.CompressedHEdge;
+import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -146,13 +146,13 @@ public class WorkloadBatchProcessor {
 	// Generates Workload File for Compressed Hypergraph based repartitioning
 	private static boolean generateCHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
 		
-		Map<CHEdge, Set<CVertex>> vedge = new TreeMap<CHEdge, Set<CVertex>>();
-		Set<CVertex> vvertex = new TreeSet<CVertex>();
+		Map<CompressedHEdge, Set<CompressedVertex>> vedge = new TreeMap<CompressedHEdge, Set<CompressedVertex>>();
+		Set<CompressedVertex> vvertex = new TreeSet<CompressedVertex>();
 		
 		//Global.LOGGER.info("--> Total vedges = "+wb.hgr.getcHEdges().size());
 		
 		// Only select the compressed hyperedges having at least two compressed vertices
-		for(Entry<CHEdge, Set<CVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
 			if(entry.getValue().size() >= 2) {
 				vedge.put(entry.getKey(), entry.getValue());
 				vvertex.addAll(entry.getValue());				
@@ -166,7 +166,7 @@ public class WorkloadBatchProcessor {
 		vvertex_id_map = new TreeMap<Integer, Integer>();
 		int vvertex_id = 0;
 		
-		for(CVertex cv : vvertex) {
+		for(CompressedVertex cv : vvertex) {
 			vvertex_id_map.put(cv.getId(), ++vvertex_id);
 			
 			for(Entry<Integer, SimpleVertex> entry : cv.getVSet().entrySet()) {
@@ -205,13 +205,13 @@ public class WorkloadBatchProcessor {
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
 					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
 					
-					for(Entry<CHEdge, Set<CVertex>> entry : vedge.entrySet()) {
+					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : vedge.entrySet()) {
 						
 						// Writing e' weight
 						writer.write(Integer.toString(entry.getKey().getWeight())+" ");
 								
 						// Writing v' incident on e'
-						Iterator<CVertex> cv_itr =  entry.getValue().iterator();
+						Iterator<CompressedVertex> cv_itr =  entry.getValue().iterator();
 						while(cv_itr.hasNext()) {						
 							writer.write(Integer.toString(vvertex_id_map.get(cv_itr.next().getId())));
 							
@@ -223,7 +223,7 @@ public class WorkloadBatchProcessor {
 					}
 	
 					// Writing v' weight					
-					Iterator<CVertex> cv_itr = vvertex.iterator();
+					Iterator<CompressedVertex> cv_itr = vvertex.iterator();
 					while(cv_itr.hasNext()) {
 						String cv_weight = Integer.toString(cv_itr.next().getWeight());
 						writer.write(cv_weight);

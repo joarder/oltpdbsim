@@ -65,10 +65,12 @@ public final class Global implements java.io.Serializable {
     public static double meanServiceTime;
 	public static double workloadChangeProbability;
 	public static double percentageChangeDt;
-	public static int initialDetectionTime;
-	public static int oldTransactionTimestamp;
+	public static int initialDetectionTime;	
 	public static double nextCollection = 3600.0;
 	public static boolean dynamicDtMargin;
+	
+	public static int oldTransactionTimestamp;
+	public static boolean transactionExpiration;
 	
     // Workload mining
     public static int mining_serial = 0;

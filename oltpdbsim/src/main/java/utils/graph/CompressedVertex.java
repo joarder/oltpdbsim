@@ -4,11 +4,14 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-public class CVertex extends SimpleVertex {
+import main.java.cluster.Partition;
+
+public class CompressedVertex extends SimpleVertex {
 
 	private Map<Integer, SimpleVertex> VSet;
+	private Map<Partition, Integer> nh;
 	
-	public CVertex(int id, int weight) {
+	public CompressedVertex(int id, int weight) {
 		super(id, weight);		
 		this.VSet = new HashMap<Integer, SimpleVertex>();
 	}
@@ -21,18 +24,14 @@ public class CVertex extends SimpleVertex {
 		this.VSet = VSet;
 	}
 	
-//	@Override
-//	public void incWeight(int weight) {
-//		int w = this.getWeight();
-//		this.setWeight(w + weight);
-//	}
-//	
-//	@Override
-//	public void decWeight(int weight) {
-//		int w = this.getWeight();
-//		this.setWeight(w - weight);
-//	}
-	
+	public Map<Partition, Integer> getNh() {
+		return nh;
+	}
+
+	public void setNh(Map<Partition, Integer> nh) {
+		this.nh = nh;
+	}
+
 	public void updateWeight() {
 		int weight = 0;
 		
@@ -50,11 +49,11 @@ public class CVertex extends SimpleVertex {
 		
 	@Override
 	public boolean equals(Object object) {
-		if (!(object instanceof CVertex)) {
+		if (!(object instanceof CompressedVertex)) {
 			return false;
 		}
 		
-		CVertex cv = (CVertex) object;
+		CompressedVertex cv = (CompressedVertex) object;
 		return (this.getId() == cv.getId());
 	}
 
@@ -67,7 +66,7 @@ public class CVertex extends SimpleVertex {
 	}
 	
 	// Can not override super class compareTo here	
-	public int compareTo(CVertex cv) {		
+	public int compareTo(CompressedVertex cv) {		
 		return (((int)this.getId() < (int)cv.getId()) ? -1 : 
 			((int)this.getId() > (int)cv.getId()) ? 0 : 1);		
 	}

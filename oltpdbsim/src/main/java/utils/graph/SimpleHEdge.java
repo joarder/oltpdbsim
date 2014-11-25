@@ -35,7 +35,7 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 //		int w = this.getWeight();
 //		this.setWeight(w - weight);
 //	}
-	
+
 	@Override
 	public String toString() {		
 		return ("HE"+this.getId());

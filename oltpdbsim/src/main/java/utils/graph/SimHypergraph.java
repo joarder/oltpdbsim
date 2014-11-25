@@ -6,34 +6,44 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
 import edu.uci.ics.jung.graph.SetHypergraph;
 import main.java.entry.Global;
 import main.java.utils.Utility;
+import main.java.workload.Transaction;
+import main.java.workload.WorkloadBatch;
 
 @SuppressWarnings("serial")
-public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
+public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
 	extends SetHypergraph<V, H> 
 	implements SimpleHypergraph<V, H>, Serializable {
 	
     protected Map<Integer, V> vMap;
     protected Map<Integer, H> hMap;
 	
-    protected Map<CHEdge, Set<CVertex>> cHEdges;
-    protected Map<CVertex, Set<CHEdge>> cVertices;
+    protected Map<CompressedHEdge, Set<CompressedVertex>> cHEdges;
+    protected Map<CompressedVertex, Set<CompressedHEdge>> cVertices;
     
-    protected Map<Integer, CVertex> cVMap;
-    protected Map<Integer, CHEdge> cHEMap;
+    protected Map<Integer, CompressedVertex> cVMap;
+    protected Map<Integer, CompressedHEdge> cHEMap;
+    
+    // Map for HEdge -- CHEdge || Vertex -- CVertex
+    protected Map<Integer, Integer> hcMap;
+    protected Map<Integer, Integer> vcMap;
 	
-	public SHypergraph() {
+	public SimHypergraph() {
 		        
         vMap = new HashMap<Integer, V>();
         hMap = new HashMap<Integer, H>();
 		
-		cHEdges = new HashMap<CHEdge, Set<CVertex>>();
-		cVertices = new HashMap<CVertex, Set<CHEdge>>();
+		cHEdges = new HashMap<CompressedHEdge, Set<CompressedVertex>>();
+		cVertices = new HashMap<CompressedVertex, Set<CompressedHEdge>>();
 		
-		cVMap = new HashMap<Integer, CVertex>();
-        cHEMap = new HashMap<Integer, CHEdge>();
+		cVMap = new HashMap<Integer, CompressedVertex>();
+        cHEMap = new HashMap<Integer, CompressedHEdge>();
+        
+        hcMap = new HashMap<Integer, Integer>();
+        vcMap = new HashMap<Integer, Integer>();
 	}
 
 //===================================================================================================	
@@ -118,7 +128,7 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	// Adds a new Compressed Hyperedge in the Compressed Hypergraph if necessary
 	public boolean addCHEdge(H h) {
 		
-		Set<CVertex> cvSet = new HashSet<CVertex>();
+		Set<CompressedVertex> cvSet = new HashSet<CompressedVertex>();
 		
 		for(V v : getIncidentVertices(h)) {
             // Add v into a Compressed Vertex, creates a new one if necessary
@@ -129,7 +139,7 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		// Check whether a Compressed Hyperedge already exists for this set of compressed vertices
 		// If exists then add this Hyperedge h into it
 		// Otherwise create a new Compressed Hyperedge
-		CHEdge ch = this.getCHEdge(cvSet);
+		CompressedHEdge ch = this.getCHEdge(cvSet);
 		
 		if(ch != null) {			
 			//ch.incWeight(h.getWeight());
@@ -140,22 +150,23 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			cHEdges.get(ch).addAll(cvSet);
 			
 			// Add incident Compressed Hyperedge
-			for(CVertex cv : cvSet)
+			for(CompressedVertex cv : cvSet)
 				cVertices.get(cv).add(ch);
 			
 			//System.out.println(ch);
 			return false;
 			
 		} else {
-			CHEdge new_ch = new CHEdge(++Global.cHEdgeSeq, h.getWeight());
+			CompressedHEdge new_ch = new CompressedHEdge(++Global.cHEdgeSeq, h.getWeight());
 			new_ch.getHESet().put(h.getId(), h);
 
 			// Add incident Compressed Vertices
-			cHEdges.put(new_ch, new HashSet<CVertex>(cvSet));
+			cHEdges.put(new_ch, new HashSet<CompressedVertex>(cvSet));
 			cHEMap.put(new_ch.getId(), new_ch);
+			hcMap.put(h.getId(), new_ch.getId());
 						
 			// Add incident Compressed Hyperedge
-			for(CVertex cv : cvSet)
+			for(CompressedVertex cv : cvSet)
 				cVertices.get(cv).add(new_ch);
 			
 			//System.out.println(new_ch);
@@ -165,7 +176,7 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 	// Removes a Compressed Hyperedge in the Compressed Hypergraph if necessary
 	public boolean removeCHEdge(H h) {		
-		CHEdge ch = getCHEdge(h);
+		CompressedHEdge ch = getCHEdge(h);
 		//System.out.println("--> "+ch.toString()+"|"+ch.getWeight());
 		ch.getHESet().remove(h.getId());
 		
@@ -173,6 +184,8 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			//System.out.println("--> Removing "+ch.toString());
 			cHEdges.remove(ch);
 			cHEMap.remove(ch.getId());
+			hcMap.remove(h.getId());
+			
 			return true;
 			
 		} else { 
@@ -190,7 +203,7 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		// Otherwise create a new Compressed Vertex
 		
 		int cv_id = Utility.simpleHash(v.getId(), Global.virtualNodes);		
-		CVertex cv = this.getCVertex(cv_id);
+		CompressedVertex cv = this.getCVertex(cv_id);
 		
 		if(cv != null) {
 			
@@ -204,10 +217,11 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			return false;
 			
 		} else {			
-			CVertex new_cv = new CVertex(cv_id, v.getWeight());	        	
+			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight());	        	
 	        new_cv.getVSet().put(v.getId(), v);	        
-        	cVertices.put(new_cv, new HashSet<CHEdge>());
+        	cVertices.put(new_cv, new HashSet<CompressedHEdge>());
         	cVMap.put(new_cv.getId(), new_cv);
+        	vcMap.put(v.getId(), new_cv.getId());
         	
         	//System.out.println(new_cv);
         	return true;
@@ -216,7 +230,7 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	
 	// 
 	public boolean removeCVertex(V v) {
-		CVertex cv = getCVertex(v);
+		CompressedVertex cv = getCVertex(v);
 		//System.out.println("--> "+cv.toString()+"|"+cv.getWeight());
 		cv.getVSet().remove(v.getId());
 
@@ -224,6 +238,8 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			//System.out.println("--> Removing "+cv.toString());
 			cVertices.remove(cv);
 			cVMap.remove(cv.getId());
+			vcMap.remove(cv.getId());
+			
 			return true;
 			
 		} else {
@@ -235,14 +251,14 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// Returns a Compressed Vertex based on the given id
-	public CVertex getCVertex(int key) {
+	public CompressedVertex getCVertex(int key) {
 		return cVMap.get(key);
 	}	
 
 	// Returns a Compressed Vertex based on the given Vertex
-	public CVertex getCVertex(V v) {
+	public CompressedVertex getCVertex(V v) {
 		
-		for(Entry<CVertex, Set<CHEdge>> entry : cVertices.entrySet())
+		for(Entry<CompressedVertex, Set<CompressedHEdge>> entry : cVertices.entrySet())
 			if(entry.getKey().getVSet().containsKey(v.getId()))
 				return entry.getKey();
 		
@@ -250,14 +266,14 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// Returns a Compressed Hyperedge based on the given id
-	public CHEdge getCHEdge(int key) {
+	public CompressedHEdge getCHEdge(int key) {
 		return cHEMap.get(key);
 	}	
 	
 	// Returns a Compressed Hyperedge based on the given Hyperedge
-	public CHEdge getCHEdge(H h) {
+	public CompressedHEdge getCHEdge(H h) {
 		
-		for(Entry<CHEdge, Set<CVertex>> entry : cHEdges.entrySet())
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHEdges.entrySet())
 			if(entry.getKey().getHESet().containsKey(h.getId()))
 				return entry.getKey();
 		
@@ -265,9 +281,9 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}	
 
 	// Returns a Compressed Hyperedge if it contains a given set of Compressed vertices
-	public CHEdge getCHEdge(Set<CVertex> cvSet) {
+	public CompressedHEdge getCHEdge(Set<CompressedVertex> cvSet) {
 		
-		for(Entry<CHEdge, Set<CVertex>> entry : cHEdges.entrySet()) {
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHEdges.entrySet()) {
 			if(entry.getValue().containsAll(cvSet))
 				return entry.getKey();
 		}
@@ -276,7 +292,50 @@ public class SHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 
 	// 
-	public Map<CHEdge, Set<CVertex>> getcHEdges() {
+	public Map<CompressedHEdge, Set<CompressedVertex>> getcHEdges() {
 		return cHEdges;
+	}
+	
+	public boolean isCHEdgeDT(WorkloadBatch wb, CompressedHEdge ch) {
+		
+		for(Entry<Integer, SimpleHEdge> h : ch.getHESet().entrySet()) {
+			Transaction tr = wb.getTransaction(h.getValue().getId());
+			
+			if(tr.isDt())
+				return true;
+		}
+		
+		return false;
 	}	
+	
+	// Returns the set of Virtual Nodes (Compressed Vertices) covered by the given Hyperedge h
+	public Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch) {
+		return cHEdges.get(ch);
+	}
+	
+	// Returns the set of Partitions covered by the given Hyperedge h
+	public Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch) {
+		
+		Set<Integer> incidentPartitions = new HashSet<Integer>();
+		
+		for(Entry<Integer, SimpleHEdge> entry : ch.getHESet().entrySet()) {		
+			Transaction tr = wb.getTransaction(entry.getKey());
+			incidentPartitions.addAll(tr.getTr_partitionSet());
+		}
+		
+		return incidentPartitions;
+	}
+	
+	// Returns the set of Servers covered by the given Hyperedge h
+	public Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch) {	
+		
+		Set<Integer> incidentServers = new HashSet<Integer>();
+		
+		for(Entry<Integer, SimpleHEdge> entry : ch.getHESet().entrySet()) {		
+			Transaction tr = wb.getTransaction(entry.getKey());
+			incidentServers.addAll(tr.getTr_serverSet());
+		}
+		
+		return incidentServers;
+	}
 }

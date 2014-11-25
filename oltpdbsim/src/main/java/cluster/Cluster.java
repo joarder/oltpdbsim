@@ -16,7 +16,6 @@ import main.java.db.Tuple;
 import main.java.entry.Global;
 import main.java.repartition.DataMovement;
 import main.java.repartition.MinCut;
-import main.java.repartition.Sword;
 import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.Utility;
 import main.java.workload.Transaction;
@@ -35,9 +34,6 @@ public class Cluster {
 
 	public static boolean _setup;
 	
-	// Only for Sword
-	public Sword sword;
-	
 	public Cluster() {
 	    this.setPartitions(new TreeSet<Partition>());
 		this.setServers(new TreeSet<Server>());		
@@ -46,10 +42,8 @@ public class Cluster {
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		this.setPartition_keyRange(new HashMap<Integer, ArrayList<Long>>());
 		
-		if(Global.compressionBeforeSetup) {
-			this.setVdataSet(new TreeMap<Integer, VirtualData>());
-			sword = new Sword();
-		}
+		if(Global.compressionBeforeSetup)
+			this.setVdataSet(new TreeMap<Integer, VirtualData>());		
 	}
 	
 	public SortedSet<Server> getServers() {
@@ -230,6 +224,7 @@ public class Cluster {
 		// Stream a new Workload Batch
 		Global.global_trSeq = 0;
 		WorkloadBatch wb = this.warmupSword(db, this, wrl);
+		
 		Global.LOGGER.info("Total "+Global.global_trSeq+" transactions containing "
 				+wb.getWrl_totalDataObjects()+" data rows have generated.");
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -271,7 +266,7 @@ public class Cluster {
 		}
 		
 		// Initialize Sword's incremental repartitioning algorithm		
-		sword.init(cluster, wb);
+		wb.sword.init(cluster, wb);
 		
 		_setup = false;
 	}

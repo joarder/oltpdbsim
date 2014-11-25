@@ -267,7 +267,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.setTr_temporal_weight(--tr_temporal_weight);
 	}
 	
-	public boolean isOld() {
+	public boolean isExpired() {
 		
 		if(Sim.time() - this.getTimestamp() > Global.oldTransactionTimestamp) //(3600/Global.workloadChangeProbability))		
 			return true;

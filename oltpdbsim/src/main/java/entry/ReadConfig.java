@@ -94,7 +94,9 @@ public class ReadConfig {
 			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("threshold.change.in.dt"));			
 			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
 			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));
+			
 			Global.oldTransactionTimestamp = Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
+			Global.transactionExpiration = Boolean.parseBoolean((String) config_param.getProperty("enable.transaction.expiration"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);

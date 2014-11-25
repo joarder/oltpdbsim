@@ -11,10 +11,12 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
 import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.entry.Global;
-import main.java.utils.graph.SHypergraph;
+import main.java.repartition.Sword;
+import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
@@ -28,7 +30,9 @@ public class WorkloadBatch {
 	
 	// Hypergraph	
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
-	public Set<Integer> hCut;
+	
+	// Sword specifics
+	public Sword sword;
 		
 	// To keep track of edge id and corresponding hyperedge/transaction id
 	public Map<Integer, Set<Integer>> edge_id_map;
@@ -85,8 +89,7 @@ public class WorkloadBatch {
 		this.setWrl_dataId_clusterId_map(new TreeMap<Integer, Integer>());
 		this.setWrl_virtualDataId_clusterId_map(new TreeMap<Integer, Integer>());		
 		
-		this.hgr = new SHypergraph<SimpleVertex, SimpleHEdge>();
-		this.hCut = new TreeSet<Integer>();
+		this.hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();		
 		
 		switch(Global.workloadRepresentation) {
 			case "gr":
@@ -96,8 +99,12 @@ public class WorkloadBatch {
 				break;
 				
 			case "hgr":
-				if(Global.compressionEnabled)
+				if(Global.compressionEnabled) {
 					this.cHEdge_id_map = new TreeMap<Integer, Integer>();
+					
+					if(Global.compressionBeforeSetup)
+						this.sword = new Sword();
+				}
 				
 				break;
 		}
@@ -456,28 +463,6 @@ public class WorkloadBatch {
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
 		this.hgr.removeEdge(h);
-//		
-//		switch(Global.workloadRepresentation) {
-//			case "gr":
-//				Set<Integer> edgeSet = this.edge_id_map.get(tr.getTr_id());
-//				for(Integer e_i : edgeSet) {
-//					SimpleEdge e = this.gr.getEdge(e_i);
-//					this.gr.removeEdge(e);
-//					//wb.gr.removeGraphEdge(e);
-//				}
-//				
-//				this.edge_id_map.remove(tr.getTr_id());
-//				
-//				break;
-//				
-//			case "hgr":
-//				SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-//				this.hgr.removeEdge(h);
-//				// wb.hgr.removeHEdge(h);
-//				
-//				break;
-//				
-//		} //end-switch()
 	}	
 	
 	// Unused function
@@ -560,15 +545,18 @@ public class WorkloadBatch {
 		
 		double dt_percentage = 0.0d;
 		double ndt_percentage = 0.0d;
-		double mean_dti = 0.0d;
+		double mean_dti = 0.0d;		
 		
 		for(SimpleHEdge h : this.hgr.getEdges()) {
-		
-			Transaction tr = this.getTransaction(h.getId());			
+			
+			Transaction tr = this.getTransaction(h.getId());
 			tr.calculateSpans(cluster);
 			
 			if(tr.isDt()) {
 				++dt_nums;
+				
+				if(Global.compressionBeforeSetup)
+					this.sword.hCut.add(h);
 				
 				tr.calculateDTImapct();
 				dti_sum += tr.getTr_dtImpact();
@@ -577,14 +565,14 @@ public class WorkloadBatch {
 				++ndt_nums;
 				
 				tr.calculateDTImapct();
-				ndti_sum += tr.getTr_dtImpact();
-				
+				ndti_sum += tr.getTr_dtImpact();			
 			}
 		} // end -- for()		
 				
 		this.set_dt_nums(dt_nums);
 		this.set_ndt_nums(ndt_nums);
 		
+		Global.LOGGER.info("Number of Transactions after statistic collection: "+this.get_tr_nums());
 		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
 		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
 		Global.LOGGER.info("Number of non-DTs before statistic collection: "+this.get_old_ndt_nums());
@@ -604,8 +592,7 @@ public class WorkloadBatch {
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
 		this.set_mean_dti(mean_dti);
-		
-		//this.calculateAverageTrFreq(total_trFreq);
+		this.sword.calculateContribution(cluster, this);
 	}
 	
 	public void show() {		

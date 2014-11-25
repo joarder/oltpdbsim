@@ -46,13 +46,13 @@ public class TransactionClassifier {
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			Transaction tr = wb.getTransaction(h.getId());
 			
-			if(tr.isOld()) {				
+			if(tr.isExpired()) {				
 				++tr_old;
 				toBeRemoved.add(tr.getTr_id());
 			}
 		}
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
+		//wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
 		
 		TransactionClassifier.remove(wb);
 		
@@ -70,7 +70,7 @@ public class TransactionClassifier {
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			Transaction tr = wb.getTransaction(h.getId());
 			
-			if(!tr.isOld()) {
+			if(!tr.isExpired()) {
 				if(tr.isDt()) { // Distributed Transactions
 					tr.setTr_class("red");
 					++tr_red;
@@ -263,8 +263,7 @@ public class TransactionClassifier {
 		wb.set_old_ndti_sum(old_ndti_sum);
 		
 		TransactionClassifier.remove(wb);
-		
-		Global.LOGGER.info("Total transactions: "+wb.hgr.getEdgeCount());
+				
 		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
 		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
 		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
@@ -378,6 +377,10 @@ public class TransactionClassifier {
 		for(Integer i : toBeRemoved) {
 			SimpleHEdge h = wb.hgr.getHEdge(i);
 			wb.hgr.removeHEdge(h);
+			
+			if(Global.compressionBeforeSetup && wb.sword.hCut.contains(h))
+				wb.sword.hCut.remove(h);
+				
 		}		
 	}
 }
