@@ -3,6 +3,7 @@ package main.java.utils.graph;
 import java.util.Map;
 import java.util.Set;
 
+import main.java.cluster.Cluster;
 import main.java.workload.WorkloadBatch;
 import edu.uci.ics.jung.graph.Hypergraph;
 
@@ -19,10 +20,11 @@ public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	boolean addCVertex(V v);
 	boolean removeCVertex(V v);
 	Map<CompressedHEdge, Set<CompressedVertex>> getcHEdges();
+	Map<CompressedVertex, Set<CompressedHEdge>> getcVertices();
 	CompressedHEdge getCHEdge(H h);
 	CompressedHEdge getCHEdge(Set<CompressedVertex> vSet);
 	CompressedHEdge getCHEdge(int id);
-	boolean isCHEdgeDT(WorkloadBatch wb, CompressedHEdge ch);
+	boolean isSpans2Server(Cluster cluster, WorkloadBatch wb, CompressedHEdge ch);
 	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);
 	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
 	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);

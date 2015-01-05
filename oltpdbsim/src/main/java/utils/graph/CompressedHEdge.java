@@ -8,7 +8,7 @@ public class CompressedHEdge extends SimpleHEdge {
 
 	private Map<Integer, SimpleHEdge> HSet;	
 	private double c_e; // Contribution of each hyperedge e in H_cut towards total number of distributed transactions seen so far
-	private double ndt_e;
+	private int ndt_e;
 	
 	public CompressedHEdge(int id, int weight) {
 		super(id, weight);		
@@ -33,11 +33,11 @@ public class CompressedHEdge extends SimpleHEdge {
 		this.c_e = c_e;
 	}
 
-	public double getNdt_e() {
+	public int getNdt_e() {
 		return ndt_e;
 	}
 
-	public void setNdt_e(double ndt_e) {
+	public void setNdt_e(int ndt_e) {
 		this.ndt_e = ndt_e;
 	}
 

@@ -7,6 +7,7 @@ import main.java.cluster.Cluster;
 import main.java.db.TpccDatabase;
 import main.java.metric.Metric;
 import main.java.workload.TpccWorkload;
+import main.java.workload.WorkloadBatch;
 import main.java.workload.WorkloadExecutor;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
@@ -58,10 +59,10 @@ public class Main {
 					dbCluster.warmup(tpccDatabase, tpcc);
 					
 					// Create a database cluster consisted of a set of physical servers and a consistent hash ring to store the physical data tuples
-					dbCluster.setup(tpccDatabase, tpcc);
+					WorkloadBatch wb = dbCluster.setup(tpccDatabase, tpcc);
 					
 					// Workload execution
-					wrlExecutor.execute(tpccDatabase, dbCluster, tpcc);									
+					wrlExecutor.execute(tpccDatabase, dbCluster, wb, tpcc);									
 					
 					// Proceed for the next simulation run
 					--Global.repeated_runs;																

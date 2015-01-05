@@ -4,16 +4,15 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import main.java.cluster.Partition;
-
 public class CompressedVertex extends SimpleVertex {
-
-	private Map<Integer, SimpleVertex> VSet;
-	private Map<Partition, Integer> nh;
 	
-	public CompressedVertex(int id, int weight) {
-		super(id, weight);		
-		this.VSet = new HashMap<Integer, SimpleVertex>();
+	private Map<Integer, SimpleVertex> VSet;
+	private int nh;
+	
+	public CompressedVertex(int id, int weight, int pid, int sid) {
+		super(id, weight, pid, sid);
+		this.setVSet(new HashMap<Integer, SimpleVertex>());
+		this.setNh(0);
 	}
 	
 	public Map<Integer, SimpleVertex> getVSet() {
@@ -24,11 +23,11 @@ public class CompressedVertex extends SimpleVertex {
 		this.VSet = VSet;
 	}
 	
-	public Map<Partition, Integer> getNh() {
+	public int getNh() {
 		return nh;
 	}
 
-	public void setNh(Map<Partition, Integer> nh) {
+	public void setNh(int nh) {
 		this.nh = nh;
 	}
 

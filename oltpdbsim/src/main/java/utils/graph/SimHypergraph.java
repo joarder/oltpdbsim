@@ -4,10 +4,13 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import edu.uci.ics.jung.graph.SetHypergraph;
+import main.java.cluster.Cluster;
+import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.Transaction;
@@ -217,7 +220,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			return false;
 			
 		} else {			
-			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight());	        	
+			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight(), v.getPid(), v.getSid());	        	
 	        new_cv.getVSet().put(v.getId(), v);	        
         	cVertices.put(new_cv, new HashSet<CompressedHEdge>());
         	cVMap.put(new_cv.getId(), new_cv);
@@ -296,14 +299,33 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		return cHEdges;
 	}
 	
-	public boolean isCHEdgeDT(WorkloadBatch wb, CompressedHEdge ch) {
+	// 
+	public Map<CompressedVertex, Set<CompressedHEdge>> getcVertices() {
+		return cVertices;
+	}
+	
+	public boolean isSpans2Server(Cluster cluster, WorkloadBatch wb, CompressedHEdge ch) {
 		
-		for(Entry<Integer, SimpleHEdge> h : ch.getHESet().entrySet()) {
-			Transaction tr = wb.getTransaction(h.getValue().getId());
-			
-			if(tr.isDt())
-				return true;
+//		for(Entry<Integer, SimpleHEdge> h : ch.getHESet().entrySet()) {
+//			Transaction tr = wb.getTransaction(h.getValue().getId());
+//			tr.calculateSpans(cluster);
+//			
+//			if(tr.getTr_serverSet().size() == 2)
+//				return true;
+//		}
+		
+		Set<Integer> serverSet = new TreeSet<Integer>();
+		
+		for(CompressedVertex cv : wb.hgr.getcHEdges().get(ch)) {
+			serverSet.add(cv.getSid());
+//			for(Entry<Integer, SimpleVertex> v : cv.getVSet().entrySet()) {
+//				Data data = cluster.getData(v.getValue().getId());
+//				serverSet.add(data.getData_server_id());
+//			}
 		}
+		
+		if(serverSet.size() == 2)
+			return true;
 		
 		return false;
 	}	

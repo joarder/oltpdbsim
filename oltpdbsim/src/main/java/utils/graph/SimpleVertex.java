@@ -4,10 +4,14 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 	
 	private int id;
 	private int weight;
+	private int pid; // Residing Partition id
+	private int sid; // Residing Partition id
 	
-	public SimpleVertex(int id, int weight) {
+	public SimpleVertex(int id, int weight, int pid, int sid) {
 		this.setId(id);
 		this.setWeight(weight);
+		this.setPid(pid);
+		this.setSid(sid);
 	}
 	
 	public int getId() {
@@ -26,16 +30,22 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 		this.weight = weight;
 	}
 	
-//	public void incWeight(int weight) {
-//		int w = this.getWeight();
-//		this.setWeight(w + weight);
-//	}
-//	
-//	public void decWeight(int weight) {
-//		int w = this.getWeight();
-//		this.setWeight(w - weight);
-//	}
-	
+	public int getPid() {
+		return pid;
+	}
+
+	public void setPid(int pid) {
+		this.pid = pid;
+	}
+
+	public int getSid() {
+		return sid;
+	}
+
+	public void setSid(int sid) {
+		this.sid = sid;
+	}
+
 	@Override
 	public String toString() {		
 		return ("V"+this.getId());

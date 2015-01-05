@@ -176,7 +176,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.dt = dt;
 	}
 
-	public boolean isSpan2Servers() {
+	public boolean isSpans2Servers() {
 		return span2Servers;
 	}
 

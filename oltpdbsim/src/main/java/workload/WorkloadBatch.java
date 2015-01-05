@@ -14,6 +14,7 @@ import java.util.TreeSet;
 
 import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
+import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.repartition.Sword;
 import main.java.utils.graph.SimHypergraph;
@@ -419,7 +420,7 @@ public class WorkloadBatch {
 	}
 	
 	// Adding a hyperedge from a single transaction
-	public void addHGraphEdge(Transaction tr) {	
+	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
 				
@@ -427,17 +428,20 @@ public class WorkloadBatch {
 			h.setWeight(tr.getTr_frequency());			
 		else {
 			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr.getTr_frequency()), 
-					this.getVertices(tr.getTr_dataSet()));
+					this.getVertices(cluster, tr.getTr_dataSet()));
 		}
 	}
 	
 	// Converts a set of transactional data set into a set of vertices
-	private Set<SimpleVertex> getVertices(Set<Integer> trDataSet) {
+	private Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {
 		
 		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
 		
-		for(Integer d : trDataSet)			
-			trSet.add(new SimpleVertex(d, 1)); // 1 = Vertex Weight		
+		for(Integer d : trDataSet) {
+			Data data = cluster.getData(d);
+			trSet.add(new SimpleVertex(d, 1,  // 1 = Vertex Weight
+					data.getData_partition_id(), data.getData_server_id()));
+		}
 		
 		return trSet;		
 	}

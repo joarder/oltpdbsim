@@ -151,7 +151,7 @@ public class WorkloadExecutor {
 		}
 		
 		// Add a hyperedge to Workload Hypergraph
-		wb.addHGraphEdge(tr);		
+		wb.addHGraphEdge(cluster, tr);		
 		
 		return tr;
 	}
@@ -192,7 +192,7 @@ public class WorkloadExecutor {
 	}	
 	
 	// new
-	public void execute(Database db, Cluster cluster, Workload wrl) {
+	public void execute(Database db, Cluster cluster, WorkloadBatch wb, Workload wrl) {
 		Global.LOGGER.info("=============================================================================");
 		Global.LOGGER.info("Streaming transactional workload ...");
 		
@@ -200,7 +200,8 @@ public class WorkloadExecutor {
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
 		
 		// Create a new Workload Batch
-		WorkloadBatch wb = new WorkloadBatch(Global.repeated_runs);
+		if(!Global.compressionBeforeSetup)
+			wb = new WorkloadBatch(Global.repeated_runs);
 		
 		// Start simulation
 		WorkloadExecutor.simulate(db, cluster, wrl, wb, Global.simulationPeriod);

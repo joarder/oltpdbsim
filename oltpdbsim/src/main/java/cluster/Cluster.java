@@ -102,8 +102,10 @@ public class Cluster {
 		this.partition_keyRange = partition_keyRange;
 	}
 
-	public void setup(Database db, Workload wrl) {
-		// Will only be used for SWORD		
+	public WorkloadBatch setup(Database db, Workload wrl) {
+		// Will only be used for SWORD
+		WorkloadBatch wb = null;
+		
 		Global.LOGGER.info("Setting up Cluster ...");
 		
 		// Add Partitions
@@ -172,7 +174,7 @@ public class Cluster {
 				
 		// Physical Data Distribution
 		if(Global.compressionBeforeSetup)
-			this.vdataDistribution(db, this, wrl);
+			wb = this.vdataDistribution(db, this, wrl);
 		else {
 			this.dataDistribution(db);
 			//this.warmup(db, wrl);
@@ -185,6 +187,8 @@ public class Cluster {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Total data within the Cluster: "+Global.global_dataCount);
 		Global.LOGGER.info("Cluster setup has finished.");
+		
+		return wb;
 	}
 
 	// Physical Data distribution
@@ -209,7 +213,7 @@ public class Cluster {
 	}
 	
 	// Physical Data distribution for SWORD (Compression before setup)
-	private void vdataDistribution(Database db, Cluster cluster, Workload wrl) {
+	private WorkloadBatch vdataDistribution(Database db, Cluster cluster, Workload wrl) {
 		_setup = true;
 		
 		//Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
@@ -269,6 +273,8 @@ public class Cluster {
 		wb.sword.init(cluster, wb);
 		
 		_setup = false;
+		
+		return wb;
 	}
 	
 	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {		
@@ -298,7 +304,7 @@ public class Cluster {
 				wb.getTrMap().get(i).put(tr.getTr_id(), tr);
 				
 				// Add a hyperedge to Workload Hypergraph
-				wb.addHGraphEdge(tr);
+				wb.addHGraphEdge(this, tr);
 			}			
 		}
 
