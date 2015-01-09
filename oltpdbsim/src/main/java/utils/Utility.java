@@ -8,6 +8,13 @@ import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import main.java.entry.Global;
 
@@ -132,5 +139,44 @@ public class Utility {
  
 	public static boolean isUnix() {
 		return (Global.OS.indexOf("nix") >= 0 || Global.OS.indexOf("nux") >= 0 || Global.OS.indexOf("aix") > 0 );
+	}
+	
+	/**
+	 * Added from SO: http://stackoverflow.com/questions/109383/how-to-sort-a-mapkey-value-on-the-values-in-java
+	 * 
+	 */
+	public static <K, V extends Comparable<V>> Map<K, V> sortByValues(final Map<K, V> map) {
+		
+	    Comparator<K> valueComparator =  new Comparator<K>() {
+	        public int compare(K k1, K k2) {
+	            int compare = map.get(k2).compareTo(map.get(k1));
+	            
+	            if (compare == 0) 
+	            	return 1;
+	            else 
+	            	return compare;
+	        }
+	    };
+	    
+	    Map<K, V> sortedByValues = new TreeMap<K, V>(valueComparator);
+	    sortedByValues.putAll(map);
+	    
+	    return sortedByValues;
+	}
+	
+	public static <K,V extends Comparable<? super V>> List<Entry<K, V>> sortedByValues(Map<K,V> map) {
+
+		List<Entry<K,V>> sortedEntries = new ArrayList<Entry<K,V>>(map.entrySet());
+
+		Collections.sort(sortedEntries, new Comparator<Entry<K,V>>() 
+			{
+				@Override
+				public int compare(Entry<K,V> e1, Entry<K,V> e2) {
+					return e2.getValue().compareTo(e1.getValue());
+				}
+			}
+		);
+
+		return sortedEntries;
 	}
 }	

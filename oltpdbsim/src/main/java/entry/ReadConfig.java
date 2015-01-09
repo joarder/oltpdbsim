@@ -90,7 +90,9 @@ public class ReadConfig {
 			Global.simulationPeriod = Integer.parseInt((String) config_param.getProperty("simulation.period"));
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
-			Global.workloadChangeProbability = Double.parseDouble((String) config_param.getProperty("workload.change.probability"));			
+			Global.workloadChangeProbability = Double.parseDouble((String) config_param.getProperty("workload.change.probability"));
+			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("workload.window.size"));
+			Global.uniqueMax = Integer.parseInt((String) config_param.getProperty("unique.max"));
 			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("threshold.change.in.dt"));			
 			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
 			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));

@@ -1,5 +1,6 @@
 package main.java.entry;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
@@ -12,9 +13,11 @@ public final class Global implements java.io.Serializable {
 	
 	// Global variables
 	public static int global_trSeq = 0;
+	public static int global_trCount = 0;
 	public static int total_transactions = 0;
 	public static int global_tupleSeq = 0;
 	public static int global_dataCount = 0;
+	public static ArrayList<Integer> T = new ArrayList<Integer>();
 	
 	// Graph, Hypergraph
 	public static int edgeSeq = 0;
@@ -64,6 +67,8 @@ public final class Global implements java.io.Serializable {
 	public static double meanInterArrivalTime; 
     public static double meanServiceTime;
 	public static double workloadChangeProbability;
+	public static int observationWindow;
+	public static int uniqueMax;
 	public static double percentageChangeDt;
 	public static int initialDetectionTime;	
 	public static double nextCollection = 3600.0;

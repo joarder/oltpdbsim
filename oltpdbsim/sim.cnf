@@ -1,4 +1,4 @@
-simulation.name=hgr-sword
+simulation.name=hgr-random
 
 workload.aware=true
 incremental.repartitioning=true
@@ -6,10 +6,10 @@ transaction.classification=false
 
 workload.representation=hgr
 transaction.classification.strategy=basic
-data.migration.strategy=sword
+data.migration.strategy=random
 
-compression.enabled=true
-compression.before.setup=true
+compression.enabled=false
+compression.before.setup=false
 compression.ratio=6
 
 initial.servers=4
@@ -22,9 +22,11 @@ inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
 workload.change.probability=0.1
+workload.window.size=3600
+unique.max=1800
 threshold.change.in.dt=0.5
 initial.detection.time=3600
 dynamic.dt.margin=false
 
-enable.transaction.expiration=true
+enable.transaction.expiration=false
 old.transaction.timestamp=43201

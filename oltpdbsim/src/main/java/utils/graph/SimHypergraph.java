@@ -10,7 +10,6 @@ import java.util.Set;
 
 import edu.uci.ics.jung.graph.SetHypergraph;
 import main.java.cluster.Cluster;
-import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.Transaction;

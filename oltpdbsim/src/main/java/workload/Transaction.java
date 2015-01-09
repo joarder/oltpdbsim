@@ -317,6 +317,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	@Override
 	public String toString() {	
 		return (this.getTr_label()+"("
+				+"Type["+this.tr_type+"] | "
 				+"DT["+this.isDt()+"] | "
 				+"SS["+this.getTr_serverSpanCost()+"] | "
 				+"FQ["+this.getTr_frequency()+"] | "

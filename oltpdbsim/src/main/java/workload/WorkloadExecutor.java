@@ -18,9 +18,23 @@ package main.java.workload;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+
+import main.java.cluster.Cluster;
+import main.java.db.Database;
+import main.java.entry.Global;
+import main.java.metric.Metric;
+import main.java.repartition.DataMovement;
+import main.java.repartition.MinCut;
+import main.java.repartition.TransactionClassifier;
+import main.java.repartition.WorkloadBatchProcessor;
+import main.java.utils.ValueComparator;
 
 import org.apache.commons.math3.distribution.EnumeratedIntegerDistribution;
 
@@ -31,14 +45,6 @@ import umontreal.iro.lecuyer.simevents.Accumulate;
 import umontreal.iro.lecuyer.simevents.Event;
 import umontreal.iro.lecuyer.simevents.Sim;
 import umontreal.iro.lecuyer.stat.Tally;
-import main.java.cluster.Cluster;
-import main.java.db.Database;
-import main.java.entry.Global;
-import main.java.metric.Metric;
-import main.java.repartition.DataMovement;
-import main.java.repartition.MinCut;
-import main.java.repartition.TransactionClassifier;
-import main.java.repartition.WorkloadBatchProcessor;
 
 public class WorkloadExecutor {
 
@@ -65,7 +71,10 @@ public class WorkloadExecutor {
 	static double total_response_time = 0.0;	
 	
 	// Seed
-	static long[] seed = new long[10];	
+	static long[] seed = new long[10];
+	
+	// New (January 07, 2015)
+	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
 	
     public WorkloadExecutor() {
         
@@ -77,6 +86,10 @@ public class WorkloadExecutor {
         
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
+		
+		
+		Global.uniqueMax = (int) (Global.uniqueMax - 
+				Math.round(Global.observationWindow*(Global.workloadChangeProbability/2)*100.0)/100.0);
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -85,20 +98,92 @@ public class WorkloadExecutor {
 		Set<Integer> trTupleSet = null;
 		Set<Integer> trDataSet = null;
 		
-		int t = 0, tr_id;
+		int min = 0, i = 0, n = 0, tr_id = 0;		
 		int type = trDistribution.sample();
 
 		Transaction tr = null;
 		
-		if(!wb.getTrBuffer().containsKey(type))
-			wb.getTrBuffer().put(type, new ArrayList<Integer>());
+		//if(!wb.getTrBuffer().containsKey(type))
+			//wb.getTrBuffer().put(type, new ArrayList<Integer>());
 		
 		if(!wb.getTrMap().containsKey(type))
 			wb.getTrMap().put(type, new TreeMap<Integer, Transaction>());		
 		
 		// new
 		double rand_val = Global.rand.nextDouble();
+
+/**
+ *  Implementing the new Workload Generation model (Finalised as per November 20, 2014)		
+ */
+
+		// Transaction birth
+		if(wb.getTrMap().get(type).isEmpty() || rand_val <= Global.workloadChangeProbability) {
+			
+			trTupleSet = wrl.getTrTupleSet(db, type);
+			trDataSet = Workload.getTrDataSet(db, cluster, wb, trTupleSet);
+			
+			++Global.global_trSeq;			
+			tr = new Transaction(Global.global_trSeq, type, trDataSet, Sim.time());
+			
+			// Add the newly created Transaction in the Workload Transaction map	
+			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
+
+		// Transaction repetition and retention of old transaction
+		} else {
+			
+			ArrayList<Integer> idx2_id = new ArrayList<Integer>();
+			ArrayList<Integer> idx_id = new ArrayList<Integer>();	
+			ArrayList<Integer> uT = new ArrayList<Integer>();
+			
+			Map<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator(idx));
+			idx2.putAll(idx);			
+			
+			min = Math.min(idx.size(), Global.uniqueMax);
+			
+			i = 0;
+			Iterator<Entry<Integer, Integer>> itr = idx2.entrySet().iterator();
+			while(i < min) {
+				idx2_id.add(itr.next().getKey());
+				++i;
+			}
+
+			i = 0;
+			itr = idx.entrySet().iterator();
+			while(i < idx2_id.size()) {
+				idx_id.add(idx.get(idx2_id.get(i)));
+				++i;
+			}
+			
+			i = 0;
+			while(i < idx_id.size()) {
+				uT.add(Global.T.get(idx_id.get(i)));
+				++i;
+			}
+
+			if(uT.size() == 1)
+				n = 0;
+			else
+				n = Global.rand.nextInt(uT.size() - 1);
+			
+			tr_id = Global.T.get(n);
+			tr = wb.getTransaction(tr_id);
+			
+			tr.incTr_frequency();
+			tr.setTimestamp(Sim.time());
+			tr.setProcessed(false);
+
+			if(!tr.isTemporal()) {
+				tr.decTr_temporalWeight();
+				tr.setTemporal(true);
+			}			
+		}
+	
+		// Create an index entry for each newly created Transaction
+		idx.put(tr.getTr_id(), Global.global_trCount);
+		Global.T.add(tr.getTr_id());
+		++Global.global_trCount;
 		
+/*		// Last known working version of previous workload generator
 		// Transaction birth
 		if(wb.getTrBuffer().get(type).isEmpty() || rand_val <= Global.workloadChangeProbability) {
 			//System.out.println("-->> inserting new transaction ...");
@@ -128,7 +213,7 @@ public class WorkloadExecutor {
 			if(!tr.isTemporal()) {
 				tr.decTr_temporalWeight();
 				tr.setTemporal(true);
-			}			
+			}
 		}
 				
 		// Transaction death
@@ -141,7 +226,8 @@ public class WorkloadExecutor {
 			
 			if(Global.transactionExpiration)
 				tr.setTimestamp(Integer.MAX_VALUE); // For removing old transactions						
-		}	
+		}
+*/
 		
 		tr.calculateSpans(cluster);
 		
@@ -398,8 +484,8 @@ class Arrival extends Event {
 				
 				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
 					
-					if(WorkloadExecutor.changeDetected) {
-					
+					if(WorkloadExecutor.changeDetected) {						
+						
 						++Global.repartitioningCycle;
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");

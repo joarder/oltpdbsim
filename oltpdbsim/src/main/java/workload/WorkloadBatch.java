@@ -27,7 +27,7 @@ public class WorkloadBatch {
 	private int wrl_id;
 	
 	private SortedMap<Integer, Map<Integer, Transaction>> trMap;
-	private SortedMap<Integer, ArrayList<Integer>> trBuffer;	
+	//private SortedMap<Integer, ArrayList<Integer>> trBuffer;	
 	
 	// Hypergraph	
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
@@ -85,7 +85,7 @@ public class WorkloadBatch {
 		this.set_old_ndti_sum(0);
 		
 		this.setTrMap(new TreeMap<Integer, Map<Integer, Transaction>>());
-		this.setTrBuffer(new TreeMap<Integer, ArrayList<Integer>>());
+		//this.setTrBuffer(new TreeMap<Integer, ArrayList<Integer>>());
 		
 		this.setWrl_dataId_clusterId_map(new TreeMap<Integer, Integer>());
 		this.setWrl_virtualDataId_clusterId_map(new TreeMap<Integer, Integer>());		
@@ -127,13 +127,13 @@ public class WorkloadBatch {
 		this.trMap = trMap;
 	}
 
-	public SortedMap<Integer, ArrayList<Integer>> getTrBuffer() {
-		return trBuffer;
-	}
-
-	public void setTrBuffer(SortedMap<Integer, ArrayList<Integer>> trBuffer) {
-		this.trBuffer = trBuffer;
-	}
+//	public SortedMap<Integer, ArrayList<Integer>> getTrBuffer() {
+//		return trBuffer;
+//	}
+//
+//	public void setTrBuffer(SortedMap<Integer, ArrayList<Integer>> trBuffer) {
+//		this.trBuffer = trBuffer;
+//	}
 
 	public int getDb_tuple_counts() {
 		return db_tuple_counts;
@@ -596,7 +596,9 @@ public class WorkloadBatch {
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
 		this.set_mean_dti(mean_dti);
-		this.sword.calculateContribution(cluster, this);
+		
+		if(Global.compressionBeforeSetup)
+			this.sword.calculateContribution(cluster, this);
 	}
 	
 	public void show() {		

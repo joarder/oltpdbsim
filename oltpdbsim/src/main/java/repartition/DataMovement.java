@@ -369,7 +369,7 @@ public class DataMovement {
 				} // end -- if()-Data
 			} // end -- for()-Data
 			
-			if(tr.isDt())
+			if(tr.isDt() && Global.compressionBeforeSetup)
 				wb.sword.hCut.add(h);
 			
 		} // end -- for()		
