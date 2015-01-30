@@ -12,15 +12,16 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
+import main.java.repartition.MethodX;
 import main.java.repartition.Sword;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
+import umontreal.iro.lecuyer.simevents.Sim;
 
 public class WorkloadBatch {
 	
@@ -32,8 +33,11 @@ public class WorkloadBatch {
 	// Hypergraph	
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
 	
-	// Sword specifics
+	// Sword specific
 	public Sword sword;
+	
+	// MethodX specific
+	public MethodX methodX;
 		
 	// To keep track of edge id and corresponding hyperedge/transaction id
 	public Map<Integer, Set<Integer>> edge_id_map;
@@ -109,6 +113,9 @@ public class WorkloadBatch {
 				
 				break;
 		}
+		
+		if(Global.dataMigrationStrategy.equals("methodX"))
+			this.methodX = new MethodX();		
 	}
 
 	public int getWrl_id() {
@@ -433,8 +440,7 @@ public class WorkloadBatch {
 	}
 	
 	// Converts a set of transactional data set into a set of vertices
-	private Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {
-		
+	private Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {		
 		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
 		
 		for(Integer d : trDataSet) {

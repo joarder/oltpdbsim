@@ -147,16 +147,15 @@ public class Workload implements java.io.Serializable {
 				int tpl_pk = Integer.parseInt(parts[0]);
 				int tbl_id = Integer.parseInt(parts[1]);
 				
-				Tuple tpl = db.getTupleById(tbl_id, tpl_id);
-				int data_id = 0;						
+				Tuple tpl = db.getTupleById(tbl_id, tpl_id);						
 				
 				if(tpl.getTuple_action().equals("insert")) {
 					
 					tpl.setTuple_action("initial");
 					
 					// Insert into Cluster, already in the Database
-					data_id = cluster.insertData(tpl_id);					
-					trDataSet.add(data_id);
+					int _id = cluster.insertData(tpl_id);				
+					trDataSet.add(_id);
 					
 				} else if (tpl.getTuple_action().equals("delete")) {
 					
@@ -166,11 +165,10 @@ public class Workload implements java.io.Serializable {
 						db.deleteTupleByPk(tbl_id, tpl_pk); // Remove from Database
 												
 						// Remove from Workload Batch												
-						// Removing vertex in Workload Batch graph and hypergraph
-						data_id = cluster.getDataIdFromTupleId(tpl_id);
-						wb.deleteTrDataFromWorkload(data_id);
+						// Removing vertex in Workload Batch graph and hypergraph						
+						wb.deleteTrDataFromWorkload(tpl_id);
 						
-						SimpleVertex v = wb.hgr.getVertex(data_id);
+						SimpleVertex v = wb.hgr.getVertex(tpl_id);
 						if(v != null) {
 							wb.hgr.removeVertex(v);
 							
@@ -182,9 +180,7 @@ public class Workload implements java.io.Serializable {
 					}
 					
 				} else {
-					
-					data_id = cluster.getDataIdFromTupleId(tpl_id);
-					trDataSet.add(data_id);
+					trDataSet.add(tpl_id);
 				}				
 			} // end--if()
 		} // Tuple

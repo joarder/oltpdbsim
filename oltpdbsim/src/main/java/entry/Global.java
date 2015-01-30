@@ -1,6 +1,8 @@
 package main.java.entry;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
@@ -12,6 +14,9 @@ public final class Global implements java.io.Serializable {
 	private static final long serialVersionUID = -6044446681907434051L;
 	
 	// Global variables
+	public static int global_index = 0;
+	public static Map<Integer, Integer> global_index_map = new HashMap<Integer, Integer>();
+	
 	public static int global_trSeq = 0;
 	public static int global_trCount = 0;
 	public static int total_transactions = 0;
@@ -66,10 +71,10 @@ public final class Global implements java.io.Serializable {
 	public static int simulationPeriod;
 	public static double meanInterArrivalTime; 
     public static double meanServiceTime;
-	public static double workloadChangeProbability;
+	public static double percentageChangeInWorkload;
 	public static int observationWindow;
 	public static int uniqueMax;
-	public static double percentageChangeDt;
+	public static double dtThreshold;
 	public static int initialDetectionTime;	
 	public static double nextCollection = 3600.0;
 	public static boolean dynamicDtMargin;
@@ -107,6 +112,9 @@ public final class Global implements java.io.Serializable {
 	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);
 
 	public static int virtualNodes;	
+	
+	// For methodX whether prioritise dt(alpha) minimisation or load balance (1-alpha)
+	public static double priority;
 	
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);

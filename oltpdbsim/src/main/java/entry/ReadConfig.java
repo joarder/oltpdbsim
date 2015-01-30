@@ -90,19 +90,22 @@ public class ReadConfig {
 			Global.simulationPeriod = Integer.parseInt((String) config_param.getProperty("simulation.period"));
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
-			Global.workloadChangeProbability = Double.parseDouble((String) config_param.getProperty("workload.change.probability"));
-			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("workload.window.size"));
+			
+			Global.percentageChangeInWorkload = Double.parseDouble((String) config_param.getProperty("percentage.change.in.workload"));
+			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("observation.window.size"));
 			Global.uniqueMax = Integer.parseInt((String) config_param.getProperty("unique.max"));
-			Global.percentageChangeDt = Double.parseDouble((String) config_param.getProperty("threshold.change.in.dt"));			
+			
+			Global.dtThreshold = Double.parseDouble((String) config_param.getProperty("dt.threshold"));			
 			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
 			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));
 			
+			//Global.oldTransactionTimestamp = Math.round(Global.simulationPeriod/4); //Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
 			Global.oldTransactionTimestamp = Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
 			Global.transactionExpiration = Boolean.parseBoolean((String) config_param.getProperty("enable.transaction.expiration"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);
-			Global.LOGGER.info("Probability of Transaction birth and death: "+Global.workloadChangeProbability);
+			Global.LOGGER.info("Probability of Transaction birth and death: "+Global.percentageChangeInWorkload);
 	    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
 	    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);			
 						
@@ -123,8 +126,7 @@ public class ReadConfig {
 												
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
 				Global.dataMigrationStrategy = (String) config_param.getProperty("data.migration.strategy");
-				
-				
+								
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
@@ -134,7 +136,7 @@ public class ReadConfig {
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");				
 				Global.LOGGER.info("Transaction classification strategy: "+Global.trClassificationStrategy);
-				Global.LOGGER.info("Data movement strategy: "+Global.dataMigrationStrategy);
+				Global.LOGGER.info("Data migration strategy: "+Global.dataMigrationStrategy);
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Workload compression enabled: "+Global.compressionEnabled);
@@ -144,6 +146,9 @@ public class ReadConfig {
 					Global.compressionRatio = Double.parseDouble((String) config_param.getProperty("compression.ratio"));
 					Global.LOGGER.info("Compression ratio: "+Global.compressionRatio);
 				}
+				
+				if(Global.dataMigrationStrategy.equals("methodX"))
+					Global.priority = Double.parseDouble((String) config_param.getProperty("decision.priority"));
 			}
 			
 	    } catch (ConfigurationException e) {

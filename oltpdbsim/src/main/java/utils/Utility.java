@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,6 +22,36 @@ import main.java.entry.Global;
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
+	
+	// Used for creating 2D Matrix of size of total Partition numbers
+	// Used in MethodX
+	public static Matrix createMatrix(int M, int N) {		
+		// Create a 2D Matrix
+		MatrixElement[][] mapping = new MatrixElement[M][N];
+		
+		// Initialization
+		int id = 0;
+		for(int i = 0; i < M; i++) {
+			for(int j = 0; j < N; j++) {
+				if(i == j) {
+					mapping[i][j] = new MatrixElement(++id, i, j, -1.0d);
+					
+				} else if(i == 0) {
+					mapping[i][j] = new MatrixElement(++id, i, j, j);
+					
+				} else if(j == 0) {
+					mapping[i][j] = new MatrixElement(++id, i, j, i);
+					
+				} else {
+					mapping[i][j] = new MatrixElement(++id, i, j, 0.0d);
+					mapping[j][i] = new MatrixElement(++id, j, i, -1.0d);					
+				}
+			}
+		}
+				
+		// Create and return the Matrix
+		return (new Matrix(mapping));
+	}	
 	
 	@SuppressWarnings("unused")
 	private static double exp(double mean) {
@@ -56,22 +87,99 @@ public class Utility {
 		return (ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getLong() & 0xFFFFFFFFL);
 	}
 	
+	// 
+	private static String getSaltedKey(String key) {
+		int prefix = (++Global.global_index % Global.partitions);
+		Global.global_index_map.put(Integer.parseInt(key), prefix);
+		
+		return (Integer.toString(prefix) + key);
+	}
+	
 	// Returns a Java hash value
 	public static long javaHash(String key) {
-		  return key.hashCode();
+		return key.hashCode();
 	}	
 	
 	// Returns a MD5 hash value
 	public static long md5Hash(String key) {
-		  byte[] value = DigestUtils.md5(key.getBytes());
-		  return Utility.convertByteToUnsignedLong(value);
+		byte[] value = DigestUtils.md5(key.getBytes());
+		return Utility.convertByteToUnsignedLong(value);
+	}
+	
+	// Knuth's Multiplication Method
+	public static int intHash(int key) {
+//		int w = 4; // Number of bits
+//		int p = Global.partitions; // number of slots i.e., 16 partitions
+//		int m = 2^p; // 
+//		int s = 13; // Must have 0 < s < 2^w. Let, s = 9973 (Prime number)
+//		int A  = s/2^w; // Or, 0.5*(sqrt(5) - 1)
+////		
+////		// h(k) = ⌊m · (k·A mod 1)⌋
+//		return (int) Math.floor(m*((key*A)%1));
+		
+		
+		//--------------------------------------------
+//		int s = (int) Math.floor((double)(key * 2^w));
+//		int x = k*s;
+//		return (x >> (w-p));
+		
+		//--------------------------------------------
+//		int p = 20; // m = 2^20
+//	    int w = 32;
+//	    int A = (int) 2654435769L;
+//	    
+//		return (key * A) >>> (w - p);
+		
+		//--------------------------------------------
+		double A = 0.6180339887;
+		int m = 65536; //2^(Global.partitions);
+		
+		return (int) Math.floor(m * ((key * A) % 1));
 	}
 	
 	// Returns a SHA1 hash value
-	public static long sha1Hash(String key) {
-		  byte[] value = DigestUtils.sha1(key.getBytes());
-		  return Utility.convertByteToUnsignedLong(value);
-	}	
+	public static long sha1Hash(String key, boolean lookup, boolean flag) {
+		
+		if(flag) {
+			if(lookup) {
+				int prefix = Global.global_index_map.get(Integer.parseInt(key));
+				key = (Integer.toString(prefix) + key);
+			} else {
+				key = getSaltedKey(key);
+			}			
+			
+			BigInteger bigInt = new BigInteger(key.getBytes());
+			key = bigInt.toString();
+			key = getAlphaNumericString(key);
+			//System.out.println(key);
+		}
+		
+		byte[] value = DigestUtils.sha1(key.getBytes());
+		return Utility.convertByteToUnsignedLong(value);
+	}
+	
+	//
+	private static String getAlphaNumericString(String str) {
+		String out = null;
+		
+		try {
+		    byte[] b = str.getBytes("ASCII");
+		    MessageDigest md = MessageDigest.getInstance("SHA-256");
+		    
+		    byte[] hashBytes = md.digest(b);
+		    StringBuffer hexString = new StringBuffer();
+		    
+		    for (int i = 0; i < hashBytes.length; i++)
+		        hexString.append(Integer.toHexString(0xFF & hashBytes[i]));
+		    
+		    out = hexString.toString();
+		    
+		} catch (Exception e) {
+		    e.printStackTrace();
+		}
+		
+		return out;
+	}
 	
 	// Add padding value in the least significant bits of id
 	public static int rightPadding(int id, int value) {		

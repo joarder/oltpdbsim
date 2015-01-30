@@ -151,6 +151,11 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
 		Global.LOGGER.info("Total Unique transactions processed: "+Global.global_trSeq);
+		Global.LOGGER.info("Average transactional frequency: "+mean_trFreq);
+		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Total transactions in the current observation window: ");
+		Global.LOGGER.info("Total DT in the current observation window: ");
+		Global.LOGGER.info("Total non-DT in the current observation window: ");
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
@@ -159,21 +164,21 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
 		Global.LOGGER.info("Average impact of distributed transactions: "+mean_dti);
-		Global.LOGGER.info("Average transactional frequency: "+mean_trFreq);
-//		Global.LOGGER.info("_____________________________________________________________________________");
-//		Global.LOGGER.info("Average Partition's data inflow: "+mean_partition_inflow);
-//		Global.LOGGER.info("Average Partition's data outflow: "+mean_partition_outflow);
-//		Global.LOGGER.info("Average Partition's data count: "+mean_partition_data);
-//		Global.LOGGER.info("Standard deviation of Partition's data count: "+sd_partition_data);
-//		Global.LOGGER.info("_____________________________________________________________________________");
-//		Global.LOGGER.info("Average Server's data inflow: "+mean_server_inflow);
-//		Global.LOGGER.info("Average Server's data outflow: "+mean_server_outflow);
-//		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
-//		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
-//		Global.LOGGER.info("_____________________________________________________________________________");
-//		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
-//		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
-//		Global.LOGGER.info("Total data count: "+total_data);
+
+		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Average Partition's data inflow: "+mean_partition_inflow);
+		Global.LOGGER.info("Average Partition's data outflow: "+mean_partition_outflow);
+		Global.LOGGER.info("Average Partition's data count: "+mean_partition_data);
+		Global.LOGGER.info("Standard deviation of Partition's data count: "+sd_partition_data);
+		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Average Server's data inflow: "+mean_server_inflow);
+		Global.LOGGER.info("Average Server's data outflow: "+mean_server_outflow);
+		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
+		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
+		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
+		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
+		Global.LOGGER.info("Total data count: "+total_data);
 		Global.LOGGER.info("*****************************************************************************");
 		
 	}

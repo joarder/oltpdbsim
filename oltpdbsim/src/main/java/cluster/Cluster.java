@@ -27,20 +27,20 @@ public class Cluster {
 	private SortedSet<Partition> partitions;
 	private Map<Integer, VirtualData> vdataSet;
 	
-	private ConsistentHashRing<Long> cluster_ring;
-	private Map<Long, Integer> ring_map;
+	private ConsistentHashRing<Integer> cluster_ring;
+	private Map<Integer, Integer> ring_map;
 	private Map<Integer, ArrayList<Integer>> partition_map;
-	private Map<Integer, ArrayList<Long>> partition_keyRange;
+	private Map<Integer, ArrayList<Integer>> partition_keyRange;
 
 	public static boolean _setup;
 	
 	public Cluster() {
 	    this.setPartitions(new TreeSet<Partition>());
 		this.setServers(new TreeSet<Server>());		
-		this.setRing(new ConsistentHashRing<Long>(Global.replicas));
-		this.setRing_map(new HashMap<Long, Integer>());
+		this.setRing(new ConsistentHashRing<Integer>(Global.replicas));
+		this.setRing_map(new HashMap<Integer, Integer>());
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
-		this.setPartition_keyRange(new HashMap<Integer, ArrayList<Long>>());
+		this.setPartition_keyRange(new HashMap<Integer, ArrayList<Integer>>());
 		
 		if(Global.compressionBeforeSetup)
 			this.setVdataSet(new TreeMap<Integer, VirtualData>());		
@@ -70,19 +70,19 @@ public class Cluster {
 		this.vdataSet = vdataSet;
 	}
 
-	public ConsistentHashRing<Long> getRing() {
+	public ConsistentHashRing<Integer> getRing() {
 		return cluster_ring;
 	}
 
-	public void setRing(ConsistentHashRing<Long> ring) {
+	public void setRing(ConsistentHashRing<Integer> ring) {
 		this.cluster_ring = ring;
 	}
 
-	public Map<Long, Integer> getRing_map() {
+	public Map<Integer, Integer> getRing_map() {
 		return ring_map;
 	}
 
-	public void setRing_map(Map<Long, Integer> ring_map) {
+	public void setRing_map(Map<Integer, Integer> ring_map) {
 		this.ring_map = ring_map;
 	}
 
@@ -94,11 +94,11 @@ public class Cluster {
 		this.partition_map = partition_map;
 	}
 
-	public Map<Integer, ArrayList<Long>> getPartition_keyRange() {
+	public Map<Integer, ArrayList<Integer>> getPartition_keyRange() {
 		return partition_keyRange;
 	}
 
-	public void setPartition_keyRange(Map<Integer, ArrayList<Long>> partition_keyRange) {
+	public void setPartition_keyRange(Map<Integer, ArrayList<Integer>> partition_keyRange) {
 		this.partition_keyRange = partition_keyRange;
 	}
 
@@ -126,16 +126,16 @@ public class Cluster {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Assigning logical Partitions into physical Servers ...");
 		
-		long p_min = 0;
-		//long p_max = Global.max_keyvalue; // Long.MAX_VALUE;
-		long p_max = Long.MAX_VALUE;
-		long p_size = (p_max - p_min) / Global.partitions;
-		ArrayList<Long> p_keyRange = null;
+		int p_min = 1;
+		int p_max = 1073741824; // 2^30
+		int p_size = (int)(p_max/Global.partitions);
 		
+		ArrayList<Integer> p_keyRange = null;		
 		Global.partition_capacity = p_size;
-			
+		Global.LOGGER.info("Define a partition size of "+p_size);	
+		
 		// Define Partition range
-		for(Partition p: this.getPartitions()) {
+		for(Partition p : this.getPartitions()) {
 			// Assign a Server id to the Partition
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Assigning Partition "+p.getPartition_label()+" in a Server ...");
@@ -144,22 +144,20 @@ public class Cluster {
 			// Calculate Key Range values for individual Partition
 			Global.LOGGER.info(".............................................................................");
 			Global.LOGGER.info("Defining Key range for "+p.getPartition_label()+" ...");
-			p_keyRange = new ArrayList<Long>();
+			p_keyRange = new ArrayList<Integer>();
 			
 			p.setPartition_start_key(p_min);
 			p_keyRange.add(p_min);
 			
 			p_min += p_size;
-			p.setPartition_end_key(p_min);
-			p_keyRange.add(p_min);
-			
+			p.setPartition_end_key(p_min-1);
+			p_keyRange.add(p_min-1);
+
 			// Added in the Consistent Ring
-			this.getRing().add(p_min);
-			this.getRing_map().put(p_min, p.getPartition_id());
+			this.getRing().add(p_min-1);
+			this.getRing_map().put(p_min-1, p.getPartition_id());
 			
-			Global.LOGGER.info(p.getPartition_label()+" key: "+p_min);
-			
-			p_min += 1;
+			//p_min += 1;
 			
 			this.getPartition_keyRange().put(p.getPartition_id(), p_keyRange);
 			
@@ -203,8 +201,9 @@ public class Cluster {
 			
 			for(Entry<Integer, Tuple> tpl : tbl.getTbl_tuples().entrySet()) {				
 
-				if(!tpl.getValue().getTuple_action().equals("insert"))					
+				if(!tpl.getValue().getTuple_action().equals("insert")) {
 					this.insertData(tpl.getValue().getTuple_id());
+				}
 			}
 						
 			Global.LOGGER.info("Data distribution has completed for Table '"+tbl.getTbl_name()+"'.");
@@ -338,14 +337,14 @@ public class Cluster {
 	}		
 	
 	//
-	public int getDataIdFromTupleId(int tpl_id) {
-		String[] parts = this.breakDataId(tpl_id);
-		int d_pk = Integer.parseInt(parts[0]);
-		int tbl_id = Integer.parseInt(parts[1]);
-		
-		// Always returns the first replica
-		return Integer.parseInt((Integer.toString(d_pk)+Integer.toString(1)+Integer.toString(tbl_id)));
-	}
+//	public int getDataIdFromTupleId(int tpl_id) {
+//		String[] parts = this.breakDataId(tpl_id);
+//		int d_pk = Integer.parseInt(parts[0]);
+//		int tbl_id = Integer.parseInt(parts[1]);
+//		
+//		// Always returns the first replica
+//		return Integer.parseInt((Integer.toString(d_pk)+Integer.toString(1)+Integer.toString(tbl_id)));
+//	}
 	
 	// Insert a new Data and its replicas in the Cluster
 	public int insertData(int _id) {
@@ -354,10 +353,10 @@ public class Cluster {
 		int first_replica = 0;		
 		int p_id = 0;
 		
-		long p_key = 0;
-		long hash;
+		int p_key = 0;
+		int hash;
 		
-		String d_id = null;
+		//String d_id = null;
 		String v_id = null;		
 		
 		Data d = null;
@@ -368,32 +367,30 @@ public class Cluster {
 
 		// Break up the Data id to extract the Tuple's primary key and Table id
 		String[] parts = this.breakDataId(_id);
-		int d_pk = Integer.parseInt(parts[0]);
+		//int d_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
 		// Create a new Data object and its replicas
 		for(int repl = 1; repl <= Global.replicas; repl++) {
-			d_id = Integer.toString(d_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
+			//d_id = Integer.toString(d_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {				
-				v_id = Integer.toString(
-						Utility.simpleHash(Integer.parseInt(d_id), Global.virtualNodes));
-				hash = Utility.sha1Hash(v_id);
+				v_id = Integer.toString(Utility.simpleHash(_id, Global.virtualNodes));				
+				hash = Utility.intHash(Integer.parseInt(v_id));
 				
-			} else
-				hash = Utility.sha1Hash(d_id);
-			
+			} else {
+				hash = Utility.intHash(_id);
+			}
+				
 			// Find the corresponding Partition id
-			//hash = Utility.md5Hash(d_id);
-			//hash = Utility.sha1Hash(d_id);
 			p_key = this.getRing().get(hash);
 			p_id = this.getRing_map().get(p_key);
 			p = this.getPartition(p_id);
 			
 			// New Data
 			if(Global.compressionBeforeSetup) {
-				d = new Data(Integer.parseInt(d_id), tbl_id, Integer.parseInt(v_id), 
-						p.getPartition_id(), p.getPartition_serverId());
+				d = new Data(_id, tbl_id, Integer.parseInt(v_id), p.getPartition_id(), 
+						p.getPartition_serverId());
 				
 				// Create a Virtual Data if required
 				if(!this.vdataSet.containsKey(Integer.parseInt(v_id)))					
@@ -412,8 +409,7 @@ public class Cluster {
 				p.getPartition_dataSet().put(d.getData_id(), d);
 				
 			} else {
-				d = new Data(Integer.parseInt(d_id), tbl_id, -1, p.getPartition_id(), 
-						p.getPartition_serverId());
+				d = new Data(_id, tbl_id, -1, p.getPartition_id(), p.getPartition_serverId());
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -437,29 +433,22 @@ public class Cluster {
 		int v_id = 0;		
 		int p_id = 0;		
 		
-		long p_key = 0;
-		long hash;
+		int p_key = 0;
+		int hash;
 		
-		String d_id = null;
 		Data d = null;
 		Partition p = null;
 		Server s = null;
-
-		// Break up the Tuple id to extract the actual Tuple id, Table id and Replica id
-		String[] parts = this.breakDataId(_id);
-		int d_pk = Integer.parseInt(parts[0]);
-		int tbl_id = Integer.parseInt(parts[1]);
 		
 		for(int repl = 1; repl <= Global.replicas; repl++) {
-			d_id = Integer.toString(d_pk)+Integer.toString(repl)+Integer.toString(tbl_id);			
+			//d_id = Integer.toString(d_pk)+Integer.toString(repl)+Integer.toString(tbl_id);			
 			
 			if(Global.compressionBeforeSetup) {
-				v_id = Utility.simpleHash(Integer.parseInt(d_id), Global.virtualNodes);
-				hash = Utility.sha1Hash(Integer.toString(v_id));
+				v_id = Utility.simpleHash(_id, Global.virtualNodes);
+				hash = Utility.intHash(v_id);
 				
-			} else {				
-				//hash = Utility.md5Hash(d_id);
-				hash = Utility.sha1Hash(d_id);
+			} else {
+				hash = Utility.intHash(_id);
 			}
 			
 			// Find the corresponding Partition id
@@ -468,7 +457,7 @@ public class Cluster {
 			p = this.getPartition(p_id);
 			
 			// Delete Data from Partition
-			d = p.getData(this, Integer.parseInt(d_id));
+			d = p.getData(this, _id);
 			p.getPartition_dataSet().remove(d.getData_id());
 			
 			if(p.getPartition_dataLookupTable().containsKey(d.getData_id()))
@@ -496,21 +485,22 @@ public class Cluster {
 	}
 	
 	// Returns a Data object by its id
-	public Data getData(int data_id) {
+	public Data getData(int _id) {
 		
 		int v_id = 0;
 		int p_id = 0;		
-		long p_key = 0;
-		long hash;				
+		
+		int p_key = 0;
+		int hash;
+		
 		Partition p = null;
 		
 		if(Global.compressionBeforeSetup) {						
-			v_id = Utility.simpleHash(data_id, Global.virtualNodes);			
-			hash = Utility.sha1Hash(Integer.toString(v_id));
+			v_id = Utility.simpleHash(_id, Global.virtualNodes);
+			hash = Utility.intHash(v_id);
 			
-		} else {
-			//hash = Utility.md5Hash(Integer.toString(data_id));
-			hash = Utility.sha1Hash(Integer.toString(data_id));
+		} else {			
+			hash = Utility.intHash(_id);
 		}
 	
 		// Find the corresponding Partition id
@@ -518,7 +508,9 @@ public class Cluster {
 		p_id = this.getRing_map().get(p_key);
 		p = this.getPartition(p_id);
 		
-		return p.getData(this, data_id);		
+//		if(_id == 106768)
+//			System.out.println("@ For 106768 --> "+p);
+		return p.getData(this, _id);		
 	}
 	
 	// Returns a Partition by its id
@@ -531,8 +523,8 @@ public class Cluster {
 	}
 	
 	@SuppressWarnings("unused")
-	private int inPartition(long x) {
-		for(Entry<Integer, ArrayList<Long>> e : this.getPartition_keyRange().entrySet())
+	private int inPartition(int x) {
+		for(Entry<Integer, ArrayList<Integer>> e : this.getPartition_keyRange().entrySet())
 			if(Utility.inRange(e.getValue().get(0), e.getValue().get(1), x))
 				return e.getKey();
 		
@@ -572,7 +564,7 @@ public class Cluster {
 		int s_id = 0;
 		
 		// Assign Server id to the Partition
-		s_id = (p.getPartition_id() % Global.servers) + 1;
+		s_id = (p.getPartition_id() % Global.servers)+1;
 		p.setPartition_serverId(s_id);
 		
 		// Add Partition id in the corresponding Server's list 

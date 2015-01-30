@@ -4,15 +4,25 @@
 
 package main.java.utils;
 
-public class MatrixElement {
+public class MatrixElement implements Comparable<MatrixElement> {
+	private int id;
 	private int row_pos;
 	private int col_pos;
-	private double counts;
+	private double value;
 	
-	public MatrixElement(int r, int c, double val) {
+	public MatrixElement(int id, int r, int c, double val) {
+		this.setId(id);
 		this.setRow_pos(r);
 		this.setCol_pos(c);
-		this.setCounts(val);
+		this.setValue(val);
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
 	}
 
 	public int getRow_pos() {
@@ -31,11 +41,40 @@ public class MatrixElement {
 		this.col_pos = col_pos;
 	}
 
-	public double getCounts() {
-		return counts;
+	public double getValue() {
+		return value;
 	}
 
-	public void setCounts(double value) {
-		this.counts = value;
+	public void setValue(double value) {
+		this.value = value;
+	}
+
+	@Override
+	public boolean equals(Object object) {
+		if (!(object instanceof MatrixElement)) {
+			return false;
+		}
+		
+		MatrixElement e = (MatrixElement) object;
+		return (this.getId() == e.getId());
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.id;
+		return result;
+	}
+
+	@Override
+	public int compareTo(MatrixElement e) {		
+		return (((double)this.getValue() > (double)e.getValue()) ? -1 : 
+			((double)this.getValue() < (double)e.getValue()) ? 1 : 0);	
+	}
+	
+	@Override
+	public String toString() {		
+		return ("("+this.getRow_pos()+", "+this.getCol_pos()+") | association = "+this.getValue());
 	}
 }

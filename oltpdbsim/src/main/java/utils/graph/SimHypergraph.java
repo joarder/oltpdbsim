@@ -341,7 +341,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 		for(Entry<Integer, SimpleHEdge> entry : ch.getHESet().entrySet()) {		
 			Transaction tr = wb.getTransaction(entry.getKey());
-			incidentPartitions.addAll(tr.getTr_partitionSet());
+			incidentPartitions.addAll(tr.getTr_partitionSet().keySet());
 		}
 		
 		return incidentPartitions;
@@ -354,7 +354,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 		for(Entry<Integer, SimpleHEdge> entry : ch.getHESet().entrySet()) {		
 			Transaction tr = wb.getTransaction(entry.getKey());
-			incidentServers.addAll(tr.getTr_serverSet());
+			incidentServers.addAll(tr.getTr_serverSet().keySet());
 		}
 		
 		return incidentServers;

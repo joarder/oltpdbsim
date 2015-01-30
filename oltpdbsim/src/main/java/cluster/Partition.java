@@ -1,8 +1,8 @@
 package main.java.cluster;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 
 public class Partition implements Comparable<Partition> {
 	private int partition_id;
@@ -29,8 +29,8 @@ public class Partition implements Comparable<Partition> {
 		
 		this.setPartition_serverId(0);		
 		
-		this.setPartition_dataSet(new TreeMap<Integer, Data>());
-		this.setPartition_dataLookupTable(new TreeMap<Integer, Integer>());
+		this.setPartition_dataSet(new HashMap<Integer, Data>());
+		this.setPartition_dataLookupTable(new HashMap<Integer, Integer>());
 		
 		this.setPartition_home_data(0);
 		this.setPartition_foreign_data(0);
@@ -205,21 +205,19 @@ public class Partition implements Comparable<Partition> {
 	// Returns a Data object queried by it's Data id from the Partition
 	public Data getData(Cluster cluster, int data_id) {
 		Data d =null;
-		boolean found = false;
 		int roaming_partition_id = -1;
 		Partition roaming_partition = null;
 		
 		// new
 		if(this.getPartition_dataSet().containsKey(data_id)) {
 			d = this.getPartition_dataSet().get(data_id);
-			found = true;
-		}
 			
-		// If Data is not found in its Home Partition then search in the Roaming Table entry and 
-		// corresponding Roaming Partition
-		if(!found) {
+		} else {			
+			// If Data is not found in its Home Partition then search in the Roaming Table entry and 
+			// corresponding Roaming Partition		
 			roaming_partition_id = this.getPartition_dataLookupTable().get(data_id);
 			roaming_partition = cluster.getPartition(roaming_partition_id);
+			
 			return roaming_partition.getData(cluster, data_id);
 		}
 		

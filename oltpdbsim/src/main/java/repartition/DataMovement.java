@@ -7,16 +7,18 @@
 package main.java.repartition;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.cluster.VirtualData;
 import main.java.entry.Global;
-import main.java.repartition.MappingTable;
+import main.java.utils.IntPair;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.graph.SimpleHEdge;
@@ -42,7 +44,9 @@ public class DataMovement {
 		}
 	}
 	
-	public static void performDataMovement(Cluster cluster, WorkloadBatch wb, String strategy, String partitioner) {
+	public static void performDataMovement(Cluster cluster, WorkloadBatch wb, 
+			String strategy, String partitioner) {
+		
 		switch(strategy) {
 			case "random":
 				Global.LOGGER.info("Applying Random Cluster-to-Partition Strategy (Random) ...");
@@ -62,6 +66,11 @@ public class DataMovement {
 			case "sword":
 				Global.LOGGER.info("Applying Sword Strategy (SWD) ...");
 				strategySword(cluster, wb, partitioner);				
+				break;
+				
+			case "methodX":
+				Global.LOGGER.info("Applying methodX Strategy (X) ...");
+				strategyMethodX(cluster, wb);		
 				break;	
 		}
 	}
@@ -158,7 +167,7 @@ public class DataMovement {
 			//System.out.println("[ACT] Max: "+max.getCounts()+", Col: "+(max.getCol_pos()+1)+", Row: "+(max.getRow_pos()+1));
 			
 			// Row/Col swap with diagonal Row/Col
-			if(max.getCounts() != 0) {
+			if(max.getValue() != 0) {
 				mapping.swap_row(max.getRow_pos(), diagonal_pos);
 				mapping.swap_col(max.getCol_pos(), diagonal_pos);
 			}			
@@ -174,7 +183,7 @@ public class DataMovement {
 		// Create the PID conversion Key Map
 		Map<Integer, Integer> keyMap = new TreeMap<Integer, Integer>(); 
 		for(int row = 1; row < mapping.getM(); row++) {
-			keyMap.put((int)mapping.getMatrix()[0][row].getCounts(), (int)mapping.getMatrix()[row][0].getCounts());
+			keyMap.put((int)mapping.getMatrix()[0][row].getValue(), (int)mapping.getMatrix()[row][0].getValue());
 			//System.out.println("-#-Row("+row+" [ACT] C"+(int)mapping.getMatrix()[0][row].getCounts()+"|P"+(int)mapping.getMatrix()[row][0].getCounts());
 		}
 	
@@ -187,6 +196,75 @@ public class DataMovement {
 		setEnvironment(cluster);
 		
 		
+	}
+	
+	// methodX - Swapping partitions
+	private static void strategyMethodX(Cluster cluster, WorkloadBatch wb) {
+		setEnvironment(cluster);
+		IntPair pSet = wb.methodX.migrationDecision(cluster);
+
+		if(pSet != null)
+			swapPartitions(cluster, wb, pSet);			
+		else
+			Global.LOGGER.info("Partition swapping is not required or will not improve the situation at this moment !!!");
+	}
+	
+	private static void swapPartitions(Cluster cluster, WorkloadBatch wb, IntPair pSet) {
+		
+		Global.LOGGER.info("-----------------------------------------------------------------------------------------------------------------------");
+		Global.LOGGER.info("Selected Partitions for swapping: ");
+
+		int Pa = pSet.x;
+		int Pb = pSet.y;
+		
+		Partition P_a = cluster.getPartition(Pa);
+		Partition P_b = cluster.getPartition(Pb);
+		
+		Global.LOGGER.info("\t\t"+P_a.toString());
+		Global.LOGGER.info("\t\t"+P_b.toString());	
+		
+		int Sa = P_a.getPartition_serverId();
+		int Sb = P_b.getPartition_serverId();
+		
+		// Swapping the partitions within the servers
+		Server S_a = cluster.getServer(Sa);
+		Server S_b = cluster.getServer(Sb);
+				
+		S_a.getServer_partitions().remove(Pa);
+		S_b.getServer_partitions().remove(Pb);
+		
+		S_a.getServer_partitions().add(Pb);
+		S_b.getServer_partitions().add(Pa);		
+		
+		// Change server id in partitions				
+		P_a.setPartition_serverId(Sb);
+		P_b.setPartition_serverId(Sa);
+		
+		// Change server id in data objects
+		for(Entry<Integer, Data> entry : P_a.getPartition_dataSet().entrySet()) {
+			entry.getValue().setData_server_id(Sb);
+			++inter_server_dmv;
+			updateServerFlowCounts(cluster, Sa, Sb);
+		}
+		
+		for(Entry<Integer, Data> entry : P_b.getPartition_dataSet().entrySet()) {
+			entry.getValue().setData_server_id(Sa);
+			++inter_server_dmv;
+			updateServerFlowCounts(cluster, Sb, Sa);
+		}
+		
+		// Reset the association between these Partitions
+//		if(Pb > Pa)
+//			wb.methodX.association.getMatrix()[Pb][Pa].setValue(0.0d);
+//		else
+//			wb.methodX.association.getMatrix()[Pa][Pb].setValue(0.0d);
+		
+		// Update server-level load statistic and show
+		cluster.updateLoad();
+		cluster.show();
+		
+		wb.set_intra_dmv(intra_server_dmv);
+		wb.set_inter_dmv(inter_server_dmv);	
 	}
 	
 	private static void updateData(Cluster cluster, Data data, 
@@ -259,23 +337,27 @@ public class DataMovement {
 	}
 	
 	private static void updateMovementCounts(Cluster cluster, int dst_server_id, 
-			int current_server_id, int dst_partition_id, int current_partition_id) {
+			int source_server_id, int dst_partition_id, int current_partition_id) {
 		
 		cluster.getPartition(dst_partition_id).incPartition_inflow();		 
 		cluster.getPartition(current_partition_id).incPartition_outflow();
 		
-		if(dst_server_id != current_server_id) {
+		if(dst_server_id != source_server_id) {
 			++inter_server_dmv;
 			
-			cluster.getServer(dst_server_id).incServer_totalData();
-			cluster.getServer(current_server_id).decServer_totalData();
-			
-			cluster.getServer(dst_server_id).incServer_inflow();
-			cluster.getServer(current_server_id).incServer_outflow();
+			updateServerFlowCounts(cluster, source_server_id, dst_server_id);
 			
 		} else
 			++intra_server_dmv;		
 	}		
+	
+	private static void updateServerFlowCounts(Cluster cluster, int src, int dst) {
+		cluster.getServer(dst).incServer_totalData();
+		cluster.getServer(src).decServer_totalData();
+		
+		cluster.getServer(dst).incServer_inflow();
+		cluster.getServer(src).incServer_outflow();
+	}
 	
 	// Perform Actual Data Movement
 	private static void move(Cluster cluster, WorkloadBatch wb, Map<Integer, Integer> keyMap, 

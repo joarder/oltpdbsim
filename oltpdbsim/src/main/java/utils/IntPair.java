@@ -1,9 +1,9 @@
 package main.java.utils;
 
-public class VertexPair {
+public class IntPair {
     public int x, y;
     
-    public VertexPair(int x, int y) {
+    public IntPair(int x, int y) {
         this.x = x;
         this.y = y;
     }
@@ -15,10 +15,10 @@ public class VertexPair {
  
     @Override
     public boolean equals(Object object) {
-        if (!(object instanceof VertexPair)) 
+        if (!(object instanceof IntPair)) 
         	return false;
         
-        VertexPair pair = (VertexPair) object;
+        IntPair pair = (IntPair) object;
         return ((pair.x == x && pair.y == y) || (pair.x == y && pair.y == x));            
     }
 

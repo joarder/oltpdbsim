@@ -73,7 +73,7 @@ public class WorkloadBatchProcessor {
 		
 		for(SimpleVertex v : wb.hgr.getVertices()) {
 			vertex_id_map.put(v.getId(), ++vertex_id);
-			
+						
 			Data data = cluster.getData(v.getId());			
 			data.setData_shadowId(vertex_id);
 			data.setData_inUse(true);						

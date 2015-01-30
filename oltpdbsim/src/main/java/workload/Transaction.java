@@ -1,13 +1,14 @@
 package main.java.workload;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
-import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
+import umontreal.iro.lecuyer.simevents.Sim;
 
 public class Transaction implements Comparable<Transaction>, java.io.Serializable {
 
@@ -16,7 +17,11 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private int tr_id;	
 	private String tr_label;
 	private int tr_type;
-	private Set<Integer> tr_dataSet;
+	private String tr_class;	
+	private double timestamp;
+	private Set<Integer> tr_dataSet;	
+	private HashMap<Integer, TreeSet<Integer>> tr_partitionSet;
+	private HashMap<Integer, TreeSet<Integer>> tr_serverSet;
 	
 	private int tr_frequency;
 	private int tr_temporal_weight;
@@ -34,12 +39,6 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private double tr_service_time;
 	private double tr_response_time;
 	private double tr_waiting_time;	
-	
-	private Set<Integer> tr_partitionSet;
-	private Set<Integer> tr_serverSet;
-	private String tr_class;
-	
-	private double timestamp;
 	
 	Transaction(int id, Set<Integer> dataSet) {		
 		this.setTr_id(id);
@@ -72,8 +71,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.setTr_service_time(0.0);
 		this.setTr_response_time(0.0);
 		
-		this.setTr_partitionSet(new TreeSet<Integer>());
-		this.setTr_serverSet(new TreeSet<Integer>());
+		this.setTr_partitionSet(new HashMap<Integer, TreeSet<Integer>>());
+		this.setTr_serverSet(new HashMap<Integer, TreeSet<Integer>>());
 		
 		this.setTr_class(null);
 		
@@ -225,19 +224,19 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	}
 	
 	
-	public Set<Integer> getTr_partitionSet() {
+	public HashMap<Integer, TreeSet<Integer>> getTr_partitionSet() {
 		return tr_partitionSet;
 	}
 
-	public void setTr_partitionSet(Set<Integer> tr_partitionSet) {
-		this.tr_partitionSet = tr_partitionSet;
+	public void setTr_partitionSet(HashMap<Integer, TreeSet<Integer>> hashMap) {
+		this.tr_partitionSet = hashMap;
 	}
 
-	public Set<Integer> getTr_serverSet() {
+	public HashMap<Integer, TreeSet<Integer>> getTr_serverSet() {
 		return tr_serverSet;
 	}
 
-	public void setTr_serverSet(Set<Integer> tr_serverSet) {
+	public void setTr_serverSet(HashMap<Integer, TreeSet<Integer>> tr_serverSet) {
 		this.tr_serverSet = tr_serverSet;
 	}
 
@@ -273,36 +272,51 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 			return true;
 		else if(this.getTimestamp() >= Integer.MAX_VALUE)
 			return true;
-		
-		return false;
+		else
+			return false;
 	}
 	
 	// This function will calculate the Node and Partition Span Cost for the representative Transaction
 	public void calculateSpans(Cluster cluster) {
 
-		// Calculate Server and Partition span cost which is equivalent to the cost of Distributed Transaction
-		Set<Integer> tr_servers = new TreeSet<Integer>();		
-		Set<Integer> tr_partitions = new TreeSet<Integer>();
+		// Calculate Server and Partition span cost which is equivalent to the cost of Distributed Transaction			
+		TreeSet<Integer> tr_partitions;
+		TreeSet<Integer> tr_servers;
 		
-		Iterator<Integer> d = this.getTr_dataSet().iterator();		
+		Iterator<Integer> d = this.getTr_dataSet().iterator();
 		while(d.hasNext()) {
 			int data_id = d.next();
 			Data data = cluster.getData(data_id);
 			
-			tr_servers.add(data.getData_server_id());
-			tr_partitions.add(data.getData_partition_id());
+			int p_id = data.getData_partition_id();
+			int s_id = data.getData_server_id();
+
+			// Partition Set
+			if(this.getTr_partitionSet().containsKey(p_id))
+				this.getTr_partitionSet().get(p_id).add(data_id);
+			else {
+				tr_partitions = new TreeSet<Integer>();
+				tr_partitions.add(data_id);
+				this.getTr_partitionSet().put(p_id, tr_partitions);
+			}			
+			
+			// Server Set
+			if(this.getTr_serverSet().containsKey(s_id))
+				this.getTr_serverSet().get(s_id).add(data_id);
+			else {
+				tr_servers = new TreeSet<Integer>();
+				tr_servers.add(data_id);
+				this.getTr_serverSet().put(s_id, tr_servers);
+			}
 		}
 		
-		this.setTr_serverSet(tr_servers);
-		this.setTr_serverSpanCost(tr_servers.size());
-
-		this.setTr_partitionSet(tr_partitions);
-		this.setTr_partitionSpanCost(tr_partitions.size());	
+		this.setTr_partitionSpanCost(this.getTr_partitionSet().size());
+		this.setTr_serverSpanCost(this.getTr_serverSet().size());			
 		
-		if(tr_servers.size() > 1)
+		if(this.getTr_serverSet().size() > 1)
 			this.setDt(true);
 		
-		if(tr_servers.size() == 2) // Only for Sword
+		if(this.getTr_serverSet().size() == 2) // Only for Sword
 			this.setSpan2Servers(true);						
 	}
 	

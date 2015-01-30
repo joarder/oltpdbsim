@@ -26,21 +26,22 @@ public class MappingTable {
 		MatrixElement[][] mapping = new MatrixElement[M][N];
 		
 		// Initialization
+		int id = 0;
 		for(int i = 0; i < M; i++) {		
 			for(int j = 0; j < N; j++) {
 				if(i == 0 && j == 0)
-					mapping[i][j] = new MatrixElement(i, j, -1);
+					mapping[i][j] = new MatrixElement(++id, i, j, -1);
 				else
-					mapping[i][j] = new MatrixElement(i, j, 0);
+					mapping[i][j] = new MatrixElement(++id, i, j, 0);
 			}
 		}
 		
 		// Define row1 and col1 as the Partition IDs and HGraph Cluster IDs
 		for(int i = 1; i < M; i++) {			
-			mapping[i][0].setCounts(i);
+			mapping[i][0].setValue(i);
 			
 			for(int j = 1; j < N; j++) {
-				mapping[0][j].setCounts(j);
+				mapping[0][j].setValue(j);
 			}
 		}
 		
@@ -80,12 +81,12 @@ public class MappingTable {
 					//System.out.println("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										
 					me = mapping[partition_id][cluster_id];
 					//System.out.println("@debug >> Row = "+me.getRow_pos()+"| Col ="+me.getCol_pos());
-					me.setCounts(me.getCounts()+1);
+					me.setValue(me.getValue()+1);
 				}
 			} // end -- for()-Data
 		} // end -- for()
 
 		// Create the Movement Matrix
-		return (new Matrix(mapping));		 
+		return (new Matrix(mapping));
 	}
 }

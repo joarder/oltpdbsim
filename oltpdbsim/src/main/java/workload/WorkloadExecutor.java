@@ -89,7 +89,7 @@ public class WorkloadExecutor {
 		
 		
 		Global.uniqueMax = (int) (Global.uniqueMax - 
-				Math.round(Global.observationWindow*(Global.workloadChangeProbability/2)*100.0)/100.0);
+				Math.round(Global.observationWindow*(Global.percentageChangeInWorkload/1)*100.0)/100.0);
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -117,7 +117,7 @@ public class WorkloadExecutor {
  */
 
 		// Transaction birth
-		if(wb.getTrMap().get(type).isEmpty() || rand_val <= Global.workloadChangeProbability) {
+		if(wb.getTrMap().get(type).isEmpty() || rand_val <= Global.percentageChangeInWorkload) {
 			
 			trTupleSet = wrl.getTrTupleSet(db, type);
 			trDataSet = Workload.getTrDataSet(db, cluster, wb, trTupleSet);
@@ -135,7 +135,7 @@ public class WorkloadExecutor {
 			ArrayList<Integer> idx_id = new ArrayList<Integer>();	
 			ArrayList<Integer> uT = new ArrayList<Integer>();
 			
-			Map<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator(idx));
+			Map<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator<Integer>(idx));
 			idx2.putAll(idx);			
 			
 			min = Math.min(idx.size(), Global.uniqueMax);
@@ -237,7 +237,10 @@ public class WorkloadExecutor {
 		}
 		
 		// Add a hyperedge to Workload Hypergraph
-		wb.addHGraphEdge(cluster, tr);		
+		wb.addHGraphEdge(cluster, tr);
+		
+		if(Global.dataMigrationStrategy.equals("methodX"))
+			wb.methodX.updateAssociation(cluster, tr);
 		
 		return tr;
 	}
@@ -285,9 +288,14 @@ public class WorkloadExecutor {
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
 		
-		// Create a new Workload Batch
-		if(!Global.compressionBeforeSetup)
+		// Sword :: Create a new Workload Batch
+		if(!Global.compressionBeforeSetup) {
 			wb = new WorkloadBatch(Global.repeated_runs);
+		
+			// MethodX :: initialisation
+			if(Global.dataMigrationStrategy.equals("methodX"))
+				wb.methodX.init(cluster);
+		}
 		
 		// Start simulation
 		WorkloadExecutor.simulate(db, cluster, wrl, wb, Global.simulationPeriod);
@@ -336,10 +344,10 @@ public class WorkloadExecutor {
 	
 	public static void detectChangeInDt(WorkloadBatch wb) {
 				
-		double _change = Math.round(((double) (dt_new - dt_original) 
-				/ (double) dt_original) * 100.0) / 100.0;
+		double _change = Math.round(((double) (dt_new - dt_original) / (double) dt_original) 
+				* 100.0) / 100.0;
 					
-		if(_change >= Global.percentageChangeDt) {			
+		if(_change >= Global.dtThreshold) {			
 			wb.set_percentage_change_in_dt(_change * 100.0);
 			WorkloadExecutor.changeDetected = true;
 			WorkloadExecutor.noChangeRequired = false;
@@ -462,7 +470,7 @@ class Arrival extends Event {
 		 * 		incrementalRepartitioning = false
 		 * 		enableTrClassification = false
 		 * 		workloadRepresentation = GR/HGR/CHG
-		 * 		dataMigrationStrategy = Random/MC/MSM		
+		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/MethodX		
 		 * 
 		 * 3. Incremental Repartitioning -- incremental repartitioning based on DT margin
 		 * 		workloadAware = true
@@ -470,7 +478,7 @@ class Arrival extends Event {
 		 * 		enableTrClassification = true 
 		 * 		workloadRepresentation = GR/HGR/CHG
 		 * 		transactionClassificationStrategy = Basic/FD/FDFND
-		 * 		dataMigrationStrategy = Random/MC/MSM/Sword
+		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/MethodX
 		 *  
 		 */
 		
@@ -489,8 +497,7 @@ class Arrival extends Event {
 						++Global.repartitioningCycle;
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
-						Global.LOGGER.info((Global.percentageChangeDt * 100) 
-								+"% increase in DT detected !!!");
+						Global.LOGGER.info((Global.dtThreshold * 100)+"% increase in DT detected !!!");
 			
 						Global.LOGGER.info("Number of DT have increased from "
 								+WorkloadExecutor.dt_original+" to "
@@ -535,7 +542,7 @@ class Arrival extends Event {
 								+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 
-						if(!Global.compressionBeforeSetup)
+						if(!Global.compressionBeforeSetup && !Global.dataMigrationStrategy.equals("methodX"))
 							WorkloadExecutor.runRepartitioner(cluster, wb);
 						
 						// Perform data movement

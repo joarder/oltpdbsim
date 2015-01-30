@@ -56,6 +56,7 @@ public class TransactionClassifier {
 		
 		TransactionClassifier.remove(wb);
 		
+		wrapup(wb);
 		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
 		
 		tr_old = 0;

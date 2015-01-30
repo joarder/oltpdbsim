@@ -220,6 +220,6 @@ public class Data implements Comparable<Data> {
 	@Override
 	public int compareTo(Data data) {		
 		return (((int)this.getData_id() < (int)data.getData_id()) ? -1 : 
-			((int)this.getData_id() > (int)data.getData_id()) ? 1:0);		
+			((int)this.getData_id() > (int)data.getData_id()) ? 1:0);
 	}
 }
