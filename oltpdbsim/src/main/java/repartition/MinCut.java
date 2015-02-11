@@ -56,7 +56,7 @@ public class MinCut {
 				//arg_list.add(wb.getWrl_fixfile_name());			// Fixfile
 				arg_list.add(Integer.toString(partitions));			// Nparts
 				arg_list.add("5");									// UBfactor(>=5)
-				arg_list.add("10");									// Nruns(>=1)
+				arg_list.add("20");									// Nruns(>=1)
 				arg_list.add("1");									// CType(1-5)
 				arg_list.add("1");									// OType(1-2) -- 1: Minimizes the hyper edge cut, 2: Minimizes the sum of external degrees (SOED)
 				arg_list.add("0");									// Vcycle(0-3)

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.db.Database;
@@ -75,6 +76,7 @@ public class WorkloadExecutor {
 	
 	// New (January 07, 2015)
 	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
+	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
 	
     public WorkloadExecutor() {
         
@@ -103,14 +105,12 @@ public class WorkloadExecutor {
 
 		Transaction tr = null;
 		
-		//if(!wb.getTrBuffer().containsKey(type))
-			//wb.getTrBuffer().put(type, new ArrayList<Integer>());
-		
 		if(!wb.getTrMap().containsKey(type))
 			wb.getTrMap().put(type, new TreeMap<Integer, Transaction>());		
 		
 		// new
 		double rand_val = Global.rand.nextDouble();
+		int toBeRemovedKey = -1;
 
 /**
  *  Implementing the new Workload Generation model (Finalised as per November 20, 2014)		
@@ -132,10 +132,10 @@ public class WorkloadExecutor {
 		} else {
 			
 			ArrayList<Integer> idx2_id = new ArrayList<Integer>();
-			ArrayList<Integer> idx_id = new ArrayList<Integer>();	
+			ArrayList<Integer> idx_value = new ArrayList<Integer>();	
 			ArrayList<Integer> uT = new ArrayList<Integer>();
 			
-			Map<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator<Integer>(idx));
+			TreeMap<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator<Integer>(idx));
 			idx2.putAll(idx);			
 			
 			min = Math.min(idx.size(), Global.uniqueMax);
@@ -146,101 +146,66 @@ public class WorkloadExecutor {
 				idx2_id.add(itr.next().getKey());
 				++i;
 			}
-
-			i = 0;
-			itr = idx.entrySet().iterator();
-			while(i < idx2_id.size()) {
-				idx_id.add(idx.get(idx2_id.get(i)));
-				++i;
+			
+			// Deleting old Transactions
+			if(idx2.size() > min) {				
+				toBeRemovedKey = idx2.lastKey();
+				
+				Transaction tr_old = wb.getTransaction(toBeRemovedKey);
+				
+				tr_old.calculateSpans(cluster);				
+				if(tr_old.isDt())
+					--dt_new;
+				
+				wb.removeTransaction(cluster, tr_old);
+				idx.remove(toBeRemovedKey);
 			}
 			
 			i = 0;
-			while(i < idx_id.size()) {
-				uT.add(Global.T.get(idx_id.get(i)));
+			while(i < idx2_id.size()) {
+				idx_value.add(idx.get(idx2_id.get(i)));
 				++i;
 			}
+			
+			i = 0;			
+			while(i < idx_value.size()) {
+				uT.add(Global.T.get(idx_value.get(i)));
+				++i;
+			}			
 
 			if(uT.size() == 1)
 				n = 0;
 			else
-				n = Global.rand.nextInt(uT.size() - 1);
+				n = Global.rand.nextInt(uT.size());
 			
-			tr_id = Global.T.get(n);
-			tr = wb.getTransaction(tr_id);
+			tr_id = uT.get(n);
 			
+			tr = wb.getTransaction(tr_id);			
 			tr.incTr_frequency();
 			tr.setTimestamp(Sim.time());
 			tr.setProcessed(false);
-
-			if(!tr.isTemporal()) {
-				tr.decTr_temporalWeight();
-				tr.setTemporal(true);
-			}			
+			tr.setRepeated(true);
 		}
-	
+		
 		// Create an index entry for each newly created Transaction
 		idx.put(tr.getTr_id(), Global.global_trCount);
 		Global.T.add(tr.getTr_id());
 		++Global.global_trCount;
 		
-/*		// Last known working version of previous workload generator
-		// Transaction birth
-		if(wb.getTrBuffer().get(type).isEmpty() || rand_val <= Global.workloadChangeProbability) {
-			//System.out.println("-->> inserting new transaction ...");
-			trTupleSet = wrl.getTrTupleSet(db, type);
-			trDataSet = Workload.getTrDataSet(db, cluster, wb, trTupleSet);
-			
-			++Global.global_trSeq;
-			tr = new Transaction(Global.global_trSeq, type, trDataSet, Sim.time());
-			
-			// Add into Transaction buffer
-			wb.getTrBuffer().get(type).add(tr.getTr_id());
-
-			// Add the newly created Transaction in the Workload Transaction map	
-			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
-			
-		// Transaction repetition	
-		} else {
-			//System.out.println("-->> repeating existing transaction ..."); 
-			t = Global.rand.nextInt(wb.getTrBuffer().get(type).size());			
-			tr_id = wb.getTrBuffer().get(type).get(t);
-			
-			tr = wb.getTrMap().get(type).get(tr_id);
-			tr.incTr_frequency();
-			tr.setTimestamp(Sim.time());
-			tr.setProcessed(false);
-
-			if(!tr.isTemporal()) {
-				tr.decTr_temporalWeight();
-				tr.setTemporal(true);
-			}
-		}
-				
-		// Transaction death
-		if(rand_val <= Global.workloadChangeProbability) {			
-			//System.out.println("-->> killing existing transaction ...");
-			//t = Global.rand.nextInt(wb.getTrBuffer().get(type).size());			
-			//wb.getTrBuffer().get(type).remove(t);
-			
-			wb.getTrBuffer().get(type).remove(0);
-			
-			if(Global.transactionExpiration)
-				tr.setTimestamp(Integer.MAX_VALUE); // For removing old transactions						
-		}
-*/
 		
-		tr.calculateSpans(cluster);
-		
-		if(tr.isDt() && !tr.isVisited()) {			
-			++dt_new;
-			tr.setVisited(true);		
-		}
+		if(!tr.isRepeated()) {
+			// Calculate Partition and Server spans for the selected Transaction
+			tr.calculateSpans(cluster);
+			
+			if(tr.isDt())
+				++dt_new;
+		}				
 		
 		// Add a hyperedge to Workload Hypergraph
 		wb.addHGraphEdge(cluster, tr);
 		
 		if(Global.dataMigrationStrategy.equals("methodX"))
-			wb.methodX.updateAssociation(cluster, tr);
+			wb.methodX.updateAssociation(cluster, tr, false);
 		
 		return tr;
 	}
@@ -309,7 +274,8 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" Hours");		
 					
 		// Statistic preparation, calculation, and reporting		
-		//collectStatistics(cluster, wb);
+		collectStatistics(cluster, wb);
+		cluster.show();
 	}
 	
 	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
@@ -321,7 +287,12 @@ public class WorkloadExecutor {
 			wb.calculateResponseTime(Global.total_transactions, total_response_time);
 			wb.calculateAverageTrFreq(Global.total_transactions, total_trFrequency);
 	
-			WorkloadExecutor.dt_original = wb.get_dt_nums(); // Will initiate dynamic dt margin
+			// Will initiate dynamic dt margin
+			if(wb.get_dt_nums() > WorkloadExecutor.dt_original)
+				WorkloadExecutor.dt_original += (int) (WorkloadExecutor.dt_original * 0.25); // increase the margin by 25% 			
+				
+			//WorkloadExecutor.dt_original = wb.get_dt_nums();
+			
 			WorkloadExecutor.dt_new = wb.get_dt_nums();
 			
 			Metric.collect(cluster, wb);			
@@ -344,8 +315,7 @@ public class WorkloadExecutor {
 	
 	public static void detectChangeInDt(WorkloadBatch wb) {
 				
-		double _change = Math.round(((double) (dt_new - dt_original) / (double) dt_original) 
-				* 100.0) / 100.0;
+		double _change = ((double) (dt_new - dt_original) / (double) dt_original);
 					
 		if(_change >= Global.dtThreshold) {			
 			wb.set_percentage_change_in_dt(_change * 100.0);
@@ -416,9 +386,7 @@ class Arrival extends Event {
 			.schedule(WorkloadExecutor.genArr.nextDouble());
 		
 		// A Transaction has just arrived
-		Transaction tr = WorkloadExecutor
-				.streamOneTransaction(this.db, this.cluster, this.wrl, this.wb);
-		
+		Transaction tr = WorkloadExecutor.streamOneTransaction(this.db, this.cluster, this.wrl, this.wb);		
 		tr.setTr_arrival_time(Sim.time());			
 		tr.setTr_service_time(WorkloadExecutor.genServ.nextDouble());
 		
@@ -497,16 +465,15 @@ class Arrival extends Event {
 						++Global.repartitioningCycle;
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
+						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
 						Global.LOGGER.info((Global.dtThreshold * 100)+"% increase in DT detected !!!");
 			
 						Global.LOGGER.info("Number of DT have increased from "
-								+WorkloadExecutor.dt_original+" to "
-								+WorkloadExecutor.dt_new+".");
+								+WorkloadExecutor.dt_original+" to "+WorkloadExecutor.dt_new+".");
 						
-						Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
-						Global.LOGGER.info("Total Unique transactions processed: "+Global.global_trSeq);
-			
-						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
+						Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
+						Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
+						Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());									
 			
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Starting database repartitioning ...");
@@ -549,11 +516,15 @@ class Arrival extends Event {
 						DataMovement.performDataMovement(cluster, wb, 
 								Global.dataMigrationStrategy, Global.workloadRepresentation);
 
-						Global.LOGGER.info("=======================================================================================================================");						
+						Global.LOGGER.info("-----------------------------------------------------------------------------");						
 						
-						WorkloadExecutor.collectStatistics(cluster, wb);
-						
+						WorkloadExecutor.collectStatistics(cluster, wb);						
 						WorkloadExecutor.changeDetected = false;
+						
+						Global.LOGGER.info("DT baseline has been set to "+WorkloadExecutor.dt_original);
+						Global.LOGGER.info("Repartitioning will start again upon "
+								+(Global.dtThreshold*100.0)+ "% increase of this baseline.");
+						Global.LOGGER.info("=======================================================================================================================");
 					}
 					
 				} else { // 2. Static Repartitioning

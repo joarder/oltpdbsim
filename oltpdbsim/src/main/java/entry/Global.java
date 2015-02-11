@@ -20,6 +20,7 @@ public final class Global implements java.io.Serializable {
 	public static int global_trSeq = 0;
 	public static int global_trCount = 0;
 	public static int total_transactions = 0;
+	public static int remove_count = 0;
 	public static int global_tupleSeq = 0;
 	public static int global_dataCount = 0;
 	public static ArrayList<Integer> T = new ArrayList<Integer>();

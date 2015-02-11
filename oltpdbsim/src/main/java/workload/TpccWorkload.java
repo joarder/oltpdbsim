@@ -314,13 +314,16 @@ public class TpccWorkload extends Workload {
 					// Create a new Tuple
 					tpl_pk = tbl.getTbl_last_entry();
 					++tpl_pk;
+					
 					tbl.setTbl_last_entry(tpl_pk);
 					++Global.global_tupleSeq;
 				
 				// Insert
 					Tuple tpl = db.insertTuple(tbl.getTbl_id(), tpl_pk);
 					trTupleSet.add(tpl.getTuple_id()); // Add Tuple id
-					if(!this.warmingup) tpl.setTuple_action("insert");
+					
+					if(!this.warmingup) 
+						tpl.setTuple_action("insert");
 					
 					switch(tbl.getTbl_name()) {
 						case("History"):
@@ -423,7 +426,9 @@ public class TpccWorkload extends Workload {
 					// Mark the Tuple as "delete"
 					Tuple tuple = db.getTupleByPk(tbl.getTbl_id(), _no);
 					trTupleSet.add(tuple.getTuple_id()); // Add Tuple id
-					if(!this.warmingup) tuple.setTuple_action("delete");
+					
+					if(!this.warmingup) 
+						tuple.setTuple_action("delete");
 					
 					// Remove from Table index
 					tbl.getIdx_multivalue_secondary().remove(_o);

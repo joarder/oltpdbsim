@@ -30,11 +30,13 @@ public class TransactionClassifier {
 	private static int tr_orange = 0;
 	private static int tr_green = 0;
 	private static int tr_old = 0;
+	private static int old_dti_sum = 0;
 	private static int old_ndti_sum = 0;	
 	
 	private static Set<Integer> frequent_dsfci = new TreeSet<Integer>();
 	private static Set<Integer> frequent_sfci = new TreeSet<Integer>();
 	private static Set<Integer> movable = new TreeSet<Integer>();
+	
 	private static Set<Integer> toBeRemoved;
 	
 	// Removal of old transactions
@@ -52,18 +54,12 @@ public class TransactionClassifier {
 			}
 		}
 		
-		//wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
-		
-		TransactionClassifier.remove(wb);
-		
+		TransactionClassifier.remove(cluster, wb);		
 		wrapup(wb);
-		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
-		
-		tr_old = 0;
 	}
 	
 	// Basic classification
-	public static void classifyMovableDTs(Cluster dbCluster, WorkloadBatch wb) {
+	public static void classifyMovableDTs(Cluster cluster, WorkloadBatch wb) {
 		
 		toBeRemoved = new TreeSet<Integer>();
 		
@@ -78,18 +74,15 @@ public class TransactionClassifier {
 					
 				} else {// Non-Distributed Transactions
 					
-					tr.calculateDTImapct();
-					old_ndti_sum += tr.getTr_dtImpact();
-					
 					TransactionClassifier.findAllNonDT(wb, tr);
 				}
 			} else {
-				// Remove if at least 1hr old
 				++tr_old;
 				toBeRemoved.add(tr.getTr_id());
 			}
 		}
 		
+		TransactionClassifier.remove(cluster, wb);
 		wrapup(wb);
 	}
 	
@@ -195,6 +188,7 @@ public class TransactionClassifier {
 			} //end-if-else()
 		} //end-for()
 		
+		TransactionClassifier.remove(cluster, wb);
 		wrapup(wb);
 	}
 	
@@ -253,28 +247,9 @@ public class TransactionClassifier {
 			} //end-if-else()
 		} //end-for()
 				
+		TransactionClassifier.remove(cluster, wb);
 		wrapup(wb);
-	}		
-	
-	private static void wrapup(WorkloadBatch wb) {
-		
-		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old);
-		wb.set_old_dt_nums(tr_red);
-		wb.set_old_ndt_nums(tr_green);
-		wb.set_old_ndti_sum(old_ndti_sum);
-		
-		TransactionClassifier.remove(wb);
-				
-		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
-		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
-		Global.LOGGER.info("Total "+tr_old+" old transactions have removed.");
-		
-		tr_red = 0;
-		tr_orange = 0;
-		tr_green = 0;
-		tr_old = 0;
-	}
+	}			
 	
 	// Returns true if a transaction contains any of the mined semi-FCI
 	private static boolean isFrequent(Transaction transaction, ArrayList<List<Integer>> semiFCIList){
@@ -359,6 +334,7 @@ public class TransactionClassifier {
 				
 				tr.setTr_class("orange");
 				++tr_orange;
+				++tr_green;
 				
 				movable.add(tr.getTr_id());
 			
@@ -367,21 +343,62 @@ public class TransactionClassifier {
 			tr.setTr_class("green");
 			++tr_green;
 			
+			// Remove
 			toBeRemoved.add(tr.getTr_id());
 			
 		} //end-if-else()
 	}
 	
 	// Remove the nonDT non-movable edges from Graph and Hypergraph
-	private static void remove(WorkloadBatch wb) {
+	private static void remove(Cluster cluster, WorkloadBatch wb) {
+		
+		for(Integer i : movable) {			
+			Transaction tr = wb.getTransaction(i);
+			tr.calculateDTImapct();
+			old_ndti_sum += tr.getTr_dtImpact();
+		}
 		
 		for(Integer i : toBeRemoved) {
+			
+			Transaction tr = wb.getTransaction(i);
+			tr.calculateDTImapct();
+			
+			if(tr.isDt())				
+				old_dti_sum += tr.getTr_dtImpact();
+			else
+				old_ndti_sum += tr.getTr_dtImpact();
+			
+			// Remove from Hypergraph
 			SimpleHEdge h = wb.hgr.getHEdge(i);
 			wb.hgr.removeHEdge(h);
 			
 			if(Global.compressionBeforeSetup && wb.sword.hCut.contains(h))
 				wb.sword.hCut.remove(h);
 				
-		}		
+			if(Global.dataMigrationStrategy.equals("methodX"))
+				wb.methodX.updateAssociation(cluster, tr, true);
+		}
+		
+		Global.LOGGER.info("Total "+toBeRemoved.size()+" old and purely non-distributed transactions have removed.");
+	}
+	
+	private static void wrapup(WorkloadBatch wb) {
+		
+		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old - tr_green);		
+		wb.set_old_ndt_nums(tr_old + tr_green);
+		wb.set_old_dti_sum(old_dti_sum);
+		wb.set_old_ndti_sum(old_ndti_sum);
+				
+		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
+		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
+		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
+		Global.LOGGER.info("Classified "+tr_old+" transactions as old/expired.");
+		
+		tr_red = 0;
+		tr_orange = 0;
+		tr_green = 0;
+		tr_old = 0;
+		old_dti_sum = 0;
+		old_ndti_sum = 0;
 	}
 }

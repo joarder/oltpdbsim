@@ -148,7 +148,7 @@ public class ReadConfig {
 				}
 				
 				if(Global.dataMigrationStrategy.equals("methodX"))
-					Global.priority = Double.parseDouble((String) config_param.getProperty("decision.priority"));
+					Global.priority = Double.parseDouble((String) config_param.getProperty("methodX.decision.priority"));
 			}
 			
 	    } catch (ConfigurationException e) {

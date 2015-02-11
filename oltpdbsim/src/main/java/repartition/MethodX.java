@@ -34,8 +34,8 @@ public class MethodX {
 		int N = M;				
 		association = Utility.createMatrix(M, N);
 	}
-	
-	public void updateAssociation(Cluster cluster, Transaction tr) {
+
+	public void updateAssociation(Cluster cluster, Transaction tr, boolean deletion) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Get all the pairs of combinations of Partition accessed by this Transaction
 		// Create the initial vector
@@ -56,12 +56,22 @@ public class MethodX {
 			
 			double entropy = this.getEntropy(Pa_data, Pb_data);
 			
-			if(Pb > Pa) {
-				double val = association.getMatrix()[Pb][Pa].getValue();
-				association.getMatrix()[Pb][Pa].setValue(val+entropy);
+			if(!deletion) {			
+				if(Pb > Pa) {
+					double val = association.getMatrix()[Pb][Pa].getValue();
+					association.getMatrix()[Pb][Pa].setValue(val + entropy);
+				} else {
+					double val = association.getMatrix()[Pa][Pb].getValue();
+					association.getMatrix()[Pa][Pb].setValue(val + entropy);
+				}
 			} else {
-				double val = association.getMatrix()[Pa][Pb].getValue();
-				association.getMatrix()[Pa][Pb].setValue(val+entropy);
+				if(Pb > Pa) {
+					double val = association.getMatrix()[Pb][Pa].getValue();
+					association.getMatrix()[Pb][Pa].setValue(val - entropy);
+				} else {
+					double val = association.getMatrix()[Pa][Pb].getValue();
+					association.getMatrix()[Pa][Pb].setValue(val - entropy);
+				}
 			}
 		}
 		

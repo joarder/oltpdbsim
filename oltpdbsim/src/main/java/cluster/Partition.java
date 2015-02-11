@@ -6,6 +6,7 @@ import java.util.Map.Entry;
 
 public class Partition implements Comparable<Partition> {
 	private int partition_id;
+	private long _uid;
 	private String partition_label;
 	
 	private int partition_server_id;	
@@ -25,6 +26,7 @@ public class Partition implements Comparable<Partition> {
 	
 	public Partition(int p_id) {
 		this.setPartition_id(p_id);
+		this.set_uid(-1);
 		this.setPartition_label("P"+p_id);
 		
 		this.setPartition_serverId(0);		
@@ -46,6 +48,14 @@ public class Partition implements Comparable<Partition> {
 
 	public void setPartition_id(int partition_id) {
 		this.partition_id = partition_id;
+	}
+
+	public long get_uid() {
+		return _uid;
+	}
+
+	public void set_uid(long _uid) {
+		this._uid = _uid;
 	}
 
 	public String getPartition_label() {
@@ -214,7 +224,7 @@ public class Partition implements Comparable<Partition> {
 			
 		} else {			
 			// If Data is not found in its Home Partition then search in the Roaming Table entry and 
-			// corresponding Roaming Partition		
+			// corresponding Roaming Partition
 			roaming_partition_id = this.getPartition_dataLookupTable().get(data_id);
 			roaming_partition = cluster.getPartition(roaming_partition_id);
 			

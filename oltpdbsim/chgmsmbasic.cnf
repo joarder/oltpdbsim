@@ -1,4 +1,4 @@
-simulation.name=chg-msm-basic
+simulation.name=chg-msm
 
 workload.aware=true
 incremental.repartitioning=true
@@ -6,23 +6,29 @@ transaction.classification=true
 
 workload.representation=hgr
 transaction.classification.strategy=basic
-data.migration.strategy=random
+data.migration.strategy=msm
+
+decision.priority=0.5
 
 compression.enabled=true
 compression.before.setup=false
 compression.ratio=6
 
 initial.servers=4
-server.capacity=10000
+server.capacity=100000
 fixed.partitions=16
 number.of.replicas=1
 
-simulation.period=43200
+simulation.period=86400
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
-workload.change.probability=0.5
-threshold.change.in.dt=0.5
+percentage.change.in.workload=0.15
+observation.window.size=3600
+unique.max=1800
+dt.threshold=0.5
 initial.detection.time=3600
 dynamic.dt.margin=false
-old.transaction.timestamp=43201
+
+enable.transaction.expiration=false
+old.transaction.timestamp=10801

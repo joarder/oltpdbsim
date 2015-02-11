@@ -99,7 +99,7 @@ public class DataMovement {
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
 		message();
-		//mapping.print();
+		mapping.print();
 		
 		// Random assignment		
 		int[] arr = new int[mapping.getN()];
@@ -134,7 +134,7 @@ public class DataMovement {
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
 		message();
-		//mapping.print();
+		mapping.print();
 		
 		// Create Key-Value (Destination PID-Cluster ID) Mappings from Mapping Matrix
 		Map<Integer, Integer> keyMap = new TreeMap<Integer, Integer>();
@@ -156,7 +156,7 @@ public class DataMovement {
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
 		message();
-		//mapping.print();
+		mapping.print();
 				
 		// Step-1 :: Max Movement Matrix Formation
 		MatrixElement max;
@@ -177,7 +177,7 @@ public class DataMovement {
 
 		// @debug
 		Global.LOGGER.info("Creating Movement Matrix after Sub Matrix Max calculation ...");
-		//mapping.print();
+		mapping.print();
 		
 		// Step-2 :: PID Conversion		
 		// Create the PID conversion Key Map
@@ -251,13 +251,7 @@ public class DataMovement {
 			entry.getValue().setData_server_id(Sa);
 			++inter_server_dmv;
 			updateServerFlowCounts(cluster, Sb, Sa);
-		}
-		
-		// Reset the association between these Partitions
-//		if(Pb > Pa)
-//			wb.methodX.association.getMatrix()[Pb][Pa].setValue(0.0d);
-//		else
-//			wb.methodX.association.getMatrix()[Pa][Pb].setValue(0.0d);
+		}		
 		
 		// Update server-level load statistic and show
 		cluster.updateLoad();

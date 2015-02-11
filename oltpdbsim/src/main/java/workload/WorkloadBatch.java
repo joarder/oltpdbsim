@@ -66,6 +66,7 @@ public class WorkloadBatch {
 	private int _dt_nums;
 	private int _old_ndt_nums;
 	private int _ndt_nums;
+	private int _old_dti_sum;
 	private int _old_ndti_sum;
 	private int _dt_original;
 	private int _dt_new;
@@ -86,6 +87,7 @@ public class WorkloadBatch {
 		
 		this.set_old_dt_nums(0);
 		this.set_old_ndt_nums(0);
+		this.set_old_dti_sum(0);
 		this.set_old_ndti_sum(0);
 		
 		this.setTrMap(new TreeMap<Integer, Map<Integer, Transaction>>());
@@ -232,6 +234,14 @@ public class WorkloadBatch {
 		this._old_ndt_nums = _old_ndt_nums;
 	}
 
+	public int get_old_dti_sum() {
+		return _old_dti_sum;
+	}
+
+	public void set_old_dti_sum(int _old_dti_sum) {
+		this._old_dti_sum = _old_dti_sum;
+	}
+	
 	public int get_old_ndti_sum() {
 		return _old_ndti_sum;
 	}
@@ -464,15 +474,19 @@ public class WorkloadBatch {
 	
 	// Removes edges and hyperedges from the graphs and hypergraphs
 	// Remove the nonDT non-movable edges from Graph and Hypergraph
-	public void removeTransaction(Transaction tr) {
+	public void removeTransaction(Cluster cluster, Transaction tr) {
 		
-		for(Integer d : tr.getTr_dataSet())
-			this.deleteTrDataFromWorkload(d);
-		
-		this.getTrMap().get(tr.getTr_type()).remove(tr);
+//		for(Integer d : tr.getTr_dataSet())
+//			this.deleteTrDataFromWorkload(d);
+		++Global.remove_count;
+		this.getTrMap().get(tr.getTr_type()).remove(tr.getTr_id());
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
 		this.hgr.removeEdge(h);
+		
+		if(Global.dataMigrationStrategy.equals("methodX")) {
+			this.methodX.updateAssociation(cluster, tr, true);
+		}
 	}	
 	
 	// Unused function
@@ -481,6 +495,7 @@ public class WorkloadBatch {
 		HashMap<Integer, TreeSet<Integer>> _dataSetMap = new HashMap<Integer, TreeSet<Integer>>();
 		
 		for(int tr_id : removed_transactions) {
+			++Global.remove_count;
 			Transaction transaction = this.getTransaction(tr_id);
 			
 			Set<Integer> dataSet = new TreeSet<Integer>();
@@ -565,11 +580,11 @@ public class WorkloadBatch {
 			if(tr.isDt()) {
 				++dt_nums;
 				
-				if(Global.compressionBeforeSetup)
-					this.sword.hCut.add(h);
-				
 				tr.calculateDTImapct();
 				dti_sum += tr.getTr_dtImpact();
+								
+				if(Global.compressionBeforeSetup)
+					this.sword.hCut.add(h);
 				
 			} else { // Non-distributed transactions
 				++ndt_nums;
@@ -577,6 +592,8 @@ public class WorkloadBatch {
 				tr.calculateDTImapct();
 				ndti_sum += tr.getTr_dtImpact();			
 			}
+			
+			//System.out.println(tr.toString());
 		} // end -- for()		
 				
 		this.set_dt_nums(dt_nums);
@@ -585,23 +602,38 @@ public class WorkloadBatch {
 		Global.LOGGER.info("Number of Transactions after statistic collection: "+this.get_tr_nums());
 		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
 		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
-		Global.LOGGER.info("Number of non-DTs before statistic collection: "+this.get_old_ndt_nums());
+		Global.LOGGER.info("--------------------------------------------");
+		Global.LOGGER.info("Number of DTs removed before statistic collection: "+this.get_old_dt_nums());
+		Global.LOGGER.info("Number of non-DTs removed before statistic collection: "+this.get_old_ndt_nums());
+		Global.LOGGER.info("--------------------------------------------");
+		Global.LOGGER.info("Old dti sum = "+this.get_old_dti_sum());
+		Global.LOGGER.info("Old ndti sum = "+this.get_old_ndti_sum());
+		Global.LOGGER.info("--------------------------------------------");
+		Global.LOGGER.info("New dti sum = "+dti_sum);
+		Global.LOGGER.info("New ndti sum = "+ndti_sum);		
 		
 		if(this.get_dt_nums() != 0)
-			dt_percentage = (Math.round(((double)dt_nums 
-					/ (double)this.get_tr_nums()) * 100.00) / 100.00) * 100.00;
+			dt_percentage = ((double)(dt_nums + this.get_old_dt_nums()) 
+					/ (double)(this.get_tr_nums() + this.get_old_dt_nums() + this.get_old_ndt_nums())) * 100.00;
+//			dt_percentage = (Math.round(((double)dt_nums 
+//					/ (double)this.get_tr_nums()) * 100.00) / 100.00) * 100.00;
 
 		if(this.get_ndt_nums() != 0)
-			ndt_percentage = (Math.round((((double)(ndt_nums + this.get_old_ndt_nums())) 
-					/ (double)this.get_tr_nums()) * 100.0) / 100.00) * 100.00;
+			ndt_percentage = ((double)(ndt_nums + this.get_old_ndt_nums()) 
+					/ (double)(this.get_tr_nums() + this.get_old_dt_nums() + this.get_old_ndt_nums())) * 100.0;
+//			ndt_percentage = (Math.round((((double)(ndt_nums)) 
+//					/ (double)this.get_tr_nums()) * 100.0) / 100.00) * 100.00;
 
 		// following equation 3 of the UCC 2014 paper
-		mean_dti = Math.round(((double)dti_sum 
-				/ ((double)(dti_sum + ndti_sum + this.get_old_ndti_sum()))) * 100.00) / 100.00;
+		mean_dti = (double)(dti_sum) 
+				/ ((double)(dti_sum + ndti_sum + this.get_old_dti_sum() + this.get_old_ndti_sum()));
+
+//		mean_dti = Math.round(((double)dti_sum 
+//				/ ((double)(dti_sum + ndti_sum))) * 100.00) / 100.00;
 		
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
-		this.set_mean_dti(mean_dti);
+		this.set_mean_dti(mean_dti);		
 		
 		if(Global.compressionBeforeSetup)
 			this.sword.calculateContribution(cluster, this);

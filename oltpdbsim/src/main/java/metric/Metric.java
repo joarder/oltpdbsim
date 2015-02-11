@@ -45,6 +45,10 @@ public class Metric implements java.io.Serializable {
 	public static ArrayList<Integer> inter_server_dmv;
 	public static ArrayList<Integer> intra_server_dmv;
 	
+	public static ArrayList<Integer> current_tr;
+	public static ArrayList<Integer> current_dt;
+	public static ArrayList<Integer> current_ndt;
+	
 	private static File file;
 	
 	public static void init() {
@@ -72,6 +76,10 @@ public class Metric implements java.io.Serializable {
 		inter_server_dmv = new ArrayList<Integer>();
 		intra_server_dmv = new ArrayList<Integer>();
 		
+		current_tr = new ArrayList<Integer>();
+		current_dt = new ArrayList<Integer>();
+		current_ndt = new ArrayList<Integer>();
+		
 		// Creating a metric file
 		file = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
@@ -98,6 +106,10 @@ public class Metric implements java.io.Serializable {
 		intra_server_dmv.add(wb.get_intra_dmv());
 		inter_server_dmv.add(wb.get_inter_dmv());
 
+		current_tr.add(wb.get_tr_nums());
+		current_dt.add(wb.get_dt_nums());
+		current_ndt.add(wb.get_ndt_nums());
+		
 		getServerStatistic(cluster);
 		getPartitionStatistic(cluster);
 	}
@@ -150,12 +162,13 @@ public class Metric implements java.io.Serializable {
 		
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
-		Global.LOGGER.info("Total Unique transactions processed: "+Global.global_trSeq);
+		Global.LOGGER.info("Total unique transactions processed: "+Global.global_trSeq);
+		Global.LOGGER.info("Total unique transactions removed: "+Global.remove_count);
 		Global.LOGGER.info("Average transactional frequency: "+mean_trFreq);
 		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Total transactions in the current observation window: ");
-		Global.LOGGER.info("Total DT in the current observation window: ");
-		Global.LOGGER.info("Total non-DT in the current observation window: ");
+		Global.LOGGER.info("Total transactions in the current observation window: "+current_tr);
+		Global.LOGGER.info("Total DT in the current observation window: "+current_dt);
+		Global.LOGGER.info("Total non-DT in the current observation window: "+current_ndt);
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
@@ -205,6 +218,7 @@ public class Metric implements java.io.Serializable {
 			prWriter.print(index+" ");
 			prWriter.print(mean_throughput.get(index)+" ");
 			prWriter.print(mean_response_time.get(index)+" ");
+			prWriter.print(current_dt.get(index)+" ");
 			prWriter.print(percentage_dt.get(index)+" ");
 			prWriter.print(mean_dti.get(index)+" ");
 			prWriter.print(mean_partition_inflow.get(index)+" ");

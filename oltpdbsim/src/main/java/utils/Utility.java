@@ -16,9 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
-
 import main.java.entry.Global;
-
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
@@ -88,7 +86,7 @@ public class Utility {
 	}
 	
 	// 
-	private static String getSaltedKey(String key) {
+	public static String getSaltedKey(String key) {
 		int prefix = (++Global.global_index % Global.partitions);
 		Global.global_index_map.put(Integer.parseInt(key), prefix);
 		
@@ -137,7 +135,19 @@ public class Utility {
 		return (int) Math.floor(m * ((key * A) % 1));
 	}
 	
+	public static String getRandomAlphanumericString() {
+		return RandomStringGenerator.generateRandomString(50, RandomStringGenerator.Mode.ALPHANUMERIC);
+	}
+	
 	// Returns a SHA1 hash value
+	public static long sha1Hash(String key) {		
+		String value = DigestUtils.sha512Hex(key.getBytes());		
+		BigInteger b = new BigInteger(value, 16);		
+		
+		return (b.longValue());
+	}
+	
+/*	// Returns a SHA1 hash value
 	public static long sha1Hash(String key, boolean lookup, boolean flag) {
 		
 		if(flag) {
@@ -157,9 +167,9 @@ public class Utility {
 		byte[] value = DigestUtils.sha1(key.getBytes());
 		return Utility.convertByteToUnsignedLong(value);
 	}
+*/
 	
-	//
-	private static String getAlphaNumericString(String str) {
+	public static String getAlphaNumericString(String str) {
 		String out = null;
 		
 		try {
