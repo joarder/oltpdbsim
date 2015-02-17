@@ -33,21 +33,27 @@ public class Cluster {
 	private Map<Long, Integer> ring_map;
 	private Map<Integer, ArrayList<Integer>> partition_map;
 	private Map<Integer, ArrayList<Long>> partition_keyRange;
+	
 	private Map<Integer, String> data_uid_map;
+	private Map<Integer, String> vdata_uid_map;
 
 	public static boolean _setup;
 	
 	public Cluster() {
 	    this.setPartitions(new TreeSet<Partition>());
 		this.setServers(new TreeSet<Server>());		
+		
 		this.setRing(new ConsistentHashRing<Long>(Global.replicas));
 		this.setRing_map(new HashMap<Long, Integer>());
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		this.setPartition_keyRange(new HashMap<Integer, ArrayList<Long>>());
+		
 		this.setData_uid_map(new HashMap<Integer, String>());
 		
-		if(Global.compressionBeforeSetup)
-			this.setVdataSet(new TreeMap<Integer, VirtualData>());		
+		if(Global.compressionBeforeSetup) {
+			this.setVdataSet(new HashMap<Integer, VirtualData>());
+			this.setVdata_uid_map(new HashMap<Integer, String>());
+		}
 	}
 	
 	public SortedSet<Server> getServers() {
@@ -112,6 +118,14 @@ public class Cluster {
 
 	public void setData_uid_map(Map<Integer, String> data_uid_map) {
 		this.data_uid_map = data_uid_map;
+	}
+
+	public Map<Integer, String> getVdata_uid_map() {
+		return vdata_uid_map;
+	}
+
+	public void setVdata_uid_map(Map<Integer, String> vdata_uid_map) {
+		this.vdata_uid_map = vdata_uid_map;
 	}
 
 	public WorkloadBatch setup(Database db, Workload wrl) {
@@ -180,17 +194,16 @@ public class Cluster {
 					+"End["+p.getPartition_end_key()+"]");			
 		}
 		
-		//
+		// Determine the number of Virtual Data Nodes to be created
 		if(Global.compressionEnabled)
-			Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+			Global.virtualDataNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
 		// Physical Data Distribution
+		this.physicalDataDistribution(db);
+		
+		// Virtual Data Distribution for Sword
 		if(Global.compressionBeforeSetup)
-			wb = this.vdataDistribution(db, this, wrl);
-		else {
-			this.dataDistribution(db);
-			//this.warmup(db, wrl);
-		}
+			wb = this.vdataDistribution(db, this, wrl);		
 		
 		// Update server-level load statistic and show
 		this.updateLoad();
@@ -204,7 +217,7 @@ public class Cluster {
 	}
 
 	// Physical Data distribution
-	private void dataDistribution(Database db) {
+	private void physicalDataDistribution(Database db) {
 
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting physical Data distribution within the Partitions ...");
@@ -229,24 +242,22 @@ public class Cluster {
 	private WorkloadBatch vdataDistribution(Database db, Cluster cluster, Workload wrl) {
 		_setup = true;
 		
-		//Global.virtualNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
-		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");		
-		Global.LOGGER.info("Creating "+Global.virtualNodes+" virtual nodes from "
-				+db.getDb_tuple_counts()+" tuples ...");
+		Global.LOGGER.info("Creating "+Global.virtualDataNodes+" virtual nodes from "
+									  +db.getDb_tuple_counts()+" tuples ...");
 		
 		// Initial Data distribution
-		this.dataDistribution(db);
+		//this.physicalDataDistribution(db);
 
 		// Stream a new Workload Batch
 		Global.global_trSeq = 0;
 		WorkloadBatch wb = this.warmupSword(db, this, wrl);
 		
 		Global.LOGGER.info("Total "+Global.global_trSeq+" transactions containing "
-				+wb.getWrl_totalDataObjects()+" data rows have generated.");
+								   +wb.getWrl_totalDataObjects()+" data rows have streamed and processed.");
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-		// Single compressed hypergraph partitioning using k-way min-cut		
+		// A single compressed hypergraph partitioning using k-way min-cut		
 		// Generate workload file
 		boolean empty = false;
 		try {
@@ -277,7 +288,7 @@ public class Cluster {
 			
 			// Update server-level load statistic and show
 			cluster.updateLoad();
-			//cluster.show();
+			cluster.show();
 			
 			Global.LOGGER.info("=======================================================================================================================");
 		}
@@ -295,13 +306,13 @@ public class Cluster {
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Initiating SWORD based virtual node distribution ...");
-		Global.LOGGER.info("Targeting 1hr workload generation ...");
+		Global.LOGGER.info("Targeting 1hr workload streaming ...");
 		
 		// i -- Transaction types
 		for(int i = 1; i <= wrl.tr_types; i++) {
 			// Calculate the number of transactions to be created for a specific type
 			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * 3600); // 3600 transactions ~ 1hr workload			
-			Global.LOGGER.info("Generating "+tr_nums+" transactions of type "+i+" ...");
+			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
 
 			// j -- number of Transactions for a specific Transaction type
 			for(int j = 1; j <= tr_nums; j++) {		
@@ -338,7 +349,7 @@ public class Cluster {
 		for(int i = 1; i <= wrl.tr_types; i++) {
 			// Calculate the number of transactions to be created for a specific type
 			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * 3600); // 3600 transactions ~ 1hr workload			
-			Global.LOGGER.info("Generating "+tr_nums+" transactions of type "+i+" ...");
+			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
 
 			// j -- number of Transactions for a specific Transaction type
 			for(int j = 1; j <= tr_nums; j++) {		
@@ -348,40 +359,17 @@ public class Cluster {
 		
 		wrl.warmingup = false;
 		db.updateTupleCounts();
-	}		
-		
-	// Extract actual Tuple id and Table id from a given Data id
-	public String[] breakDataId(int _id) {
-		String[] parts = new String[2];
-		
-		// Extract the last part from tuple id
-		String d_id = Long.toString(_id);
-		int length = d_id.length();
-		
-		// Extract primary key and table id from the tuple id string
-		parts[0] = StringUtils.substring(d_id, 0, (length - 1));
-		parts[1] = StringUtils.substring(d_id, (length - 1), length);		
-		
-		return parts;
 	}
 	
 	// Insert a new Data and its replicas in the Cluster
 	public int insertData(int _id) {
+		
 		++Global.global_dataCount;
 		
-		int[] replicas = new int[Global.replicas];		
-		int p_id = 0;
-		
-		long p_key = 0;
-		long hash;
-		
-		String d_id = null;
-		String _uid = null;
-		String v_id = null;		
+		int[] replicas = new int[Global.replicas];
 		
 		Data d = null;
-		VirtualData v = null;
-		
+		VirtualData v = null;		
 		Partition p = null;
 		Server s = null;
 
@@ -393,49 +381,55 @@ public class Cluster {
 		// Create a new Data object and its replicas
 		for(int repl = 1; repl <= Global.replicas; repl++) {
 			
-			d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
-			
-			_uid = Utility.getRandomAlphanumericString();
-			data_uid_map.put(Integer.parseInt(d_id), _uid);
-			
-			if(Global.compressionBeforeSetup) {				
-				v_id = Integer.toString(Utility.simpleHash(tpl_pk, Global.virtualNodes));				
-				hash = Utility.intHash(Integer.parseInt(v_id));
-				
-			} else {
-				//hash = Utility.intHash(_id);
-				//hash = Utility.md5Hash(_uid);
-				hash = Utility.sha1Hash(_uid);
-			}
-				
-			// Find the corresponding Partition id
-			p_key = this.getRing().get(hash);
-			p_id = this.getRing_map().get(p_key);
-			p = this.getPartition(p_id);
-			
-			// New Data
+			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
+						
 			if(Global.compressionBeforeSetup) {
-				d = new Data(Integer.parseInt(d_id), tbl_id, Integer.parseInt(v_id), p.getPartition_id(), 
-						p.getPartition_serverId());
+				
+				String v_uid = null;
+				
+				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
 				
 				// Create a Virtual Data if required
-				if(!this.vdataSet.containsKey(Integer.parseInt(v_id)))					
-					v = new VirtualData(Integer.parseInt(v_id), p.getPartition_id(), 
-							p.getPartition_serverId());
-				else
-					v = this.vdataSet.get(Integer.parseInt(v_id));
+				if(!this.vdataSet.containsKey(v_id)) {
+					
+					v_uid = Utility.getRandomAlphanumericString();						
+					vdata_uid_map.put(v_id, v_uid);
+					
+					v = new VirtualData(v_id, v_uid);
+					this.vdataSet.put(v_id, v);
+					
+				} else {
+					v = this.vdataSet.get(v_id);
+					v_uid = this.vdata_uid_map.get(v_id);
+				}
 				
-				// Put an entry in the Virtual Data's list
+				// Find the corresponding Partition from the Consistent Hash Ring
+				p = this.getPartition(v_uid);
+				
+				// Create the new Data
+				d = new Data(Integer.parseInt(d_id), tbl_id, v_id, p.getPartition_id(), p.getPartition_serverId());
+				d.setData_uid(v_uid);
+				
+				// Set Partition, and Server id for the Virtual Data Node
+				v.setVdata_partition_id(p.getPartition_id());
+				v.setVdata_server_id(p.getPartition_serverId());
+				
+				// Add the corresponding Data id into the Virtual Data Node
 				v.getVdata_set().add(d.getData_id());
-								
-				// Assign Virtual Data to Cluster
-				this.getVdataSet().put(Integer.parseInt(v_id), v);
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
 				
 			} else {
+				
+				String _uid = Utility.getRandomAlphanumericString();						
+				data_uid_map.put(Integer.parseInt(d_id), _uid);
+				
+				// Find the corresponding Partition from the Consistent Hash Ring
+				p = this.getPartition(_uid);			
+				
 				d = new Data(Integer.parseInt(d_id), tbl_id, -1, p.getPartition_id(), p.getPartition_serverId());				
+				d.setData_uid(_uid);
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -455,16 +449,8 @@ public class Cluster {
 	
 	// Delete a Data and all of its replicas from the Cluster
 	public void deleteData(int _id) {
+
 		--Global.global_dataCount;
-		
-		int v_id = 0;		
-		int p_id = 0;		
-		
-		long p_key = 0;
-		long hash;
-		
-		String d_id = null;
-		String _uid = null;
 		
 		Data d = null;
 		Partition p = null;
@@ -477,24 +463,23 @@ public class Cluster {
 		
 		for(int repl = 1; repl <= Global.replicas; repl++) {
 			
-			d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
-			
-			_uid = data_uid_map.get(Integer.parseInt(d_id));
+			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {
-				v_id = Utility.simpleHash(Integer.parseInt(d_id), Global.virtualNodes);
-				hash = Utility.intHash(v_id);
+				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
+				String v_uid = this.getVdata_uid_map().get(v_id);
+
+				// Find the corresponding Partition from the Consistent Hash Ring
+				p = this.getPartition(v_uid);
 				
-			} else {
-				//hash = Utility.intHash(_id);
-				//hash = Utility.md5Hash(_uid);
-				hash = Utility.sha1Hash(_uid);
-			}
-			
-			// Find the corresponding Partition id
-			p_key = this.getRing().get(hash);
-			p_id = this.getRing_map().get(p_key);
-			p = this.getPartition(p_id);
+				VirtualData v = this.vdataSet.get(v_id);
+				v.getVdata_set().remove(Integer.parseInt(d_id));
+				
+			} else {				
+				// Find the corresponding Partition from the Consistent Hash Ring
+				String _uid = data_uid_map.get(Integer.parseInt(d_id));
+				p = this.getPartition(_uid);
+			}						
 			
 			// Delete from the data uid map
 			this.data_uid_map.remove(Integer.parseInt(d_id));
@@ -515,36 +500,38 @@ public class Cluster {
 	// Returns a Data object by its id
 	public Data getData(int _id) {
 		
-		int v_id = 0;
-		int p_id = 0;		
+		Partition p = null;
 		
-		String _uid = null;
-		
-		long p_key = 0;
-		long hash;
-		
-		Partition p = null;				
-		
-		_uid = this.data_uid_map.get(_id);
-		
-		if(Global.compressionBeforeSetup) {						
-			v_id = Utility.simpleHash(_id, Global.virtualNodes);
-			hash = Utility.intHash(v_id);
+		if(Global.compressionBeforeSetup) {	
+			// Break up the Data id to extract the Tuple's primary key and Table id
+			String[] parts = Cluster.getTplIdFromDataId(_id);
+			int tpl_pk = Integer.parseInt(parts[0]);
 			
+			int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
+			String v_uid = this.getVdata_uid_map().get(v_id);
+
+			// Find the corresponding Partition from the Consistent Hash Ring
+			p = this.getPartition(v_uid);			
+						
 		} else {			
-			//hash = Utility.intHash(_id);
-			//hash = Utility.md5Hash(_uid);
-			hash = Utility.sha1Hash(_uid);
+			// Find the corresponding Partition from the Consistent Hash Ring
+			String _uid = this.data_uid_map.get(_id);
+			p = this.getPartition(_uid);
 		}
-	
-		// Find the corresponding Partition id
-		p_key = this.getRing().get(hash);
-		p_id = this.getRing_map().get(p_key);
-		p = this.getPartition(p_id);
-				
-		//System.out.println("@ _uid = "+_uid+"|_id="+_id+"|hash="+hash+"|p="+p);
 		
 		return p.getData(this, _id);
+	}
+	
+	// Returns the reference of a Partition from the uid
+	private Partition getPartition(String _uid) {
+		
+		// Find the corresponding Partition from the Consistent Hash Ring
+		//hash = Utility.md5Hash(_uid);
+		long hash = Utility.sha512Hash(_uid);				
+		long p_key = this.getRing().get(hash);
+		int p_id = this.getRing_map().get(p_key);
+		
+		return this.getPartition(p_id);
 	}
 	
 	// Returns a Partition by its id
@@ -649,6 +636,38 @@ public class Cluster {
 				return server;
 		
 		return null;
+	}	
+	
+	// Extract actual Tuple id and Table id from a given Data id
+	public String[] breakDataId(int _id) {
+		String[] parts = new String[2];
+		
+		// Extract the last part from tuple id
+		String d_id = Integer.toString(_id);
+		int length = d_id.length();
+		
+		// Extract primary key and table id from the tuple id string
+		parts[0] = StringUtils.substring(d_id, 0, (length - 1));
+		parts[1] = StringUtils.substring(d_id, (length - 1), length);		
+		
+		return parts;
+	}
+	
+	// Extract actual Tuple id, Replica id, and Table id from a given Data id
+	// Only applicable where number of replicas and tables are less than 10
+	public static String[] getTplIdFromDataId(int _id) {
+		String[] parts = new String[3];
+		
+		// Extract the last part from tuple id
+		String d_id = Integer.toString(_id);
+		int length = d_id.length();
+		
+		// Extract primary key and table id from the tuple id string
+		parts[0] = StringUtils.substring(d_id, 0, (length - 2));
+		parts[1] = StringUtils.substring(d_id, (length - 2), (length - 1));		
+		parts[2] = StringUtils.substring(d_id, (length - 1), length);
+		
+		return parts;
 	}
 	
 	public void show() {

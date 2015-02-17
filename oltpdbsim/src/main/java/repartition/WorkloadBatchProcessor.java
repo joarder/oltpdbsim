@@ -103,7 +103,8 @@ public class WorkloadBatchProcessor {
 					
 					// Writing hyperedge weights and incident vertex ids
 					for(SimpleHEdge e : wb.hgr.getEdges()) {
-						String e_weight = Integer.toString(e.getWeight());
+						
+						String e_weight = Integer.toString(scale(e.getWeight()));
 						writer.write(e_weight+" ");
 						
 						Iterator<SimpleVertex> e_itr =  wb.hgr.getIncidentVertices(e).iterator();
@@ -149,19 +150,20 @@ public class WorkloadBatchProcessor {
 		Map<CompressedHEdge, Set<CompressedVertex>> vedge = new TreeMap<CompressedHEdge, Set<CompressedVertex>>();
 		Set<CompressedVertex> vvertex = new TreeSet<CompressedVertex>();
 		
-		//Global.LOGGER.info("--> Total vedges = "+wb.hgr.getcHEdges().size());
+		Global.LOGGER.info("Total compressed hyperedges = "+wb.hgr.getcHEdges().size());
 		
 		// Only select the compressed hyperedges having at least two compressed vertices
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
-			if(entry.getValue().size() >= 2) {
+		Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {			
+			if(entry.getValue().size() >= 2) {				
 				vedge.put(entry.getKey(), entry.getValue());
 				vvertex.addAll(entry.getValue());				
-			} else {
-				System.out.println("Compressed hyperedge with only 1 compressed vertex !!!");
+			} else {				
+				Global.LOGGER.info("Compressed hyperedge with only 1 compressed vertex !!!");
 			}
 		}
 		
-		//Global.LOGGER.info("vedges = "+vedge.size()+" | vvertex = "+vvertex.size());
+		Global.LOGGER.info("Total "+vedge.size()+" compressed hyperedges containing "+vvertex.size()+" compressed vertices are selected.");
 		
 		vvertex_id_map = new TreeMap<Integer, Integer>();
 		int vvertex_id = 0;
@@ -207,8 +209,8 @@ public class WorkloadBatchProcessor {
 					
 					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : vedge.entrySet()) {
 						
-						// Writing e' weight
-						writer.write(Integer.toString(entry.getKey().getWeight())+" ");
+						// Writing e' weight						
+						writer.write(Integer.toString(scale(entry.getKey().getWeight()))+" ");
 								
 						// Writing v' incident on e'
 						Iterator<CompressedVertex> cv_itr =  entry.getValue().iterator();
@@ -277,9 +279,9 @@ public class WorkloadBatchProcessor {
 					SimpleHEdge _h = wb.hgr.findEdge(v, _v);
 					
 					++edges;
-					
+										
 					String _id = Integer.toString(vertex_id_map.get(_v.getId()));
-					String _edge_weight = Integer.toString(_h.getWeight());
+					String _edge_weight = Integer.toString(scale(_h.getWeight()));
 					
 					str += _id+" "+_edge_weight+" ";
 				}
@@ -403,5 +405,15 @@ public class WorkloadBatchProcessor {
 				}
 			} // end -- for()-Data
 		} // end -- for()-Transaction		
+	}
+	
+	static int scale(double x) {
+		double min = 0;
+		double max = 1;
+		
+		double a = 1;
+		double b = 10000; // Based on an estimation, the frequency values will not go below this
+		
+		return (int) ((((b-a)*(x-min))/(max-min))+a);
 	}
 }

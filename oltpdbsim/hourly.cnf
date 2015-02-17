@@ -1,14 +1,14 @@
-simulation.name=chg-msm-basic
+simulation.name=hourly
 
-workload.aware=aware
-incremental.repartitioning=aware
-transaction.classification=true
+workload.aware=false
+incremental.repartitioning=false
+transaction.classification=false
 
 workload.representation=hgr
 transaction.classification.strategy=basic
 data.migration.strategy=msm
 
-compression.enabled=true
+compression.enabled=false
 compression.before.setup=false
 compression.ratio=6
 

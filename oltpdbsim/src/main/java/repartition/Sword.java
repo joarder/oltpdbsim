@@ -67,7 +67,7 @@ public class Sword {
 		}
 		
 		// new -- Calculate C_e (Contribution of each hyperedge e in H_cut towards total number of distributed transactions seen so far)
-		int ndt_e = 0;
+		double ndt_e = 0;
 		double c_e = 0.0d;
 		
 		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {

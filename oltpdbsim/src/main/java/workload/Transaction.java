@@ -7,8 +7,6 @@ import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
-import main.java.entry.Global;
-import umontreal.iro.lecuyer.simevents.Sim;
 
 public class Transaction implements Comparable<Transaction>, java.io.Serializable {
 
@@ -17,21 +15,18 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private int tr_id;	
 	private String tr_label;
 	private int tr_type;
-	private String tr_class;	
-	private double timestamp;
+	private String tr_class;
+	
+	private double tr_period;
+	
 	private Set<Integer> tr_dataSet;	
 	private HashMap<Integer, TreeSet<Integer>> tr_partitionSet;
 	private HashMap<Integer, TreeSet<Integer>> tr_serverSet;
 	
-	private int tr_frequency;
-	//private int tr_temporal_weight;
 	private int tr_ssCost; // Server Span Cost or, Distributed Transaction Cost
-	private int tr_psCost; // Partition Span Cost
-	private int tr_dtImpact;
+	private int tr_psCost; // Partition Span Cost	
 	
-	private boolean repeated;
-	private boolean processed;
-	//private boolean temporal;
+	private boolean processed;	
 	private boolean dt;
 	private boolean span2Servers;
 	
@@ -52,18 +47,11 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.setTr_label("T"+Integer.toString(this.getTr_id()));
 		this.setTr_type(type);
 		this.setTr_dataSet(dataSet);
-		
-		this.setTr_frequency(1);
-		//this.setTr_temporal_weight(2);
-		
+				
 		this.setTr_serverSpanCost(0);
 		this.setTr_partitionSpanCost(0);
-		
-		this.setTr_dtImpact(0);
-		
-		this.setRepeated(false);
+
 		this.setProcessed(false);
-		//this.setTemporal(false);
 		this.setDt(false);
 		this.setSpan2Servers(false);
 		
@@ -74,9 +62,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.setTr_partitionSet(new HashMap<Integer, TreeSet<Integer>>());
 		this.setTr_serverSet(new HashMap<Integer, TreeSet<Integer>>());
 		
-		this.setTr_class(null);
-		
-		this.setTimestamp(time);
+		this.setTr_class(null);		
+		this.setTr_period(0.0);
 	}
 	
 	public int getTr_id() {
@@ -103,22 +90,6 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.tr_label = tr_label;
 	}
 	
-	public int getTr_frequency() {
-		return tr_frequency;
-	}
-
-	public void setTr_frequency(int tr_frequency) {
-		this.tr_frequency = tr_frequency;
-	}
-
-//	public int getTr_temporal_weight() {
-//		return tr_temporal_weight;
-//	}
-//
-//	public void setTr_temporal_weight(int tr_temporal_weight) {
-//		this.tr_temporal_weight = tr_temporal_weight;
-//	}
-
 	public int getTr_serverSpanCost() {
 		return tr_ssCost;
 	}
@@ -134,23 +105,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	public void setTr_partitionSpanCost(int tr_psCost) {
 		this.tr_psCost = tr_psCost;
 	}
-
-	public int getTr_dtImpact() {
-		return tr_dtImpact;
-	}
-
-	public void setTr_dtImpact(int tr_dtImpact) {
-		this.tr_dtImpact = tr_dtImpact;
-	}
 	
-	public boolean isRepeated() {
-		return repeated;
-	}
-
-	public void setRepeated(boolean repeated) {
-		this.repeated = repeated;
-	}
-
 	public boolean isProcessed() {
 		return processed;
 	}
@@ -158,14 +113,6 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	public void setProcessed(boolean processed) {
 		this.processed = processed;
 	}
-
-//	public boolean isTemporal() {
-//		return temporal;
-//	}
-//
-//	public void setTemporal(boolean temporal) {
-//		this.temporal = temporal;
-//	}
 
 	public boolean isDt() {
 		return dt;
@@ -248,32 +195,12 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.tr_class = tr_class;
 	}
 	
-	public double getTimestamp() {
-		return timestamp;
+	public double getTr_period() {
+		return tr_period;
 	}
 
-	public void setTimestamp(double timestamp) {
-		this.timestamp = timestamp;
-	}
-
-	public void incTr_frequency() {
-		int tr_frequency = this.getTr_frequency();
-		this.setTr_frequency(++tr_frequency);
-	}
-	
-//	public void decTr_temporalWeight() {
-//		int tr_temporal_weight = this.getTr_temporal_weight();
-//		this.setTr_temporal_weight(--tr_temporal_weight);
-//	}
-	
-	public boolean isExpired() {
-		
-		if(Sim.time() - this.getTimestamp() > Global.oldTransactionTimestamp) //(3600/Global.workloadChangeProbability))		
-			return true;
-		else if(this.getTimestamp() >= Integer.MAX_VALUE)
-			return true;
-		else
-			return false;
+	public void setTr_period(double tr_period) {
+		this.tr_period = tr_period;
 	}
 	
 	// This function will calculate the Node and Partition Span Cost for the representative Transaction
@@ -327,24 +254,13 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 			this.setSpan2Servers(true);						
 	}
 	
-	// Calculate DT Impacts for the Workload
-	public void calculateDTImapct() {
-		this.setTr_dtImpact(
-				this.getTr_serverSpanCost() 
-				* this.getTr_frequency()); 
-				//* this.getTr_temporal_weight());
-	}
-	
 	@Override
 	public String toString() {	
 		return (this.getTr_label()+"("
 				+"Type["+this.tr_type+"] | "
 				+"DT["+this.isDt()+"] | "
 				+"SS["+this.getTr_serverSpanCost()+"] | "
-				+"FQ["+this.getTr_frequency()+"] | "
-				//+"TM["+this.getTr_temporal_weight()+"] | "
 				+"DS"+this.getTr_dataSet()+" | "
-				//+" Processed = "+this.isProcessed()+"|"//processed
 				+" RSP["+this.getTr_response_time()+"]"//+"|"
 				//+" Arrival = "+this.getTr_arrival_time()+"|"
 				//+" Service = "+this.getTr_service_time()

@@ -374,7 +374,7 @@ public class DataMovement {
 			Transaction tr = wb.getTransaction(h.getId());
 		
 			for(Integer d : tr.getTr_dataSet()) {
-				
+				//System.out.println("--> "+d);
 				Data data = cluster.getData(d);
 				
 				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {

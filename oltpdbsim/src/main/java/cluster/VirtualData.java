@@ -1,21 +1,23 @@
 package main.java.cluster;
 
+import java.util.HashSet;
 import java.util.Set;
-import java.util.TreeSet;
 
 public class VirtualData implements Comparable<VirtualData>  {
 	
-	private int vdata_id;	
+	private int vdata_id;
+	private String vdata_uid;
 	private int vdata_partition_id;
 	private int vdata_server_id;
 	private String vdata_label;	
 	private Set<Integer> vdata_set;
 	
-	public VirtualData(int v_id, int p_id, int s_id) {		
+	public VirtualData(int v_id, String v_uid) {		
 		this.setVdata_id(v_id);
-		this.setVdata_partition_id(p_id);
-		this.setVdata_server_id(s_id);
-		this.setVdata_set(new TreeSet<Integer>());
+		this.setVdata_uid(v_uid);
+		this.setVdata_partition_id(-1);
+		this.setVdata_server_id(-1);
+		this.setVdata_set(new HashSet<Integer>());
 	}
 
 	public int getVdata_id() {
@@ -24,6 +26,14 @@ public class VirtualData implements Comparable<VirtualData>  {
 
 	public void setVdata_id(int vdata_id) {
 		this.vdata_id = vdata_id;
+	}
+
+	public String getVdata_uid() {
+		return vdata_uid;
+	}
+
+	public void setVdata_uid(String vdata_uid) {
+		this.vdata_uid = vdata_uid;
 	}
 
 	public int getVdata_partition_id() {

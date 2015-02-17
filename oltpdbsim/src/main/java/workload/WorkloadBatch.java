@@ -27,8 +27,7 @@ public class WorkloadBatch {
 	
 	private int wrl_id;
 	
-	private SortedMap<Integer, Map<Integer, Transaction>> trMap;
-	//private SortedMap<Integer, ArrayList<Integer>> trBuffer;	
+	private SortedMap<Integer, Map<Integer, Transaction>> trMap;	
 	
 	// Hypergraph	
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
@@ -66,14 +65,11 @@ public class WorkloadBatch {
 	private int _dt_nums;
 	private int _old_ndt_nums;
 	private int _ndt_nums;
-	private int _old_dti_sum;
-	private int _old_ndti_sum;
 	private int _dt_original;
 	private int _dt_new;
-	private double _mean_trFreq;
+	private int _edges_in_cut;
 	private double _throughput;
 	private double _response_time;
-	private double _mean_dti;
 	private double _percentage_dt;
 	private double _percentage_ndt;
 	private double _percentage_change_in_dt;
@@ -87,11 +83,8 @@ public class WorkloadBatch {
 		
 		this.set_old_dt_nums(0);
 		this.set_old_ndt_nums(0);
-		this.set_old_dti_sum(0);
-		this.set_old_ndti_sum(0);
 		
 		this.setTrMap(new TreeMap<Integer, Map<Integer, Transaction>>());
-		//this.setTrBuffer(new TreeMap<Integer, ArrayList<Integer>>());
 		
 		this.setWrl_dataId_clusterId_map(new TreeMap<Integer, Integer>());
 		this.setWrl_virtualDataId_clusterId_map(new TreeMap<Integer, Integer>());		
@@ -116,8 +109,9 @@ public class WorkloadBatch {
 				break;
 		}
 		
-		if(Global.dataMigrationStrategy.equals("methodX"))
-			this.methodX = new MethodX();		
+		if(Global.workloadAware)
+			if(Global.dataMigrationStrategy.equals("methodX"))
+				this.methodX = new MethodX();		
 	}
 
 	public int getWrl_id() {
@@ -136,14 +130,6 @@ public class WorkloadBatch {
 		this.trMap = trMap;
 	}
 
-//	public SortedMap<Integer, ArrayList<Integer>> getTrBuffer() {
-//		return trBuffer;
-//	}
-//
-//	public void setTrBuffer(SortedMap<Integer, ArrayList<Integer>> trBuffer) {
-//		this.trBuffer = trBuffer;
-//	}
-
 	public int getDb_tuple_counts() {
 		return db_tuple_counts;
 	}
@@ -158,22 +144,6 @@ public class WorkloadBatch {
 
 	public void setWrl_totalDataObjects(int wrl_totalData) {
 		this.wrl_total_data = wrl_totalData;
-	}
-
-	public double get_mean_dti() {
-		return _mean_dti;
-	}
-
-	public void set_mean_dti(double wrl_mean_dti) {
-		this._mean_dti = wrl_mean_dti;
-	}
-
-	public double get_mean_trFreq() {
-		return _mean_trFreq;
-	}
-
-	public void set_mean_trFreq(double wrl_mean_trFreq) {
-		this._mean_trFreq = wrl_mean_trFreq;
 	}
 
 	public int get_tr_nums() {
@@ -234,22 +204,6 @@ public class WorkloadBatch {
 		this._old_ndt_nums = _old_ndt_nums;
 	}
 
-	public int get_old_dti_sum() {
-		return _old_dti_sum;
-	}
-
-	public void set_old_dti_sum(int _old_dti_sum) {
-		this._old_dti_sum = _old_dti_sum;
-	}
-	
-	public int get_old_ndti_sum() {
-		return _old_ndti_sum;
-	}
-
-	public void set_old_ndti_sum(int _old_ndti_sum) {
-		this._old_ndti_sum = _old_ndti_sum;
-	}
-
 	public int get_dt_original() {
 		return _dt_original;
 	}
@@ -266,6 +220,14 @@ public class WorkloadBatch {
 		this._ndt_nums = wrl_ndt_nums;
 	}
 	
+	public int get_edges_in_cut() {
+		return _edges_in_cut;
+	}
+
+	public void set_edges_in_cut(int _edges_in_cut) {
+		this._edges_in_cut = _edges_in_cut;
+	}
+
 	public void inc_ndt_nums() {
 		int ndt_nums = this.get_ndt_nums();
 		this.set_ndt_nums(++ndt_nums);
@@ -418,14 +380,7 @@ public class WorkloadBatch {
 		double response_time = Math.round(((double) total_response_time 
 				/ (double) total_transactions) * 100.00) / 100.00;
 		this.set_response_time(response_time);
-	}
-		
-	public void calculateAverageTrFreq(int total_transactions, int total_trFreq) {
-		
-		double freq = Math.round(((double) total_trFreq 
-				/ (double) total_transactions) * 100.0) / 100.0;
-		this.set_mean_trFreq(freq);
-	}
+	}		
 	
 	public void calculatePercentageChangeInDt() {
 		double val = (double) (this.get_dt_new() - this.get_dt_original()) 
@@ -440,11 +395,12 @@ public class WorkloadBatch {
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
+		double tr_frequency = 1/tr.getTr_period();
 				
 		if(h != null)
-			h.setWeight(tr.getTr_frequency());			
+			h.setWeight(tr_frequency);			
 		else {
-			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr.getTr_frequency()), 
+			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr_frequency), 
 					this.getVertices(cluster, tr.getTr_dataSet()));
 		}
 	}
@@ -482,11 +438,11 @@ public class WorkloadBatch {
 		this.getTrMap().get(tr.getTr_type()).remove(tr.getTr_id());
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		this.hgr.removeEdge(h);
+		this.hgr.removeHEdge(h);
 		
-		if(Global.dataMigrationStrategy.equals("methodX")) {
-			this.methodX.updateAssociation(cluster, tr, true);
-		}
+		if(Global.workloadAware)
+			if(Global.dataMigrationStrategy.equals("methodX"))
+				this.methodX.updateAssociation(cluster, tr, true);		
 	}	
 	
 	// Unused function
@@ -564,13 +520,10 @@ public class WorkloadBatch {
 	public void calculateDTI(Cluster cluster) {
 
 		int dt_nums = 0;
-		int dti_sum = 0;
 		int ndt_nums = 0;
-		int ndti_sum = 0;
 		
 		double dt_percentage = 0.0d;
 		double ndt_percentage = 0.0d;
-		double mean_dti = 0.0d;		
 		
 		for(SimpleHEdge h : this.hgr.getEdges()) {
 			
@@ -580,22 +533,16 @@ public class WorkloadBatch {
 			if(tr.isDt()) {
 				++dt_nums;
 				
-				tr.calculateDTImapct();
-				dti_sum += tr.getTr_dtImpact();
-								
 				if(Global.compressionBeforeSetup)
 					this.sword.hCut.add(h);
 				
 			} else { // Non-distributed transactions
 				++ndt_nums;
-				
-				tr.calculateDTImapct();
-				ndti_sum += tr.getTr_dtImpact();			
 			}
-			
-			//System.out.println(tr.toString());
 		} // end -- for()		
-				
+			
+		this.set_tr_nums(this.hgr.getEdgeCount());
+		this.set_edges_in_cut(dt_nums);
 		this.set_dt_nums(dt_nums);
 		this.set_ndt_nums(ndt_nums);
 		
@@ -606,34 +553,17 @@ public class WorkloadBatch {
 		Global.LOGGER.info("Number of DTs removed before statistic collection: "+this.get_old_dt_nums());
 		Global.LOGGER.info("Number of non-DTs removed before statistic collection: "+this.get_old_ndt_nums());
 		Global.LOGGER.info("--------------------------------------------");
-		Global.LOGGER.info("Old dti sum = "+this.get_old_dti_sum());
-		Global.LOGGER.info("Old ndti sum = "+this.get_old_ndti_sum());
-		Global.LOGGER.info("--------------------------------------------");
-		Global.LOGGER.info("New dti sum = "+dti_sum);
-		Global.LOGGER.info("New ndti sum = "+ndti_sum);		
 		
 		if(this.get_dt_nums() != 0)
 			dt_percentage = ((double)(dt_nums + this.get_old_dt_nums()) 
 					/ (double)(this.get_tr_nums() + this.get_old_dt_nums() + this.get_old_ndt_nums())) * 100.00;
-//			dt_percentage = (Math.round(((double)dt_nums 
-//					/ (double)this.get_tr_nums()) * 100.00) / 100.00) * 100.00;
 
 		if(this.get_ndt_nums() != 0)
 			ndt_percentage = ((double)(ndt_nums + this.get_old_ndt_nums()) 
 					/ (double)(this.get_tr_nums() + this.get_old_dt_nums() + this.get_old_ndt_nums())) * 100.0;
-//			ndt_percentage = (Math.round((((double)(ndt_nums)) 
-//					/ (double)this.get_tr_nums()) * 100.0) / 100.00) * 100.00;
-
-		// following equation 3 of the UCC 2014 paper
-		mean_dti = (double)(dti_sum) 
-				/ ((double)(dti_sum + ndti_sum + this.get_old_dti_sum() + this.get_old_ndti_sum()));
-
-//		mean_dti = Math.round(((double)dti_sum 
-//				/ ((double)(dti_sum + ndti_sum))) * 100.00) / 100.00;
 		
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
-		this.set_mean_dti(mean_dti);		
 		
 		if(Global.compressionBeforeSetup)
 			this.sword.calculateContribution(cluster, this);

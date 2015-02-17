@@ -1,8 +1,6 @@
 package main.java.metric;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -21,14 +19,13 @@ public class Metric implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 2422722688394703455L;
 	
+	public static ArrayList<Double> time;
+	
 	public static ArrayList<Double> mean_throughput;
 	public static ArrayList<Double> mean_response_time;
 	
-	public static ArrayList<Double> mean_trFreq;
-	public static ArrayList<Double> mean_dti;
 	public static ArrayList<Double> percentage_dt;
 	public static ArrayList<Double> percentage_ndt;
-	public static ArrayList<Double> percentageChangeInDt;
 	
 	public static ArrayList<Long> total_data;
 	
@@ -49,17 +46,23 @@ public class Metric implements java.io.Serializable {
 	public static ArrayList<Integer> current_dt;
 	public static ArrayList<Integer> current_ndt;
 	
+	public static ArrayList<Integer> total_edges;
+	public static ArrayList<Integer> total_vertices;
+	public static ArrayList<Integer> edges_in_cut;
+	
 	private static File file;
+	private static PrintWriter prWriter;
+		
+	public static int metricCollectionCycle = 0;
 	
 	public static void init() {
+		time = new ArrayList<Double>();
+		
 		mean_throughput = new ArrayList<Double>();
 		mean_response_time = new ArrayList<Double>();
 		
-		mean_trFreq = new ArrayList<Double>();
-		mean_dti = new ArrayList<Double>();
 		percentage_dt = new ArrayList<Double>();
 		percentage_ndt = new ArrayList<Double>();
-		percentageChangeInDt = new ArrayList<Double>();
 		
 		total_data = new ArrayList<Long>();
 		
@@ -80,6 +83,10 @@ public class Metric implements java.io.Serializable {
 		current_dt = new ArrayList<Integer>();
 		current_ndt = new ArrayList<Integer>();
 		
+		total_edges = new ArrayList<Integer>();
+		total_vertices = new ArrayList<Integer>();
+		edges_in_cut = new ArrayList<Integer>();
+		
 		// Creating a metric file
 		file = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
@@ -94,14 +101,13 @@ public class Metric implements java.io.Serializable {
 	
 	public static void collect(Cluster cluster, WorkloadBatch wb) {
 				
+		time.add(Sim.time());
+		
 		mean_throughput.add(wb.get_throughput());				
 		mean_response_time.add(wb.get_response_time());
 	
-		mean_trFreq.add(wb.get_mean_trFreq());
-		mean_dti.add(wb.get_mean_dti());
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
-		percentageChangeInDt.add(wb.get_percentage_change_in_dt());
 		
 		intra_server_dmv.add(wb.get_intra_dmv());
 		inter_server_dmv.add(wb.get_inter_dmv());
@@ -109,6 +115,10 @@ public class Metric implements java.io.Serializable {
 		current_tr.add(wb.get_tr_nums());
 		current_dt.add(wb.get_dt_nums());
 		current_ndt.add(wb.get_ndt_nums());
+		
+		total_edges.add(wb.hgr.getEdgeCount());
+		total_vertices.add(wb.hgr.getVertexCount());
+		edges_in_cut.add(0);
 		
 		getServerStatistic(cluster);
 		getPartitionStatistic(cluster);
@@ -163,21 +173,21 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
 		Global.LOGGER.info("Total unique transactions processed: "+Global.global_trSeq);
-		Global.LOGGER.info("Total unique transactions removed: "+Global.remove_count);
-		Global.LOGGER.info("Average transactional frequency: "+mean_trFreq);
+		Global.LOGGER.info("Total unique transactions removed: "+Global.remove_count);	
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Total transactions in the current observation window: "+current_tr);
 		Global.LOGGER.info("Total DT in the current observation window: "+current_dt);
 		Global.LOGGER.info("Total non-DT in the current observation window: "+current_ndt);
 		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Hypergraph size: ");
+		Global.LOGGER.info("Edges: "+total_edges);
+		Global.LOGGER.info("Vertices: "+total_vertices);
+		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
 		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Percentage change in distributed transactions: "+percentageChangeInDt+" %");
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
-		Global.LOGGER.info("Average impact of distributed transactions: "+mean_dti);
-
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average Partition's data inflow: "+mean_partition_inflow);
 		Global.LOGGER.info("Average Partition's data outflow: "+mean_partition_outflow);
@@ -196,43 +206,28 @@ public class Metric implements java.io.Serializable {
 		
 	}
 	
-	public static PrintWriter getWriter() {		
-		PrintWriter prWriter = null;
-		
-		try {
-			prWriter = new PrintWriter(new BufferedWriter(new FileWriter(file, true)));			
-		} catch(IOException e) {
-			Global.LOGGER.error("Failed in reopening the metric file !!", e);
-		}
-		
-		return prWriter;
-	}
-	
-	public static int metricCollectionCycle = 0;
-	
 	public static void write() {
-		int index = Metric.metricCollectionCycle;
-		PrintWriter prWriter = Utility.getPrintWriter(Global.metric_dir, file);
+		int index = Metric.metricCollectionCycle;		
+		prWriter = Utility.getPrintWriter(Global.metric_dir, file);
 		
 		try {
-			prWriter.print(index+" ");
-			prWriter.print(mean_throughput.get(index)+" ");
-			prWriter.print(mean_response_time.get(index)+" ");
-			prWriter.print(current_dt.get(index)+" ");
-			prWriter.print(percentage_dt.get(index)+" ");
-			prWriter.print(mean_dti.get(index)+" ");
-			prWriter.print(mean_partition_inflow.get(index)+" ");
-			prWriter.print(mean_partition_outflow.get(index)+" ");
-			prWriter.print(mean_partition_data.get(index)+" ");
-			prWriter.print(sd_partition_data.get(index)+" ");
-			prWriter.print(mean_server_inflow.get(index)+" ");
-			prWriter.print(mean_server_outflow.get(index)+" ");
-			prWriter.print(mean_server_data.get(index)+" ");
-			prWriter.print(sd_server_data.get(index)+" ");
-			prWriter.print(intra_server_dmv.get(index)+" ");
-			prWriter.print(inter_server_dmv.get(index)+" ");			
-			prWriter.print(total_data.get(index)+" ");
-			prWriter.println();
+			prWriter.append(index+" ");
+			prWriter.append(time.get(index)+" ");
+			prWriter.append(mean_throughput.get(index)+" ");
+			prWriter.append(mean_response_time.get(index)+" ");
+			prWriter.append(current_dt.get(index)+" ");
+			prWriter.append(percentage_dt.get(index)+" ");
+			prWriter.append(mean_partition_inflow.get(index)+" ");
+			prWriter.append(mean_partition_outflow.get(index)+" ");
+			prWriter.append(mean_partition_data.get(index)+" ");
+			prWriter.append(sd_partition_data.get(index)+" ");
+			prWriter.append(mean_server_inflow.get(index)+" ");
+			prWriter.append(mean_server_outflow.get(index)+" ");
+			prWriter.append(mean_server_data.get(index)+" ");
+			prWriter.append(sd_server_data.get(index)+" ");
+			prWriter.append(intra_server_dmv.get(index)+" ");
+			prWriter.append(inter_server_dmv.get(index)+" ");			
+			prWriter.append(total_data.get(index)+"\n");
 			
 		} finally {
 			prWriter.close();

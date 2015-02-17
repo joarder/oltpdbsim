@@ -1,6 +1,5 @@
 package main.java.entry;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -23,7 +22,6 @@ public final class Global implements java.io.Serializable {
 	public static int remove_count = 0;
 	public static int global_tupleSeq = 0;
 	public static int global_dataCount = 0;
-	public static ArrayList<Integer> T = new ArrayList<Integer>();
 	
 	// Graph, Hypergraph
 	public static int edgeSeq = 0;
@@ -73,12 +71,12 @@ public final class Global implements java.io.Serializable {
 	public static double meanInterArrivalTime; 
     public static double meanServiceTime;
 	public static double percentageChangeInWorkload;
+	public static double adjustment;
+	public static double expAvgWt; // Defines how far we need to look back while repeating transactions
 	public static int observationWindow;
-	public static int uniqueMax;
-	public static double dtThreshold;
-	public static int initialDetectionTime;	
+	public static int uniqueMaxFixed;
+	public static int uniqueMax;	
 	public static double nextCollection = 3600.0;
-	public static boolean dynamicDtMargin;
 	
 	public static int oldTransactionTimestamp;
 	public static boolean transactionExpiration;
@@ -112,7 +110,7 @@ public final class Global implements java.io.Serializable {
 	// Logger
 	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);
 
-	public static int virtualNodes;	
+	public static int virtualDataNodes;	
 	
 	// For methodX whether prioritise dt(alpha) minimisation or load balance (1-alpha)
 	public static double priority;

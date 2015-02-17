@@ -1,7 +1,5 @@
 package main.java.cluster;
 
-import main.java.utils.Utility;
-
 public class Data implements Comparable<Data> {
 	private int data_id;
 	private String data_uid;
@@ -30,7 +28,7 @@ public class Data implements Comparable<Data> {
 	
 	public Data(int d_id, int t_id, int v_id, int p_id, int s_id) {
 		this.setData_id(d_id);
-		this.setData_uid(Utility.getRandomAlphanumericString());
+		this.setData_uid(null);
 		this.setData_weight(1);
 		
 		this.setData_table_id(t_id);

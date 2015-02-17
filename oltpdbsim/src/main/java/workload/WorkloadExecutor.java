@@ -19,6 +19,7 @@ package main.java.workload;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
@@ -31,6 +32,7 @@ import main.java.cluster.Cluster;
 import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
+import main.java.metric.PerfMetric;
 import main.java.repartition.DataMovement;
 import main.java.repartition.MinCut;
 import main.java.repartition.TransactionClassifier;
@@ -68,8 +70,15 @@ public class WorkloadExecutor {
     static int dt_new = 0;
     static int dt_original = 0;
     
-	static int total_trFrequency = 0;
 	static double total_response_time = 0.0;	
+	
+// New improvements------------------------------------------------------------------------------
+	static ArrayList<Integer> T = new ArrayList<Integer>();
+	static Map<Integer, Double> Time = new HashMap<Integer, Double>();
+	static PerfMetric perfm = new PerfMetric();
+	
+	static double current_idt = 0.0;
+	static double threshold_idt = 0.0;	
 	
 	// Seed
 	static long[] seed = new long[10];
@@ -89,9 +98,8 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 		
-		
-		Global.uniqueMax = (int) (Global.uniqueMax - 
-				Math.round(Global.observationWindow*(Global.percentageChangeInWorkload/1)*100.0)/100.0);
+		Global.uniqueMax = Global.uniqueMaxFixed 
+							- (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -113,9 +121,10 @@ public class WorkloadExecutor {
 		int toBeRemovedKey = -1;
 
 /**
- *  Implementing the new Workload Generation model (Finalised as per November 20, 2014)		
- */
-
+ *  Implementing the new Workload Generation model (Finalised as per November 20, 2014 and later improved on February 13-14, 2015)		
+ */		
+		++Global.global_trCount;
+		
 		// Transaction birth
 		if(wb.getTrMap().get(type).isEmpty() || rand_val <= Global.percentageChangeInWorkload) {
 			
@@ -127,6 +136,13 @@ public class WorkloadExecutor {
 			
 			// Add the newly created Transaction in the Workload Transaction map	
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
+			
+// New improvements------------------------------------------------------------------------------
+			double initial_period = (double) Global.uniqueMax;
+			perfm.Period.put(tr.getTr_id(), initial_period);	
+			tr.setTr_period(initial_period);
+			
+			Time.put(tr.getTr_id(), Sim.time());
 
 		// Transaction repetition and retention of old transaction
 		} else {
@@ -138,7 +154,7 @@ public class WorkloadExecutor {
 			TreeMap<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator<Integer>(idx));
 			idx2.putAll(idx);			
 			
-			min = Math.min(idx.size(), Global.uniqueMax);
+			min = Math.min(idx.size(), Global.uniqueMaxFixed);
 			
 			i = 0;
 			Iterator<Entry<Integer, Integer>> itr = idx2.entrySet().iterator();
@@ -167,9 +183,9 @@ public class WorkloadExecutor {
 				++i;
 			}
 			
-			i = 0;			
+			i = 0;
 			while(i < idx_value.size()) {
-				uT.add(Global.T.get(idx_value.get(i)));
+				uT.add(T.get(idx_value.get(i) - 1));
 				++i;
 			}			
 
@@ -180,32 +196,84 @@ public class WorkloadExecutor {
 			
 			tr_id = uT.get(n);
 			
-			tr = wb.getTransaction(tr_id);			
-			tr.incTr_frequency();
-			tr.setTimestamp(Sim.time());
-			tr.setProcessed(false);
-			tr.setRepeated(true);
-		}
-		
-		// Create an index entry for each newly created Transaction
-		idx.put(tr.getTr_id(), Global.global_trCount);
-		Global.T.add(tr.getTr_id());
-		++Global.global_trCount;
-		
-		
-		if(!tr.isRepeated()) {
-			// Calculate Partition and Server spans for the selected Transaction
-			tr.calculateSpans(cluster);
+			tr = wb.getTransaction(tr_id);
+			tr.setProcessed(false);			
 			
-			if(tr.isDt())
-				++dt_new;
-		}				
+// New improvements------------------------------------------------------------------------------
+			double prev_period = perfm.Period.get(tr.getTr_id());			
+			double prev_time = Time.get(tr.getTr_id());
+			
+		    double new_period = prev_period * Global.expAvgWt 
+		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt);
+		    
+		    perfm.Period.remove(tr.getTr_id());
+		    perfm.Period.put(tr.getTr_id(), new_period);
+		    tr.setTr_period(new_period);
+		    
+		    Time.remove(tr.getTr_id());		
+		    Time.put(tr.getTr_id(), Sim.time());
+		    
+		} // end-if-else()
+		
+		// Calculate latest Span
+		tr.calculateSpans(cluster);
+		
+		if(perfm.Span.containsKey(tr.getTr_id()))
+			perfm.Span.remove(tr.getTr_id());
+		
+		perfm.Span.put(tr.getTr_id(), tr.getTr_serverSpanCost());		
+		
+		if(tr.isDt()) ++dt_new;
+		
+		// Create an index entry for each newly created Transaction		
+		idx.put(tr.getTr_id(), Global.global_trCount);
+		T.add(tr.getTr_id());		
+		
+// New improvements------------------------------------------------------------------------------
+		if(Global.global_trCount > Global.observationWindow) {
+			
+			int _i = Global.global_trCount;		// _i ~ Sim.time() 
+			int _W = Global.observationWindow;	// _W ~ time 
+			
+			HashSet<Integer> unq = new HashSet<Integer>(T);
+			for(int _n = (_i - _W); n <= _i; n++) {
+				unq.add(T.get(_n));
+			}
+			
+			// Captures the number of total unique transaction for this observation window
+			perfm.Unqlen.put((_i - _W), unq.size());
+			
+			// Calculate the impact of distributed transaction per transaction basis					
+			double sum_of_span_by_period = 0.0;
+			double sum_of_one_by_period = 0.0;
+					
+			Iterator<Integer> unq_itr = unq.iterator();
+			while(unq_itr.hasNext()) {
+				int unq_T = unq_itr.next();
+				
+				int span = perfm.Span.get(unq_T);
+				double period = perfm.Period.get(unq_T);
+				
+				double span_by_period = span/period; // Frequency = 1/Period (f=1/t)
+				double one_by_period = 1/period;	 // Frequency = 1/Period (f=1/t) per unit time (i.e. second)
+				
+				sum_of_span_by_period += span_by_period;
+				sum_of_one_by_period += one_by_period;
+			}
+			
+			double i_dt = (sum_of_span_by_period)/(Global.servers * sum_of_one_by_period);			
+			perfm.I_Dt.put((_i - _W), i_dt);
+			current_idt = i_dt;
+			
+			perfm.time.put((_i - _W), Sim.time());		
+		}
 		
 		// Add a hyperedge to Workload Hypergraph
 		wb.addHGraphEdge(cluster, tr);
 		
-		if(Global.dataMigrationStrategy.equals("methodX"))
-			wb.methodX.updateAssociation(cluster, tr, false);
+		if(Global.workloadAware)
+			if(Global.dataMigrationStrategy.equals("methodX"))
+				wb.methodX.updateAssociation(cluster, tr, false);
 		
 		return tr;
 	}
@@ -217,11 +285,10 @@ public class WorkloadExecutor {
     		Thread.sleep(tr.getTr_serverSpanCost());
     		
     		double response_time = (double)tr.getTr_serverSpanCost() + tr.getTr_waiting_time();    		
-    		double avg_response = (response_time + tr.getTr_response_time()) / tr.getTr_frequency();
+    		double avg_response = (response_time + tr.getTr_response_time()) / (int) (1/tr.getTr_period());
     		double round_avg_response = Math.round(avg_response * 100.0) / 100.0;
     		
-    		total_response_time += round_avg_response;    		
-    		total_trFrequency += tr.getTr_frequency();
+    		total_response_time += round_avg_response;
     		
     		tr.setTr_response_time(round_avg_response);
     		tr.setProcessed(true);    		
@@ -257,9 +324,10 @@ public class WorkloadExecutor {
 		if(!Global.compressionBeforeSetup) {
 			wb = new WorkloadBatch(Global.repeated_runs);
 		
-			// MethodX :: initialisation
-			if(Global.dataMigrationStrategy.equals("methodX"))
-				wb.methodX.init(cluster);
+			if(Global.workloadAware)
+				// MethodX :: initialisation
+				if(Global.dataMigrationStrategy.equals("methodX"))
+					wb.methodX.init(cluster);
 		}
 		
 		// Start simulation
@@ -268,36 +336,29 @@ public class WorkloadExecutor {
 		// Show batch status in console	
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Total "+Global.total_transactions+" transactions have processed "
-				+ "by the Transaction Coordinator so far and of them "
-				+Global.global_trSeq+" are unique.");
+				+ "by the Transaction Coordinator so far and of them "+Global.global_trSeq+" are unique.");
 		
 		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" Hours");		
 					
 		// Statistic preparation, calculation, and reporting		
 		collectStatistics(cluster, wb);
-		cluster.show();
-	}
+		cluster.show();		
+		perfm.write();
+	}	
 	
 	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
 		if(!WorkloadExecutor.noChangeRequired) { 
 			cluster.updateLoad();
-			
+
 			wb.calculateDTI(cluster);		
 			wb.calculateThroughput(Global.total_transactions);
 			wb.calculateResponseTime(Global.total_transactions, total_response_time);
-			wb.calculateAverageTrFreq(Global.total_transactions, total_trFrequency);
-	
-			// Will initiate dynamic dt margin
-			if(wb.get_dt_nums() > WorkloadExecutor.dt_original)
-				WorkloadExecutor.dt_original += (int) (WorkloadExecutor.dt_original * 0.25); // increase the margin by 25% 			
 				
-			//WorkloadExecutor.dt_original = wb.get_dt_nums();
-			
-			WorkloadExecutor.dt_new = wb.get_dt_nums();
-			
 			Metric.collect(cluster, wb);			
 			Metric.report();
 			Metric.write();
+			
+			Global.nextCollection += 3600.0;
 		}
 	}
 	
@@ -311,17 +372,6 @@ public class WorkloadExecutor {
 			WorkloadExecutor.collectStatistics(cluster, wb);
 			Global.nextCollection += 3600.0;
 		}
-	}		
-	
-	public static void detectChangeInDt(WorkloadBatch wb) {
-				
-		double _change = ((double) (dt_new - dt_original) / (double) dt_original);
-					
-		if(_change >= Global.dtThreshold) {			
-			wb.set_percentage_change_in_dt(_change * 100.0);
-			WorkloadExecutor.changeDetected = true;
-			WorkloadExecutor.noChangeRequired = false;
-		}		
 	}
 	
 	public static void runRepartitioner(Cluster cluster, WorkloadBatch wb) {
@@ -409,19 +459,16 @@ class Arrival extends Event {
 			new Departure().schedule(tr.getTr_service_time());
 		}
 
-		// Setting initial DT margin
-		if(Sim.time() >= Global.initialDetectionTime && WorkloadExecutor.initial) {
+		// Checks when initial warm up state is reached
+		if(Sim.time() >= 2*Global.observationWindow && WorkloadExecutor.initial) {
 			
-			WorkloadExecutor.dt_original = WorkloadExecutor.dt_new;
-
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
-			Global.LOGGER.info("Setting an initial DT threshold of "+WorkloadExecutor.dt_original
-					+" DT based on workload characteristics of the initial "+(Sim.time()/3600)+" hr.");
+			Global.LOGGER.info("Database finished warming up.");
 			
 			// Statistic preparation, calculation, and reporting
-			wb.set_tr_nums(wb.hgr.getEdgeCount());			
+			wb.set_tr_nums(wb.hgr.getEdgeCount());
+			WorkloadExecutor.threshold_idt = WorkloadExecutor.current_idt;						
 			WorkloadExecutor.collectStatistics(cluster, wb);			
-			
 			WorkloadExecutor.initial = false;
 		}
 		
@@ -453,28 +500,23 @@ class Arrival extends Event {
 		if(!WorkloadExecutor.initial) {
 			wb.set_tr_nums(wb.hgr.getEdgeCount());
 			
-			if(Global.workloadAware) {
-								
-				// Detecting % increase in DT
-				WorkloadExecutor.detectChangeInDt(wb);
-				
+			if(Global.workloadAware) {				
 				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
 					
-					if(WorkloadExecutor.changeDetected) {						
+					if(Sim.time() >= Global.nextCollection) {
+					// Detecting increase in DTI from the threshold value
+					//if(WorkloadExecutor.current_idt >= WorkloadExecutor.threshold_idt) {						
 						
 						++Global.repartitioningCycle;
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
-						Global.LOGGER.info((Global.dtThreshold * 100)+"% increase in DT detected !!!");
-			
-						Global.LOGGER.info("Number of DT have increased from "
-								+WorkloadExecutor.dt_original+" to "+WorkloadExecutor.dt_new+".");
-						
+						Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
+						Global.LOGGER.info("Current DTI is "+WorkloadExecutor.current_idt+" which is above the threshold DTI of "+WorkloadExecutor.threshold_idt+".");
+						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
 						Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
-						Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());									
-			
+						Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());												
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Starting database repartitioning ...");
 						
@@ -497,12 +539,6 @@ class Arrival extends Event {
 									TransactionClassifier.classifyMovableFDFND(cluster, wb);
 									break;						
 							}
-						} else {
-							
-							if(Global.transactionExpiration) {
-								Global.LOGGER.info("Discarding old transactions ...");
-								TransactionClassifier.removeOldTransactions(cluster, wb);
-							}
 						}
 						
 						Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
@@ -521,9 +557,7 @@ class Arrival extends Event {
 						WorkloadExecutor.collectStatistics(cluster, wb);						
 						WorkloadExecutor.changeDetected = false;
 						
-						Global.LOGGER.info("DT baseline has been set to "+WorkloadExecutor.dt_original);
-						Global.LOGGER.info("Repartitioning will start again upon "
-								+(Global.dtThreshold*100.0)+ "% increase of this baseline.");
+						//Global.LOGGER.info("DT baseline has been reset to "+WorkloadExecutor.threshold_idt);
 						Global.LOGGER.info("=======================================================================================================================");
 					}
 					

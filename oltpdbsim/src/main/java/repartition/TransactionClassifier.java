@@ -29,34 +29,13 @@ public class TransactionClassifier {
 	private static int tr_red = 0;
 	private static int tr_orange = 0;
 	private static int tr_green = 0;
-	private static int tr_old = 0;
-	private static int old_dti_sum = 0;
-	private static int old_ndti_sum = 0;	
+	private static int tr_infrequent = 0;
 	
 	private static Set<Integer> frequent_dsfci = new TreeSet<Integer>();
 	private static Set<Integer> frequent_sfci = new TreeSet<Integer>();
 	private static Set<Integer> movable = new TreeSet<Integer>();
 	
 	private static Set<Integer> toBeRemoved;
-	
-	// Removal of old transactions
-	public static void removeOldTransactions(Cluster cluster, WorkloadBatch wb) {
-		
-		toBeRemoved = new TreeSet<Integer>();
-		
-		//Find the distributed movable transactions
-		for(SimpleHEdge h : wb.hgr.getEdges()) {
-			Transaction tr = wb.getTransaction(h.getId());
-			
-			if(tr.isExpired()) {				
-				++tr_old;
-				toBeRemoved.add(tr.getTr_id());
-			}
-		}
-		
-		TransactionClassifier.remove(cluster, wb);		
-		wrapup(wb);
-	}
 	
 	// Basic classification
 	public static void classifyMovableDTs(Cluster cluster, WorkloadBatch wb) {
@@ -67,19 +46,14 @@ public class TransactionClassifier {
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			Transaction tr = wb.getTransaction(h.getId());
 			
-			if(!tr.isExpired()) {
-				if(tr.isDt()) { // Distributed Transactions
-					tr.setTr_class("red");
-					++tr_red;
-					
-				} else {// Non-Distributed Transactions
-					
-					TransactionClassifier.findAllNonDT(wb, tr);
-				}
-			} else {
-				++tr_old;
-				toBeRemoved.add(tr.getTr_id());
-			}
+			if(tr.isDt()) { // Distributed Transactions
+				tr.setTr_class("red");
+				++tr_red;
+				
+			} else {// Non-Distributed Transactions
+				
+				TransactionClassifier.findAllNonDT(wb, tr);
+			}			
 		}
 		
 		TransactionClassifier.remove(cluster, wb);
@@ -155,7 +129,7 @@ public class TransactionClassifier {
 			if(!isFrequent(tr, semiFCIList)){
 				
 				if(!toBeRemoved.contains(tr.getTr_id())) {
-					++tr_old;
+					++tr_infrequent;
 					toBeRemoved.add(tr.getTr_id());
 				}
 				
@@ -174,7 +148,7 @@ public class TransactionClassifier {
 					} else { // Distributed Transactions containing Non-Distributed Semi-FCI
 						
 						if(!toBeRemoved.contains(tr.getTr_id())) {
-							++tr_old;
+							++tr_infrequent;
 							toBeRemoved.add(tr.getTr_id());
 						}
 						
@@ -226,7 +200,7 @@ public class TransactionClassifier {
 			if(!isFrequent(tr, semiFCIList)){
 				
 				if(!toBeRemoved.contains(tr.getTr_id())) {
-					++tr_old;				
+					++tr_infrequent;				
 					toBeRemoved.add(tr.getTr_id());
 				}
 				
@@ -350,23 +324,10 @@ public class TransactionClassifier {
 	}
 	
 	// Remove the nonDT non-movable edges from Graph and Hypergraph
-	private static void remove(Cluster cluster, WorkloadBatch wb) {
+	private static void remove(Cluster cluster, WorkloadBatch wb) {		
 		
-		for(Integer i : movable) {			
+		for(Integer i : toBeRemoved) {			
 			Transaction tr = wb.getTransaction(i);
-			tr.calculateDTImapct();
-			old_ndti_sum += tr.getTr_dtImpact();
-		}
-		
-		for(Integer i : toBeRemoved) {
-			
-			Transaction tr = wb.getTransaction(i);
-			tr.calculateDTImapct();
-			
-			if(tr.isDt())				
-				old_dti_sum += tr.getTr_dtImpact();
-			else
-				old_ndti_sum += tr.getTr_dtImpact();
 			
 			// Remove from Hypergraph
 			SimpleHEdge h = wb.hgr.getHEdge(i);
@@ -379,26 +340,21 @@ public class TransactionClassifier {
 				wb.methodX.updateAssociation(cluster, tr, true);
 		}
 		
-		Global.LOGGER.info("Total "+toBeRemoved.size()+" old and purely non-distributed transactions have removed.");
+		Global.LOGGER.info("Total "+toBeRemoved.size()+" purely non-distributed transactions have removed.");
 	}
 	
 	private static void wrapup(WorkloadBatch wb) {
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_old - tr_green);		
-		wb.set_old_ndt_nums(tr_old + tr_green);
-		wb.set_old_dti_sum(old_dti_sum);
-		wb.set_old_ndti_sum(old_ndti_sum);
+		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_infrequent - tr_green);		
+		wb.set_old_ndt_nums(tr_infrequent + tr_green);
 				
 		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
-		Global.LOGGER.info("Classified "+tr_green+" transactions as non distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" transactions as non distributed but movable !!!");
-		Global.LOGGER.info("Classified "+tr_old+" transactions as old/expired.");
+		Global.LOGGER.info("Classified "+tr_green+" transactions as non-distributed !!!");			
+		Global.LOGGER.info("Classified "+tr_orange+" non-distributed transactions as movable !!!");
+		Global.LOGGER.info("Classified "+tr_infrequent+" transactions as infrequent.");
 		
 		tr_red = 0;
 		tr_orange = 0;
 		tr_green = 0;
-		tr_old = 0;
-		old_dti_sum = 0;
-		old_ndti_sum = 0;
 	}
 }

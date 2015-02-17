@@ -140,7 +140,7 @@ public class Utility {
 	}
 	
 	// Returns a SHA1 hash value
-	public static long sha1Hash(String key) {		
+	public static long sha512Hash(String key) {		
 		String value = DigestUtils.sha512Hex(key.getBytes());		
 		BigInteger b = new BigInteger(value, 16);		
 		
@@ -240,7 +240,7 @@ public class Utility {
 			file.createNewFile();
 			
 			try {
-				prWriter = new PrintWriter(new BufferedWriter(new FileWriter(file)));				
+				prWriter = new PrintWriter(new BufferedWriter(new FileWriter(file, true)));				
 			} catch(IOException e) {
 				Global.LOGGER.error("Failed to create a print writer !!", e);
 			}

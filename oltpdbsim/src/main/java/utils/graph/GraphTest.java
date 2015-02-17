@@ -99,7 +99,7 @@ public class GraphTest {
 					++edges;
 					
 					String _id = Integer.toString(_v.getId());
-					String _edge_weight = Integer.toString(_h.getWeight());
+					String _edge_weight = Double.toString(_h.getWeight());
 					
 					str += _id+" "+_edge_weight+" ";
 				}

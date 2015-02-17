@@ -99,6 +99,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
         		removeCVertex(_v);
         }
         	
+        //System.out.println("--> Removing "+h.getId());
 		if(Global.compressionEnabled)
         	this.removeCHEdge(h);
 		
@@ -179,7 +180,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	// Removes a Compressed Hyperedge in the Compressed Hypergraph if necessary
 	public boolean removeCHEdge(H h) {		
 		CompressedHEdge ch = getCHEdge(h);
-		//System.out.println("--> "+ch.toString()+"|"+ch.getWeight());
+		//System.out.println("--> Removing "+ch.toString()+"|"+ch.getWeight());
 		ch.getHESet().remove(h.getId());
 		
 		if(ch.getHESet().size() == 0) {
@@ -204,7 +205,10 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		// If exists then add this Vertex v into it
 		// Otherwise create a new Compressed Vertex
 		
-		int cv_id = Utility.simpleHash(v.getId(), Global.virtualNodes);		
+		String[] parts = Cluster.getTplIdFromDataId(v.getId());
+		int tpl_pk = Integer.parseInt(parts[0]);
+		
+		int cv_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);		
 		CompressedVertex cv = this.getCVertex(cv_id);
 		
 		if(cv != null) {

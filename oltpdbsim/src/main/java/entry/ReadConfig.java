@@ -92,16 +92,10 @@ public class ReadConfig {
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
 			
 			Global.percentageChangeInWorkload = Double.parseDouble((String) config_param.getProperty("percentage.change.in.workload"));
+			Global.adjustment = Double.parseDouble((String) config_param.getProperty("adjustment"));			
 			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("observation.window.size"));
-			Global.uniqueMax = Integer.parseInt((String) config_param.getProperty("unique.max"));
-			
-			Global.dtThreshold = Double.parseDouble((String) config_param.getProperty("dt.threshold"));			
-			Global.dynamicDtMargin = Boolean.parseBoolean((String) config_param.getProperty("dynamic.dt.margin"));
-			Global.initialDetectionTime = Integer.parseInt((String) config_param.getProperty("initial.detection.time"));
-			
-			//Global.oldTransactionTimestamp = Math.round(Global.simulationPeriod/4); //Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
-			Global.oldTransactionTimestamp = Integer.parseInt((String) config_param.getProperty("old.transaction.timestamp"));
-			Global.transactionExpiration = Boolean.parseBoolean((String) config_param.getProperty("enable.transaction.expiration"));
+			Global.uniqueMaxFixed = Integer.parseInt((String) config_param.getProperty("unique.max.fixed"));
+			Global.expAvgWt = Double.parseDouble((String) config_param.getProperty("exponential.Avg.Weight"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);
