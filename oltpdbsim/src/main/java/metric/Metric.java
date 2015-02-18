@@ -22,7 +22,6 @@ public class Metric implements java.io.Serializable {
 	public static ArrayList<Double> time;
 	
 	public static ArrayList<Double> mean_throughput;
-	public static ArrayList<Double> mean_response_time;
 	
 	public static ArrayList<Double> percentage_dt;
 	public static ArrayList<Double> percentage_ndt;
@@ -59,7 +58,6 @@ public class Metric implements java.io.Serializable {
 		time = new ArrayList<Double>();
 		
 		mean_throughput = new ArrayList<Double>();
-		mean_response_time = new ArrayList<Double>();
 		
 		percentage_dt = new ArrayList<Double>();
 		percentage_ndt = new ArrayList<Double>();
@@ -103,8 +101,7 @@ public class Metric implements java.io.Serializable {
 				
 		time.add(Sim.time());
 		
-		mean_throughput.add(wb.get_throughput());				
-		mean_response_time.add(wb.get_response_time());
+		mean_throughput.add(wb.get_throughput());
 	
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
@@ -165,7 +162,7 @@ public class Metric implements java.io.Serializable {
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");		
 		Global.LOGGER.info("Reporting simulation statistic ...");
-		Global.LOGGER.info("Simulation time: "+Sim.time()/3600+" hrs");
+		Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 		
 		if(Global.incrementalRepartitioning)
 			Global.LOGGER.info("Incremental repartitioning cycle: "+Global.repartitioningCycle);
@@ -184,7 +181,6 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Vertices: "+total_vertices);
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
-		Global.LOGGER.info("Average response time: "+mean_response_time+" ms");
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
@@ -202,7 +198,7 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
 		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
 		Global.LOGGER.info("Total data count: "+total_data);
-		Global.LOGGER.info("*****************************************************************************");
+		//Global.LOGGER.info("*****************************************************************************");
 		
 	}
 	
@@ -214,7 +210,6 @@ public class Metric implements java.io.Serializable {
 			prWriter.append(index+" ");
 			prWriter.append(time.get(index)+" ");
 			prWriter.append(mean_throughput.get(index)+" ");
-			prWriter.append(mean_response_time.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");
 			prWriter.append(percentage_dt.get(index)+" ");
 			prWriter.append(mean_partition_inflow.get(index)+" ");

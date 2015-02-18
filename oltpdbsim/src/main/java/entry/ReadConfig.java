@@ -1,9 +1,7 @@
 package main.java.entry;
 
-import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 import main.java.utils.Utility;
 
@@ -75,6 +73,7 @@ public class ReadConfig {
 			config_param.load(config_file);
 
 			//Read the number of servers, partitions and replicas
+			Global.setup = (String) config_param.getProperty("setup");
 			Global.servers = Integer.parseInt((String) config_param.getProperty("initial.servers"));
 			Global.server_capacity = Integer.parseInt((String) config_param.getProperty("server.capacity"));
 			Global.partitions = Integer.parseInt((String) config_param.getProperty("fixed.partitions"));
@@ -87,7 +86,10 @@ public class ReadConfig {
 			Global.LOGGER.info("Replication value: "+Global.replicas);			
 			
 			// Workload execution parameters --  will be used in Workload Executor
-			Global.simulationPeriod = Integer.parseInt((String) config_param.getProperty("simulation.period"));
+			Global.simulationPeriod = Double.parseDouble((String) config_param.getProperty("simulation.period"));
+			Global.warmupPeriod = Double.parseDouble((String) config_param.getProperty("warmup.period"));
+			Global.simulationPeriod += Global.warmupPeriod;
+			
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
 			
@@ -98,7 +100,10 @@ public class ReadConfig {
 			Global.expAvgWt = Double.parseDouble((String) config_param.getProperty("exponential.Avg.Weight"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
-			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);
+			Global.LOGGER.info("Simulation name: "+Global.simulation);
+			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod/3600.0+" hrs");
+			Global.LOGGER.info("Warmup time: "+Global.warmupPeriod/3600.0+" hrs");
+			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Probability of Transaction birth and death: "+Global.percentageChangeInWorkload);
 	    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
 	    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);			
@@ -108,28 +113,34 @@ public class ReadConfig {
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
 			Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
 			
-			Global.LOGGER.info("-----------------------------------------------------------------------------");
-			Global.LOGGER.info("Simulation name: "+Global.simulation);
-			Global.LOGGER.info("Workload aware: "+Global.workloadAware);
+			Global.LOGGER.info("-----------------------------------------------------------------------------");Global.LOGGER.info("Workload aware: "+Global.workloadAware);
 			Global.LOGGER.info("Workload representation: "+Global.workloadRepresentation);
 			
-			if(Global.workloadAware) {
+			if(Global.workloadAware) {				
 				
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
-				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));
-												
+				Global.hourlyRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
+				
+				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));											
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
+				
 				Global.dataMigrationStrategy = (String) config_param.getProperty("data.migration.strategy");
 								
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
-				Global.LOGGER.info("-----------------------------------------------------------------------------");				
-				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);
-				Global.LOGGER.info("Transaction classification: "+Global.enableTrClassification);
+				if(Global.incrementalRepartitioning)
+					Global.percentageIDtThresholdInc = Double.parseDouble((String) config_param.getProperty("percentage.idt.threshold.inc"));
 				
-				Global.LOGGER.info("-----------------------------------------------------------------------------");				
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
+				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);
+				Global.LOGGER.info("Hourly repartitioning: "+Global.hourlyRepartitioning);				
+				
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
+				Global.LOGGER.info("Transaction classification: "+Global.enableTrClassification);
 				Global.LOGGER.info("Transaction classification strategy: "+Global.trClassificationStrategy);
+				
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Data migration strategy: "+Global.dataMigrationStrategy);
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -153,56 +164,6 @@ public class ReadConfig {
 					config_file.close();			
 				} catch (IOException e) {
 					Global.LOGGER.error("Failed to close the sim.cnf file !!", e);
-				}			
-			}
-		}
-	}
-	
-	// Reads global.cnf
-	public void readGlobal(String file_name) {
-		BufferedReader config_file = null; 
-	    AbstractFileConfiguration parameters = null;
-	    
-	    Global.LOGGER.info("-----------------------------------------------------------------------------");
-	    Global.LOGGER.info("Reading global configurations from file ...");
-	    
-	    try {
-	    	config_file = new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream(file_name)));
-  	
-			Global.LOGGER.info("Global Configuration file "+file_name+" is found under src/main/resources and read."); 
-	    	
-		    //Load configuration parameters
-	    	parameters = new PropertiesConfiguration();
-			parameters.load(config_file);
-					 
-			//Read the number of servers, partitions and replicas
-			Global.servers = parameters.getInt("initial.servers");
-			Global.server_capacity = parameters.getInt("server.capacity");
-			Global.partitions = parameters.getInt("fixed.partitions");
-			Global.replicas = parameters.getInt("number.of.replicas");			
-			
-			Global.LOGGER.info("Initial number of servers: "+Global.servers);
-			Global.LOGGER.info("Individual server's capacity: "+Global.server_capacity/1024+" GB");
-			Global.LOGGER.info("Fixed number of partitions: "+Global.partitions);
-			Global.LOGGER.info("Replication value: "+Global.replicas);
-			
-			// Workload execution parameters --  will be used in Workload Executor
-			Global.simulationPeriod = parameters.getInt("simulation.period");
-			Global.meanInterArrivalTime = parameters.getDouble("mean.inter.arrival.time");
-			Global.meanServiceTime = parameters.getDouble("mean.service.time");
-			
-			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod);
-	    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
-	    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);
-			
-		} catch (ConfigurationException e) {
-			Global.LOGGER.error("Failed to read the configurations from global.cnf file !!", e);
-		} finally {
-			if(config_file != null) {
-				try {
-					config_file.close();			
-				} catch (IOException e) {
-					Global.LOGGER.error("Failed to close the global.cnf file !!", e);
 				}			
 			}
 		}

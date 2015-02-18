@@ -44,10 +44,11 @@ public class DataMovement {
 		}
 	}
 	
-	public static void performDataMovement(Cluster cluster, WorkloadBatch wb, 
-			String strategy, String partitioner) {
+	public static void performDataMovement(Cluster cluster, WorkloadBatch wb) {
 		
-		switch(strategy) {
+		String partitioner = Global.workloadRepresentation;
+		
+		switch(Global.dataMigrationStrategy) {
 			case "random":
 				Global.LOGGER.info("Applying Random Cluster-to-Partition Strategy (Random) ...");
 				baseRandom(cluster, wb, partitioner);				
@@ -65,7 +66,7 @@ public class DataMovement {
 				
 			case "sword":
 				Global.LOGGER.info("Applying Sword Strategy (SWD) ...");
-				strategySword(cluster, wb, partitioner);				
+				strategySword(cluster, wb, "random");				
 				break;
 				
 			case "methodX":

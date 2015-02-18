@@ -16,10 +16,12 @@ public class PerfMetric {
 	public Map<Integer, Double> time;
 	public Map<Integer, Double> I_Dt;
 	public Map<Integer, Integer> Unqlen;
+	public Map<Integer, Integer> Repartition;
 	
 	// For unique transactions | perf2
 	public Map<Integer, Double> Period;
-	public Map<Integer, Integer> Span;	
+	public Map<Integer, Integer> Span;
+	public Map<Integer, Double> Response;
 	
 	private static File file1;
 	private static File file2;
@@ -31,10 +33,12 @@ public class PerfMetric {
 		time = new HashMap<Integer, Double>();
 		I_Dt = new HashMap<Integer, Double>();
 		Unqlen = new HashMap<Integer, Integer>();
+		Repartition = new HashMap<Integer, Integer>();
 		
 		// For unique transactions | perf2
 		Period = new HashMap<Integer, Double>(); // Holds inter-repetition intervals
-		Span = new HashMap<Integer, Integer>();	
+		Span = new HashMap<Integer, Integer>();
+		Response = new  HashMap<Integer, Double>();
 		
 		// Creating a metric files
 		file1 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
@@ -65,7 +69,8 @@ public class PerfMetric {
 			for(Entry<Integer, Double> entry : time.entrySet()) {
 				prWriter1.print(entry.getValue()+" ");
 				prWriter1.print(I_Dt.get(entry.getKey())+" ");
-				prWriter1.print(Unqlen.get(entry.getKey()));
+				prWriter1.print(Unqlen.get(entry.getKey())+" ");
+				prWriter1.print(Repartition.get(entry.getKey()));
 				prWriter1.println();
 			}
 		} finally {
@@ -76,7 +81,8 @@ public class PerfMetric {
 		try {
 			for(Entry<Integer, Double> entry : Period.entrySet()) {
 				prWriter2.print(entry.getValue()+" ");
-				prWriter2.print(Span.get(entry.getKey()));
+				prWriter2.print(Span.get(entry.getKey())+" ");
+				prWriter2.print(Response.get(entry.getKey()));
 				prWriter2.println();
 			}
 		} finally {

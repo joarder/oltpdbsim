@@ -29,6 +29,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
+import main.java.cluster.Server;
 import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
@@ -63,22 +64,21 @@ public class WorkloadExecutor {
 	static Accumulate totalWait = new Accumulate("Size of queue");
 
 	// State observation and statistic collectors
-	static boolean initial = true;
+	static boolean warmingUp = true;
     static boolean changeDetected = false;
-    static boolean noChangeRequired = false;
-    
-    static int dt_new = 0;
-    static int dt_original = 0;
-    
-	static double total_response_time = 0.0;	
+    static boolean noChangeIsRequired = false;
+    static boolean IDtThresholdReset = false;
 	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
 	static Map<Integer, Double> Time = new HashMap<Integer, Double>();
 	static PerfMetric perfm = new PerfMetric();
+	static int _i = 0;
+	static int _W = 0;
 	
-	static double current_idt = 0.0;
-	static double threshold_idt = 0.0;	
+	static double currentIDt = 0.0;
+	static double IDtThreshold = 0.0;
+	static double IDtThresholdResetWaitingPeriod = Global.observationWindow;
 	
 	// Seed
 	static long[] seed = new long[10];
@@ -98,8 +98,8 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 		
-		Global.uniqueMax = Global.uniqueMaxFixed 
-							- (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
+		Global.uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);		
+		Global.nextCollection = Global.warmupPeriod;
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -167,11 +167,8 @@ public class WorkloadExecutor {
 			if(idx2.size() > min) {				
 				toBeRemovedKey = idx2.lastKey();
 				
-				Transaction tr_old = wb.getTransaction(toBeRemovedKey);
-				
-				tr_old.calculateSpans(cluster);				
-				if(tr_old.isDt())
-					--dt_new;
+				Transaction tr_old = wb.getTransaction(toBeRemovedKey);				
+				tr_old.calculateSpans(cluster);
 				
 				wb.removeTransaction(cluster, tr_old);
 				idx.remove(toBeRemovedKey);
@@ -221,9 +218,7 @@ public class WorkloadExecutor {
 		if(perfm.Span.containsKey(tr.getTr_id()))
 			perfm.Span.remove(tr.getTr_id());
 		
-		perfm.Span.put(tr.getTr_id(), tr.getTr_serverSpanCost());		
-		
-		if(tr.isDt()) ++dt_new;
+		perfm.Span.put(tr.getTr_id(), tr.getTr_serverSpanCost());
 		
 		// Create an index entry for each newly created Transaction		
 		idx.put(tr.getTr_id(), Global.global_trCount);
@@ -232,8 +227,8 @@ public class WorkloadExecutor {
 // New improvements------------------------------------------------------------------------------
 		if(Global.global_trCount > Global.observationWindow) {
 			
-			int _i = Global.global_trCount;		// _i ~ Sim.time() 
-			int _W = Global.observationWindow;	// _W ~ time 
+			_i = Global.global_trCount;		// _i ~ Sim.time() 
+			_W = Global.observationWindow;	// _W ~ time 
 			
 			HashSet<Integer> unq = new HashSet<Integer>(T);
 			for(int _n = (_i - _W); n <= _i; n++) {
@@ -263,7 +258,21 @@ public class WorkloadExecutor {
 			
 			double i_dt = (sum_of_span_by_period)/(Global.servers * sum_of_one_by_period);			
 			perfm.I_Dt.put((_i - _W), i_dt);
-			current_idt = i_dt;
+			currentIDt = i_dt;
+			
+			// Resetting IDt Threshold
+			if(WorkloadExecutor.IDtThresholdReset && Sim.time() >= WorkloadExecutor.IDtThresholdResetWaitingPeriod) {
+				double old_IDtThreshold = WorkloadExecutor.IDtThreshold; 
+				
+				WorkloadExecutor.IDtThreshold = currentIDt + currentIDt*Global.percentageIDtThresholdInc;				
+				WorkloadExecutor.IDtThresholdReset = false;
+				
+				Global.LOGGER.info("-----------------------------------------------------------------------------");				
+				Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
+				Global.LOGGER.info("Current IDt: "+currentIDt);
+				Global.LOGGER.info("User defined increment to IDt threshold: "+Global.percentageIDtThresholdInc*100+"%");
+				Global.LOGGER.info("IDt threshold has been reset to "+WorkloadExecutor.IDtThreshold+" from previous threshold of "+old_IDtThreshold);
+			}
 			
 			perfm.time.put((_i - _W), Sim.time());		
 		}
@@ -280,20 +289,9 @@ public class WorkloadExecutor {
 		
 	public static void processTransaction(Transaction tr) {
 		// Sleep for x milliseconds
-    	try {    		
-    		//TimeUnit.MILLISECONDS.sleep(tr.getTr_serverSpanCost());
-    		Thread.sleep(tr.getTr_serverSpanCost());
-    		
-    		double response_time = (double)tr.getTr_serverSpanCost() + tr.getTr_waiting_time();    		
-    		double avg_response = (response_time + tr.getTr_response_time()) / (int) (1/tr.getTr_period());
-    		double round_avg_response = Math.round(avg_response * 100.0) / 100.0;
-    		
-    		total_response_time += round_avg_response;
-    		
-    		tr.setTr_response_time(round_avg_response);
-    		tr.setProcessed(true);    		
-    		
-    		//System.out.println("-->> Processed T"+tr.getTr_id()+" within "+tr.getTr_response_time());
+    	try {
+    		//Thread.sleep(tr.getTr_serverSpanCost()); // Actually no need
+    		tr.setProcessed(true);
     		
     		++Global.total_transactions;
     		
@@ -312,10 +310,10 @@ public class WorkloadExecutor {
 		//System.out.println (WorkloadExecutor.totalWait.report());
 	}	
 	
-	// new
 	public void execute(Database db, Cluster cluster, WorkloadBatch wb, Workload wrl) {
 		Global.LOGGER.info("=============================================================================");
-		Global.LOGGER.info("Streaming transactional workload ...");
+		Global.LOGGER.info("Warming up the database ...");
+		Global.LOGGER.info("Streaming transactional workloads ...");
 		
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
@@ -338,39 +336,44 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total "+Global.total_transactions+" transactions have processed "
 				+ "by the Transaction Coordinator so far and of them "+Global.global_trSeq+" are unique.");
 		
-		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" Hours");		
+		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" hrs");		
 					
 		// Statistic preparation, calculation, and reporting		
-		collectStatistics(cluster, wb);
-		cluster.show();		
+		//collectStatistics(cluster, wb);
+		//cluster.show();		
 		perfm.write();
 	}	
 	
 	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
-		if(!WorkloadExecutor.noChangeRequired) { 
+		if(!WorkloadExecutor.noChangeIsRequired) { 
 			cluster.updateLoad();
 
 			wb.calculateDTI(cluster);		
 			wb.calculateThroughput(Global.total_transactions);
-			wb.calculateResponseTime(Global.total_transactions, total_response_time);
 				
 			Metric.collect(cluster, wb);			
 			Metric.report();
-			Metric.write();
+			Metric.write();						
 			
-			Global.nextCollection += 3600.0;
+			// Reset each time	
+			wb.set_intra_dmv(0);
+			wb.set_inter_dmv(0);
+			
+			for(Server s : cluster.getServers()) { 
+				s.setServer_inflow(0);
+				s.setServer_outflow(0);
+			}
+			
+			// Always schedule an hourly collection
+			Global.nextCollection += Global.observationWindow;
+			Global.LOGGER.info("=======================================================================================================================");
 		}
 	}
 	
-	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {
-		
-		if(Sim.time() >= Global.nextCollection) {
-			
-			Global.LOGGER.info("<-- Hourly Statistics -->");
-			
-			// Statistic preparation, calculation, and reporting			
+	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {		
+		if(Sim.time() >= Global.nextCollection && Global.hourlyRepartitioning) {			
+			Global.LOGGER.info("<-- Hourly Statistics -->");		
 			WorkloadExecutor.collectStatistics(cluster, wb);
-			Global.nextCollection += 3600.0;
 		}
 	}
 	
@@ -386,8 +389,7 @@ public class WorkloadExecutor {
 		if(!empty) {
 			
 			int partitions = Global.partitions;
-			Global.LOGGER.info("Starting partitioner to repartition the workload into "
-					+partitions+" clusters ...");	
+			Global.LOGGER.info("Starting partitioner to repartition the workload into "+partitions+" clusters ...");	
 			
 			// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
 			MinCut.runMinCut(wb, partitions, true);
@@ -406,7 +408,7 @@ public class WorkloadExecutor {
 			cluster.updateLoad();								
 			//cluster.show();
 			
-			WorkloadExecutor.noChangeRequired = true;
+			WorkloadExecutor.noChangeIsRequired = true;
 			
 			Global.LOGGER.info("No changes are required !!!");
 			Global.LOGGER.info("Repartitioning run aborting ...");
@@ -460,16 +462,14 @@ class Arrival extends Event {
 		}
 
 		// Checks when initial warm up state is reached
-		if(Sim.time() >= 2*Global.observationWindow && WorkloadExecutor.initial) {
+		if(Sim.time() >= Global.warmupPeriod && WorkloadExecutor.warmingUp) {
 			
-			Global.LOGGER.info("-----------------------------------------------------------------------------");
+			Global.LOGGER.info("-----------------------------------------------------------------------------");			
 			Global.LOGGER.info("Database finished warming up.");
+			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
-			// Statistic preparation, calculation, and reporting
-			wb.set_tr_nums(wb.hgr.getEdgeCount());
-			WorkloadExecutor.threshold_idt = WorkloadExecutor.current_idt;						
-			WorkloadExecutor.collectStatistics(cluster, wb);			
-			WorkloadExecutor.initial = false;
+			WorkloadExecutor.IDtThreshold = WorkloadExecutor.currentIDt;
+			WorkloadExecutor.warmingUp = false;
 		}
 		
 		/**
@@ -497,22 +497,23 @@ class Arrival extends Event {
 		 *  
 		 */
 		
-		if(!WorkloadExecutor.initial) {
+		if(!WorkloadExecutor.warmingUp) {
 			wb.set_tr_nums(wb.hgr.getEdgeCount());
 			
 			if(Global.workloadAware) {				
+				
 				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
 					
-					if(Sim.time() >= Global.nextCollection) {
+					//if(Sim.time() >= Global.nextCollection) {
 					// Detecting increase in DTI from the threshold value
-					//if(WorkloadExecutor.current_idt >= WorkloadExecutor.threshold_idt) {						
+					if(WorkloadExecutor.currentIDt > WorkloadExecutor.IDtThreshold && !WorkloadExecutor.IDtThresholdReset) {						
 						
 						++Global.repartitioningCycle;
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
 						Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
-						Global.LOGGER.info("Current DTI is "+WorkloadExecutor.current_idt+" which is above the threshold DTI of "+WorkloadExecutor.threshold_idt+".");
+						Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the threshold DTI of "+WorkloadExecutor.IDtThreshold+".");
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
 						Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
@@ -549,35 +550,46 @@ class Arrival extends Event {
 							WorkloadExecutor.runRepartitioner(cluster, wb);
 						
 						// Perform data movement
-						DataMovement.performDataMovement(cluster, wb, 
-								Global.dataMigrationStrategy, Global.workloadRepresentation);
+						DataMovement.performDataMovement(cluster, wb);
 
-						Global.LOGGER.info("-----------------------------------------------------------------------------");						
+						Global.LOGGER.info("-----------------------------------------------------------------------------");												
+						WorkloadExecutor.collectStatistics(cluster, wb);
 						
-						WorkloadExecutor.collectStatistics(cluster, wb);						
-						WorkloadExecutor.changeDetected = false;
+						WorkloadExecutor.IDtThresholdReset = true;
+						WorkloadExecutor.IDtThresholdResetWaitingPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
+						Global.LOGGER.info("IDt threshold will reset at "+WorkloadExecutor.IDtThresholdResetWaitingPeriod/(double)Global.observationWindow+" hrs after 1 hr cooling off period.");						
 						
-						//Global.LOGGER.info("DT baseline has been reset to "+WorkloadExecutor.threshold_idt);
-						Global.LOGGER.info("=======================================================================================================================");
+						// Tracking the exacting repartitioning point
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
+						
+					} else {
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
 					}
 					
 				} else { // 2. Static Repartitioning
-					
-					if(Global.staticRun && WorkloadExecutor.changeDetected) {
+
+					if(Global.staticRun) {
+						Global.LOGGER.info("<-- Static Repartioning -->");
+						Global.LOGGER.info("Start repartioning the database for a single time ...");
 						
+						// Repartition the database for a single time
 						WorkloadExecutor.runRepartitioner(cluster, wb);
-						WorkloadExecutor.collectStatistics(cluster, wb);
-						Global.staticRun = false;
 						
-					} else if(!Global.staticRun)
+						// Perform data movement
+						DataMovement.performDataMovement(cluster, wb);
+						
+						WorkloadExecutor.collectStatistics(cluster, wb);
+						Global.staticRun = false;						
+						
+					} else 
 						// Hourly statistic collection
-						WorkloadExecutor.collectHourlyStatistics(cluster, wb);				
+						WorkloadExecutor.collectHourlyStatistics(cluster, wb);					
 				}
 				
 			} else { // 1. Baseline
 				
 				// Hourly statistic collection
-				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+				WorkloadExecutor.collectHourlyStatistics(cluster, wb);				
 			}
 		}
 	}

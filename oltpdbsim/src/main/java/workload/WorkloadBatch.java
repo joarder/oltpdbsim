@@ -546,13 +546,13 @@ public class WorkloadBatch {
 		this.set_dt_nums(dt_nums);
 		this.set_ndt_nums(ndt_nums);
 		
-		Global.LOGGER.info("Number of Transactions after statistic collection: "+this.get_tr_nums());
-		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
-		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
-		Global.LOGGER.info("--------------------------------------------");
-		Global.LOGGER.info("Number of DTs removed before statistic collection: "+this.get_old_dt_nums());
-		Global.LOGGER.info("Number of non-DTs removed before statistic collection: "+this.get_old_ndt_nums());
-		Global.LOGGER.info("--------------------------------------------");
+//		Global.LOGGER.info("Number of Transactions after statistic collection: "+this.get_tr_nums());
+//		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
+//		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
+//		Global.LOGGER.info("--------------------------------------------");
+//		Global.LOGGER.info("Number of DTs removed before statistic collection: "+this.get_old_dt_nums());
+//		Global.LOGGER.info("Number of non-DTs removed before statistic collection: "+this.get_old_ndt_nums());
+//		Global.LOGGER.info("--------------------------------------------");
 		
 		if(this.get_dt_nums() != 0)
 			dt_percentage = ((double)(dt_nums + this.get_old_dt_nums()) 

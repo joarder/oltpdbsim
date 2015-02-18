@@ -39,6 +39,7 @@ public final class Global implements java.io.Serializable {
 	public static int repeated_runs;	
 	
 	// Data distribution related parameters
+	public static String setup;
 	public static int servers;
 	public static int server_capacity;
 	public static int partitions;
@@ -67,19 +68,19 @@ public final class Global implements java.io.Serializable {
 	public static String abort = "Aborting ...";
 	
 	// Workload execution
-	public static int simulationPeriod;
+	public static double simulationPeriod;
+	public static double warmupPeriod;
+	
 	public static double meanInterArrivalTime; 
     public static double meanServiceTime;
+    
 	public static double percentageChangeInWorkload;
 	public static double adjustment;
 	public static double expAvgWt; // Defines how far we need to look back while repeating transactions
 	public static int observationWindow;
 	public static int uniqueMaxFixed;
 	public static int uniqueMax;	
-	public static double nextCollection = 3600.0;
-	
-	public static int oldTransactionTimestamp;
-	public static boolean transactionExpiration;
+	public static double nextCollection;
 	
     // Workload mining
     public static int mining_serial = 0;
@@ -93,6 +94,7 @@ public final class Global implements java.io.Serializable {
     public static boolean staticRun = true;
     
     public static String workloadRepresentation; // gr/cgr/hgr/chg
+    public static boolean hourlyRepartitioning;
     public static String trClassificationStrategy; // basic/fd/fdfnd
     public static String dataMigrationStrategy; // random/mc/msm/sword
     
@@ -100,7 +102,8 @@ public final class Global implements java.io.Serializable {
     public static boolean compressionBeforeSetup;
     public static double compressionRatio;    
     
-    public static int repartitioningCycle = 0;  
+    public static int repartitioningCycle = 0;
+    public static double percentageIDtThresholdInc;
     
     // TPC-C specific
     public static final int[] tpccTrTypes = {1, 2, 3, 4, 5};

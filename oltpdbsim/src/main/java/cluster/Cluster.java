@@ -284,7 +284,7 @@ public class Cluster {
 			}					
 			
 			// Perform data movement			
-			DataMovement.performDataMovement(cluster, wb, "random", Global.workloadRepresentation);					
+			DataMovement.performDataMovement(cluster, wb);					
 			
 			// Update server-level load statistic and show
 			cluster.updateLoad();
