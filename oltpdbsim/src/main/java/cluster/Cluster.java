@@ -3,14 +3,13 @@ package main.java.cluster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
-
-import org.apache.commons.lang3.StringUtils;
 
 import main.java.db.Database;
 import main.java.db.Table;
@@ -24,35 +23,54 @@ import main.java.workload.Transaction;
 import main.java.workload.Workload;
 import main.java.workload.WorkloadBatch;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class Cluster {	
 	private SortedSet<Server> servers;
 	private SortedSet<Partition> partitions;
+	
+	private Map<Integer, ArrayList<Integer>> partition_map;
+	private Map<Integer, HashSet<Integer>> data_map;
+	
 	private Map<Integer, VirtualData> vdataSet;
 	
 	private ConsistentHashRing<Long> cluster_ring;
 	private Map<Long, Integer> ring_map;
-	private Map<Integer, ArrayList<Integer>> partition_map;
 	private Map<Integer, ArrayList<Long>> partition_keyRange;
 	
 	private Map<Integer, String> data_uid_map;
+	private Map<Integer, Integer> vdata_pid_map;
 	private Map<Integer, String> vdata_uid_map;
 
 	public static boolean _setup;
 	
 	public Cluster() {
+		
+		switch(Global.setup) {
+			case "range":
+				setData_map(new HashMap<Integer, HashSet<Integer>>());
+				break;
+			
+			case "consistenthash":
+				this.setRing(new ConsistentHashRing<Long>(Global.replicas));
+				this.setRing_map(new HashMap<Long, Integer>());				
+				this.setPartition_keyRange(new HashMap<Integer, ArrayList<Long>>());
+				this.setData_uid_map(new HashMap<Integer, String>());
+				break;
+				
+			default:
+				Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+				break;
+		}
+		
 	    this.setPartitions(new TreeSet<Partition>());
 		this.setServers(new TreeSet<Server>());		
-		
-		this.setRing(new ConsistentHashRing<Long>(Global.replicas));
-		this.setRing_map(new HashMap<Long, Integer>());
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
-		this.setPartition_keyRange(new HashMap<Integer, ArrayList<Long>>());
-		
-		this.setData_uid_map(new HashMap<Integer, String>());
 		
 		if(Global.compressionBeforeSetup) {
 			this.setVdataSet(new HashMap<Integer, VirtualData>());
-			this.setVdata_uid_map(new HashMap<Integer, String>());
+			this.setVdata_pid_map(new HashMap<Integer, Integer>());
+			this.setVdata_uid_map(new HashMap<Integer, String>()); // For consistent hashing
 		}
 	}
 	
@@ -104,6 +122,14 @@ public class Cluster {
 		this.partition_map = partition_map;
 	}
 
+	public Map<Integer, HashSet<Integer>> getData_map() {
+		return data_map;
+	}
+
+	public void setData_map(Map<Integer, HashSet<Integer>> data_map) {
+		this.data_map = data_map;
+	}
+
 	public Map<Integer, ArrayList<Long>> getPartition_keyRange() {
 		return partition_keyRange;
 	}
@@ -120,6 +146,14 @@ public class Cluster {
 		this.data_uid_map = data_uid_map;
 	}
 
+	public Map<Integer, Integer> getVdata_pid_map() {
+		return vdata_pid_map;
+	}
+
+	public void setVdata_pid_map(Map<Integer, Integer> vdata_pid_map) {
+		this.vdata_pid_map = vdata_pid_map;
+	}
+
 	public Map<Integer, String> getVdata_uid_map() {
 		return vdata_uid_map;
 	}
@@ -128,7 +162,108 @@ public class Cluster {
 		this.vdata_uid_map = vdata_uid_map;
 	}
 
+//====================================================================================================
 	public WorkloadBatch setup(Database db, Workload wrl) {
+		WorkloadBatch wb = null;
+		
+		switch(Global.setup) {
+		case "range":
+			wb = this.setupRange(db, wrl);
+			break;
+		
+		case "consistenthash":
+			wb = this.setupConsistentHash(db, wrl);
+			break;
+			
+		default:
+			Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+			break;
+		}
+		
+		return wb;
+	}
+
+//====================================================================================================	
+	// Range partitioning based setup
+	private WorkloadBatch setupRange(Database db, Workload wrl) {
+		// Will only be used for SWORD
+		WorkloadBatch wb = null;
+		
+		Global.LOGGER.info("Setting up Cluster ...");
+		
+		// Add Partitions
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+	    Global.LOGGER.info("Creating "+Global.partitions+" fixed number of logical Partitions ...");
+	    
+		for(int i = 1; i <= db.getDb_tables().size()*Global.servers; i++)
+			this.getPartitions().add(new Partition(i));
+		
+		// Add Servers and fixed amount of Partitions
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Adding "+Global.servers+" physical Servers in the Cluster ...");
+		
+		for(int i = 1; i <= Global.servers; i++)
+			this.addServer(new Server(i), true);			
+			
+		// Assign Partitions into Servers
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Assigning logical Partitions into physical Servers ...");
+		
+		int s_id = 1;
+		int tbl_id = 1;
+		
+		for(Partition p : this.getPartitions()) {
+			// Assign a Server id to the Partition
+			Global.LOGGER.info("-----------------------------------------------------------------------------");
+			Global.LOGGER.info("Assigning Partition "+p.getPartition_label()+" in a Server ...");
+			
+			p.setPartition_serverId(s_id);
+			p.setPartition_table_id(tbl_id);
+			
+			// Add Partition id in the corresponding Server's list 
+			Server s = this.getServer(s_id);
+			s.getServer_partitions().add(p.getPartition_id());		
+			
+			// Add an entry in the Cluster's Server-Partition Mapping Table
+			this.addPartitionMappingEntry(s_id, p.getPartition_id());
+			
+			Table tbl = db.getTable(tbl_id);
+			Global.LOGGER.info("Partition "+p.getPartition_label()+" of "+tbl.toString()+" is assigned to Server "+s.getServer_label()+".");
+			
+			++s_id;			
+			if(s_id > this.getServers().size())
+				s_id = 1;
+			
+			++tbl_id;
+			if(tbl_id > db.getDb_tables().size())
+				tbl_id = 1;
+		}
+				
+		// Determine the number of Virtual Data Nodes to be created
+		if(Global.compressionEnabled)
+			Global.virtualDataNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+				
+		// Physical Data Distribution
+		this.physicalDataDistribution(db);
+		
+		// Virtual Data Distribution for Sword
+		if(Global.compressionBeforeSetup)
+			wb = this.vdataDistribution(db, this, wrl);		
+		
+		// Update server-level load statistic and show
+		this.updateLoad();
+		this.show();
+		
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Total data within the Cluster: "+Global.global_dataCount);
+		Global.LOGGER.info("Cluster setup has finished.");
+		
+		return wb;
+	}
+
+//====================================================================================================
+	// Consistent hashing based setup
+	private WorkloadBatch setupConsistentHash(Database db, Workload wrl) {
 		// Will only be used for SWORD
 		WorkloadBatch wb = null;
 		
@@ -166,7 +301,7 @@ public class Cluster {
 			// Assign a Server id to the Partition
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Assigning Partition "+p.getPartition_label()+" in a Server ...");
-			this.assignPartition(p);				
+			this.assignPartitionConsistentHash(p);				
 			
 			// Calculate Key Range values for individual Partition
 			Global.LOGGER.info(".............................................................................");
@@ -216,20 +351,57 @@ public class Cluster {
 		return wb;
 	}
 
+//====================================================================================================
+	public int getRangePartition(Server s, int tbl_id) {
+		for(Integer p_id : s.getServer_partitions()) {
+			
+			Partition p = this.getPartition(p_id);
+			
+			if(p.getPartition_table_id() == tbl_id)
+				return p.getPartition_id();
+		}
+		
+		return 0;
+	}
+	
 	// Physical Data distribution
 	private void physicalDataDistribution(Database db) {
 
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting physical Data distribution within the Partitions ...");
 
-		// Create and assign Data into Partitions		
+		// Create and assign Data into Partitions
+		int s_id = 0;
 		for(Entry<Integer, Table> tbl_entry : db.getDb_tables().entrySet()) {			
 			Table tbl = tbl_entry.getValue();
 			
 			for(Entry<Integer, Tuple> tpl : tbl.getTbl_tuples().entrySet()) {				
 
 				if(!tpl.getValue().getTuple_action().equals("insert")) {
-					this.insertData(tpl.getValue().getTuple_id());
+					
+					switch(Global.setup) {
+						case "range":
+							int tbl_id = tbl.getTbl_id();
+							
+							++s_id;
+							if(s_id > Global.servers)
+								s_id = 1;
+							
+							Server s = this.getServer(s_id);
+							int p_id = this.getRangePartition(s, tbl_id);			
+							
+							this.insertDataRangePartitioning(tpl.getValue().getTuple_id(), s_id, p_id);
+							
+							break;
+						
+						case "consistenthash":
+							this.insertDataConsistentHash(tpl.getValue().getTuple_id());
+							break;
+							
+						default:
+							Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+							break;
+					}					
 				}
 			}
 						
@@ -237,7 +409,8 @@ public class Cluster {
 			Global.LOGGER.info(""+tbl.toString());
 		}
 	}
-	
+
+//====================================================================================================
 	// Physical Data distribution for SWORD (Compression before setup)
 	private WorkloadBatch vdataDistribution(Database db, Cluster cluster, Workload wrl) {
 		_setup = true;
@@ -300,7 +473,8 @@ public class Cluster {
 		
 		return wb;
 	}
-	
+
+//====================================================================================================
 	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {		
 		WorkloadBatch wb = new WorkloadBatch(0);
 		
@@ -311,7 +485,7 @@ public class Cluster {
 		// i -- Transaction types
 		for(int i = 1; i <= wrl.tr_types; i++) {
 			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * 3600); // 3600 transactions ~ 1hr workload			
+			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
 			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
 
 			// j -- number of Transactions for a specific Transaction type
@@ -338,6 +512,7 @@ public class Cluster {
 		return wb;
 	}
 	
+//====================================================================================================	
 	public void warmup(Database db, Workload wrl) {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Warming up the database ...");
@@ -348,7 +523,7 @@ public class Cluster {
 		// i -- Transaction types
 		for(int i = 1; i <= wrl.tr_types; i++) {
 			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * 3600); // 3600 transactions ~ 1hr workload			
+			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
 			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
 
 			// j -- number of Transactions for a specific Transaction type
@@ -361,8 +536,138 @@ public class Cluster {
 		db.updateTupleCounts();
 	}
 	
+//====================================================================================================
+	public int insertDataRangePartitioning(int _id, int s_id, int p_id) {
+		++Global.global_dataCount;
+		
+		int[] replicas = new int[Global.replicas];
+		
+		Data d = null;
+		VirtualData v = null;
+
+		// Break up the Data id to extract the Tuple's primary key and Table id
+		String[] parts = this.breakDataId(_id);
+		int tpl_pk = Integer.parseInt(parts[0]);
+		int tbl_id = Integer.parseInt(parts[1]);
+		
+		Server s = this.getServer(s_id);
+		Partition p = this.getPartition(p_id);
+		
+		// Create a new Data object and its replicas
+		for(int repl = 1; repl <= Global.replicas; repl++) {
+			
+			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
+						
+			if(Global.compressionBeforeSetup) {
+				
+				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
+				
+				// Create a Virtual Data if required
+				if(!this.vdataSet.containsKey(v_id)) {					
+					v = new VirtualData(v_id, null);
+					this.vdataSet.put(v_id, v);
+					
+				} else {
+					v = this.vdataSet.get(v_id);
+				}
+			
+				// Create an entry in the vData---Partition map
+				this.getVdata_pid_map().put(v_id, p_id);
+				
+				// Create the new Data
+				d = new Data(Integer.parseInt(d_id), tbl_id, v_id, p.getPartition_id(), p.getPartition_serverId());
+				d.setData_uid(null);
+				
+				// Set Partition, and Server id for the Virtual Data Node
+				v.setVdata_partition_id(p.getPartition_id());
+				v.setVdata_server_id(p.getPartition_serverId());
+				
+				// Add the corresponding Data id into the Virtual Data Node
+				v.getVdata_set().add(d.getData_id());
+				
+				// Assign Data to Partition
+				p.getPartition_dataSet().put(d.getData_id(), d);
+				
+			} else {
+				
+				d = new Data(Integer.parseInt(d_id), tbl_id, -1, p.getPartition_id(), p.getPartition_serverId());				
+				
+				// Assign Data to Partition
+				p.getPartition_dataSet().put(d.getData_id(), d);
+			}
+			
+			// Insert into data map to create index
+			if(this.getData_map().containsKey(p_id))
+				this.getData_map().get(p_id).add(d.getData_id());
+			else {
+				HashSet<Integer> dataSet = new HashSet<Integer>();
+				dataSet.add(d.getData_id());
+				this.getData_map().put(p_id, dataSet);
+			}
+			
+			// Update Server statistic
+			s = this.getServer(p.getPartition_serverId());
+			s.incServer_totalData();
+			
+			replicas[repl - 1] = d.getData_id();
+		}
+		
+		// Randomly returns a replica
+		int rand_replica = Global.rand.nextInt(Global.replicas);
+		return replicas[rand_replica];
+	}
+	
+//====================================================================================================
+	// Delete a Data and all of its replicas from the Cluster
+	public void deleteDataRangePartitioning(int _id) {
+
+		--Global.global_dataCount;
+		
+		Data d = null;
+		Partition p = null;
+		Server s = null;
+		
+		// Break up the Data id to extract the Tuple's primary key and Table id
+		String[] parts = this.breakDataId(_id);
+		int tpl_pk = Integer.parseInt(parts[0]);
+		int tbl_id = Integer.parseInt(parts[1]);
+		
+		for(int repl = 1; repl <= Global.replicas; repl++) {
+			
+			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
+			
+			if(Global.compressionBeforeSetup) {
+				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
+				int p_id = this.getVdata_pid_map().get(v_id);
+
+				// Find the corresponding Partition from the Consistent Hash Ring
+				p = this.getPartition(p_id);
+				
+				VirtualData v = this.vdataSet.get(v_id);
+				v.getVdata_set().remove(Integer.parseInt(d_id));
+				
+			} else {				
+				// Find the corresponding Partition from the Consistent Hash Ring
+				int p_id = this.dataPartitionId(Integer.parseInt(d_id));
+				p = this.getPartition(p_id);
+			}
+			
+			// Delete Data from Partition
+			d = p.getData(this, Integer.parseInt(d_id));
+			p.getPartition_dataSet().remove(d.getData_id());
+			
+			if(p.getPartition_dataLookupTable().containsKey(d.getData_id()))
+				p.getPartition_dataLookupTable().remove(d.getData_id());
+			
+			// Update Server statistic
+			s = this.getServer(p.getPartition_serverId());
+			s.decServer_totalData();
+		}
+	}
+	
+//====================================================================================================	
 	// Insert a new Data and its replicas in the Cluster
-	public int insertData(int _id) {
+	public int insertDataConsistentHash(int _id) {
 		
 		++Global.global_dataCount;
 		
@@ -447,8 +752,9 @@ public class Cluster {
 		return replicas[rand_replica];
 	}
 	
-	// Delete a Data and all of its replicas from the Cluster
-	public void deleteData(int _id) {
+//====================================================================================================
+	// Delete a Data and all of its replicas from the Cluster | here _id = tpl_pk+tbl_id
+	public void deleteDataConsistentHashing(int _id) {
 
 		--Global.global_dataCount;
 		
@@ -496,30 +802,68 @@ public class Cluster {
 			s.decServer_totalData();
 		}
 	}
-	
+
+//====================================================================================================
+	private int dataPartitionId(int d_id) {
+		for(Entry<Integer, HashSet<Integer>> entry : this.getData_map().entrySet()) {
+			for(Integer d : entry.getValue())
+				if(d == d_id)
+					return entry.getKey();
+		}
+		
+		return 0;
+	}	
+
+	//====================================================================================================	
 	// Returns a Data object by its id
-	public Data getData(int _id) {
+	public Data getData(int d_id) {
 		
 		Partition p = null;
 		
-		if(Global.compressionBeforeSetup) {	
-			// Break up the Data id to extract the Tuple's primary key and Table id
-			String[] parts = Cluster.getTplIdFromDataId(_id);
-			int tpl_pk = Integer.parseInt(parts[0]);
-			
-			int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
-			String v_uid = this.getVdata_uid_map().get(v_id);
-
-			// Find the corresponding Partition from the Consistent Hash Ring
-			p = this.getPartition(v_uid);			
-						
-		} else {			
-			// Find the corresponding Partition from the Consistent Hash Ring
-			String _uid = this.data_uid_map.get(_id);
-			p = this.getPartition(_uid);
-		}
+		switch(Global.setup) {
+			case "range":
+				if(Global.compressionBeforeSetup) {
+					// Break up the Data id to extract the Tuple's primary key and Table id
+					String[] parts = Cluster.getTplIdFromDataId(d_id);
+					int tpl_pk = Integer.parseInt(parts[0]);
+					
+					int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
+					int p_id = this.getVdata_pid_map().get(v_id);
+					p = this.getPartition(p_id);
+					
+				} else {
+					int p_id = this.dataPartitionId(d_id);
+					p = this.getPartition(p_id);
+				}
+				
+				break;
 		
-		return p.getData(this, _id);
+			case "consistenthash":
+				if(Global.compressionBeforeSetup) {	
+					// Break up the Data id to extract the Tuple's primary key and Table id
+					String[] parts = Cluster.getTplIdFromDataId(d_id);
+					int tpl_pk = Integer.parseInt(parts[0]);
+					
+					int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
+					String v_uid = this.getVdata_uid_map().get(v_id);
+
+					// Find the corresponding Partition from the Consistent Hash Ring
+					p = this.getPartition(v_uid);			
+								
+				} else {			
+					// Find the corresponding Partition from the Consistent Hash Ring
+					String _uid = this.data_uid_map.get(d_id);
+					p = this.getPartition(_uid);
+				}
+
+				break;
+			
+			default:
+				Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+				break;
+		}
+				
+		return p.getData(this, d_id);
 	}
 	
 	// Returns the reference of a Partition from the uid
@@ -592,10 +936,10 @@ public class Cluster {
 	
 	private void shufflePartitions() {
 		for(Partition p : this.getPartitions())
-			this.assignPartition(p);
+			this.assignPartitionConsistentHash(p);
 	}
 	
-	private void assignPartition(Partition p) {
+	private void assignPartitionConsistentHash(Partition p) {
 		int s_id = 0;
 		
 		// Assign Server id to the Partition

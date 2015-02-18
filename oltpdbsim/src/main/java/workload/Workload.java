@@ -12,6 +12,7 @@ import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import main.java.cluster.Cluster;
+import main.java.cluster.Server;
 import main.java.db.Tuple;
 import main.java.db.Database;
 import main.java.db.Table;
@@ -139,6 +140,7 @@ public class Workload implements java.io.Serializable {
 		Set<Integer> trDataSet = new TreeSet<Integer>();
 		SortedSet<Integer> deletedTuples = new TreeSet<Integer>();
 		
+		int s_id = 1;
 		for(int tpl_id : trTupleSet) {							
 			
 			if(!deletedTuples.contains(tpl_id)) {
@@ -155,15 +157,52 @@ public class Workload implements java.io.Serializable {
 					tpl.setTuple_action("initial");
 					
 					// Insert into Cluster, already in the Database
-					_id = cluster.insertData(tpl_id);				
+					
+					switch(Global.setup) {
+						case "range":					
+							Server s = cluster.getServer(s_id);
+							int p_id = cluster.getRangePartition(s, tbl_id);
+							
+							_id = cluster.insertDataRangePartitioning(tpl_id, s_id, p_id);
+							
+							++s_id;
+							if(s_id > Global.servers)
+								s_id = 1;
+							
+							break;
+						
+						case "consistenthash":
+							_id = cluster.insertDataConsistentHash(tpl_id);
+							break;
+							
+						default:
+							Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+							break;
+					}					
+													
 					trDataSet.add(_id);					
 					
 				} else if (tpl.getTuple_action().equals("delete")) {
 					
 					if(!Cluster._setup) {
+					
+						 // Remove from Cluster
+						switch(Global.setup) {
+							case "range":					
+								cluster.deleteDataRangePartitioning(tpl_id);								
+								break;
+							
+							case "consistenthash":
+								cluster.deleteDataConsistentHashing(tpl_id);
+								break;
+								
+							default:
+								Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+								break;
+						}
 						
-						cluster.deleteData(tpl_id); // Remove from Cluster
-						db.deleteTupleByPk(tbl_id, tpl_pk); // Remove from Database
+						 // Remove from Database
+						db.deleteTupleByPk(tbl_id, tpl_pk);
 											
 						_id = cluster.getDataIdFromTupleId(tpl_id);
 						
