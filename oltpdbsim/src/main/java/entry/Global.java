@@ -94,6 +94,7 @@ public final class Global implements java.io.Serializable {
     public static boolean staticRun = true;
     
     public static String workloadRepresentation; // gr/cgr/hgr/chg
+    public static String repartitioningStrategy;
     public static boolean hourlyRepartitioning;
     public static String trClassificationStrategy; // basic/fd/fdfnd
     public static String dataMigrationStrategy; // random/mc/msm/sword

@@ -1,8 +1,11 @@
-simulation.name=T-chg-msm-basic
+simulation.name=C-T-HGR-MSM-Basic
+
+setup=consistenthash
+repartitioning.strategy=threshold
+hourly.repartitioning=false
 
 workload.aware=true
 incremental.repartitioning=true
-hourly.repartitioning=false
 
 workload.representation=hgr
 
@@ -11,18 +14,17 @@ transaction.classification.strategy=basic
 
 data.migration.strategy=msm
 
-compression.enabled=true
+compression.enabled=false
 compression.before.setup=false
 compression.ratio=6
 
-setup=range
 initial.servers=4
 server.capacity=100000
 fixed.partitions=16
 number.of.replicas=1
 
-simulation.period=86400
-warmup.period=10800
+simulation.period=97200
+warmup.period=3600
 
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000

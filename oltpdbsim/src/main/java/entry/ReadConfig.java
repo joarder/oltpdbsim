@@ -120,6 +120,7 @@ public class ReadConfig {
 				
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
 				Global.hourlyRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
+				Global.repartitioningStrategy = (String) config_param.getProperty("repartitioning.strategy");
 				
 				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));											
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");

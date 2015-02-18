@@ -371,7 +371,7 @@ public class WorkloadExecutor {
 	}
 	
 	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {		
-		if(Sim.time() >= Global.nextCollection && Global.hourlyRepartitioning) {			
+		if(Sim.time() >= Global.nextCollection) {			
 			Global.LOGGER.info("<-- Hourly Statistics -->");		
 			WorkloadExecutor.collectStatistics(cluster, wb);
 		}
@@ -402,6 +402,8 @@ public class WorkloadExecutor {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			
+			WorkloadExecutor.noChangeIsRequired = false;
 			
 		} else {			
 			// Update server-level load statistic and show
@@ -501,19 +503,21 @@ class Arrival extends Event {
 			wb.set_tr_nums(wb.hgr.getEdgeCount());
 			
 			if(Global.workloadAware) {				
-				
-				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
-					
-					//if(Sim.time() >= Global.nextCollection) {
-					// Detecting increase in DTI from the threshold value
-					if(WorkloadExecutor.currentIDt > WorkloadExecutor.IDtThreshold && !WorkloadExecutor.IDtThresholdReset) {						
-						
+				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning					
+					if(isRepartRequired()) {						
 						++Global.repartitioningCycle;
 						
-						Global.LOGGER.info("-----------------------------------------------------------------------------");
-						Global.LOGGER.info("Current simulation time: "+Sim.time()/3600+" hrs");
-						Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
-						Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the threshold DTI of "+WorkloadExecutor.IDtThreshold+".");
+						if(Global.repartitioningStrategy.equals("threshold")) {
+							Global.LOGGER.info("-----------------------------------------------------------------------------");
+							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
+							Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
+							Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the threshold DTI of "+WorkloadExecutor.IDtThreshold+".");
+						} else if(Global.repartitioningStrategy.equals("hourly")){
+							Global.LOGGER.info("-----------------------------------------------------------------------------");
+							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
+							Global.LOGGER.info("Hourly repartitioning will take place now.");
+						}
+						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
 						Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
@@ -555,9 +559,11 @@ class Arrival extends Event {
 						Global.LOGGER.info("-----------------------------------------------------------------------------");												
 						WorkloadExecutor.collectStatistics(cluster, wb);
 						
-						WorkloadExecutor.IDtThresholdReset = true;
-						WorkloadExecutor.IDtThresholdResetWaitingPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
-						Global.LOGGER.info("IDt threshold will reset at "+WorkloadExecutor.IDtThresholdResetWaitingPeriod/(double)Global.observationWindow+" hrs after 1 hr cooling off period.");						
+						if(Global.repartitioningStrategy.equals("threshold")) {
+							WorkloadExecutor.IDtThresholdReset = true;
+							WorkloadExecutor.IDtThresholdResetWaitingPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
+							Global.LOGGER.info("IDt threshold will reset at "+WorkloadExecutor.IDtThresholdResetWaitingPeriod/(double)Global.observationWindow+" hrs after 1 hr cooling off period.");
+						}
 						
 						// Tracking the exacting repartitioning point
 						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
@@ -592,6 +598,29 @@ class Arrival extends Event {
 				WorkloadExecutor.collectHourlyStatistics(cluster, wb);				
 			}
 		}
+	}
+	
+	private boolean isRepartRequired() {
+		switch(Global.repartitioningStrategy) {
+			case "hourly":
+				if(Sim.time() >= Global.nextCollection)
+					return true;
+				
+				break;
+			
+			case "threshold":
+				if(WorkloadExecutor.currentIDt > WorkloadExecutor.IDtThreshold 
+						&& !WorkloadExecutor.IDtThresholdReset)
+					return true;
+				
+				break;
+			
+			default:
+				Global.LOGGER.error("");
+				break;
+		}
+		
+		return false;
 	}
 }
 
