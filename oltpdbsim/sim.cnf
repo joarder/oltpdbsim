@@ -1,4 +1,4 @@
-simulation.name=C-T-HGR-MSM-Basic
+simulation.name=C-T-HGR-Improved_MC-Basic
 
 setup=consistenthash
 repartitioning.strategy=threshold
@@ -12,7 +12,7 @@ workload.representation=hgr
 transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=msm
+data.migration.strategy=improved_mc
 
 compression.enabled=false
 compression.before.setup=false
@@ -23,18 +23,18 @@ server.capacity=100000
 fixed.partitions=16
 number.of.replicas=1
 
-simulation.period=97200
+simulation.period=10800
 warmup.period=3600
 
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
-percentage.change.in.workload=0.1
+percentage.change.in.workload=0.15
 adjustment=0.4
 observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
-percentage.idt.threshold.inc=0.01
+admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5

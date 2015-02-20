@@ -59,7 +59,8 @@ public class WorkloadBatch {
 	private PrintWriter wrl_prWriter;
 	private PrintWriter miner_prWriter;
 	
-	// Performance metrics	
+	// Performance metrics
+	private double idt;
 	private int _tr_nums;
 	private int _old_dt_nums;
 	private int _dt_nums;
@@ -72,7 +73,6 @@ public class WorkloadBatch {
 	private double _response_time;
 	private double _percentage_dt;
 	private double _percentage_ndt;
-	private double _percentage_change_in_dt;
 	private int _intra_dmv;
 	private int _inter_dmv;
 	private double _percentage_intra_dmv;
@@ -246,12 +246,12 @@ public class WorkloadBatch {
 		this._percentage_ndt = wrl_percentage_ndt;
 	}
 
-	public double get_percentage_change_in_dt() {
-		return _percentage_change_in_dt;
+	public double getIdt() {
+		return idt;
 	}
 
-	public void set_percentage_change_in_dt(double _percentage_change_in_dt) {
-		this._percentage_change_in_dt = _percentage_change_in_dt;
+	public void setIdt(double idt) {
+		this.idt = idt;
 	}
 
 	public double get_throughput() {
@@ -380,15 +380,6 @@ public class WorkloadBatch {
 		double response_time = Math.round(((double) total_response_time 
 				/ (double) total_transactions) * 100.00) / 100.00;
 		this.set_response_time(response_time);
-	}		
-	
-	public void calculatePercentageChangeInDt() {
-		double val = (double) (this.get_dt_new() - this.get_dt_original()) 
-				/ (double) this.get_dt_original();
-				
-		double _change = Math.round(val * 100.0) / 100.0;
-		
-		this.set_percentage_change_in_dt(_change);
 	}
 	
 	// Adding a hyperedge from a single transaction
@@ -545,14 +536,6 @@ public class WorkloadBatch {
 		this.set_edges_in_cut(dt_nums);
 		this.set_dt_nums(dt_nums);
 		this.set_ndt_nums(ndt_nums);
-		
-//		Global.LOGGER.info("Number of Transactions after statistic collection: "+this.get_tr_nums());
-//		Global.LOGGER.info("Number of DTs after statistic collection: "+this.get_dt_nums());
-//		Global.LOGGER.info("Number of non-DTs after statistic collection: "+this.get_ndt_nums());
-//		Global.LOGGER.info("--------------------------------------------");
-//		Global.LOGGER.info("Number of DTs removed before statistic collection: "+this.get_old_dt_nums());
-//		Global.LOGGER.info("Number of non-DTs removed before statistic collection: "+this.get_old_ndt_nums());
-//		Global.LOGGER.info("--------------------------------------------");
 		
 		if(this.get_dt_nums() != 0)
 			dt_percentage = ((double)(dt_nums + this.get_old_dt_nums()) 

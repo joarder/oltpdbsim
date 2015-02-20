@@ -104,7 +104,7 @@ public final class Global implements java.io.Serializable {
     public static double compressionRatio;    
     
     public static int repartitioningCycle = 0;
-    public static double percentageIDtThresholdInc;
+    public static double userDefinedIDtThreshold;
     
     // TPC-C specific
     public static final int[] tpccTrTypes = {1, 2, 3, 4, 5};

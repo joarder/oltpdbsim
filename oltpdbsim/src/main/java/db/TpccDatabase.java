@@ -1,5 +1,7 @@
 package main.java.db;
 
+import org.apache.commons.math3.distribution.ZipfDistribution;
+
 import main.java.entry.Global;
 import main.java.workload.TpccWorkload;
 
@@ -22,10 +24,18 @@ public class TpccDatabase extends Database {
 			Table tbl = new Table(tbl_id, tpcc.tbl_types.get(tbl_id), table_names[tbl_id-1]);			
 			
 			// Set TPCC table ranks for Warehouse and Item tables
-			if(tbl.getTbl_id() == 1)
+			if(tbl.getTbl_id() == 1) {
 				tbl.setTbl_data_rank(new int[tpcc.warehouses + 1]);
-			else if(tbl.getTbl_id() == 2)
+				//new
+				tbl.zipfDistribution = new ZipfDistribution(tpcc.warehouses, 2.0); // exponent = 2.0
+				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+				
+			} else if(tbl.getTbl_id() == 2) {
 				tbl.setTbl_data_rank(new int[((int) (100000 * tpcc.scale)) + 1]);
+				//new
+				tbl.zipfDistribution = new ZipfDistribution(((int) (100000 * tpcc.scale)), 2.0); // exponent = 2.0
+				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);				
+			}
 			
 			this.getDb_tables().put(tbl_id, tbl);			
 			

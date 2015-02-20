@@ -51,9 +51,6 @@ public class Main {
 					
 					// Populate initial Database
 					tpccDatabase.populate();
-														
-					// Assign Data popularity for Primary tables only
-					tpcc.generateDataPopularity(tpccDatabase);
 					
 					// Warm up					
 					dbCluster.warmup(tpccDatabase, tpcc);

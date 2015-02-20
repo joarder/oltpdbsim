@@ -131,7 +131,7 @@ public class ReadConfig {
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
 				if(Global.incrementalRepartitioning)
-					Global.percentageIDtThresholdInc = Double.parseDouble((String) config_param.getProperty("percentage.idt.threshold.inc"));
+					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("admin.idt.threshold"));
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);

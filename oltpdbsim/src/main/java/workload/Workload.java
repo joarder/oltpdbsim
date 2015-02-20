@@ -9,20 +9,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.Map.Entry;
-
 import main.java.cluster.Cluster;
 import main.java.cluster.Server;
 import main.java.db.Tuple;
 import main.java.db.Database;
-import main.java.db.Table;
 import main.java.entry.Global;
 import main.java.utils.graph.SimpleVertex;
-
 import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.math3.distribution.ZipfDistribution;
 
 public class Workload implements java.io.Serializable {	
 
@@ -99,39 +94,6 @@ public class Workload implements java.io.Serializable {
 	// Generate data set and create a new Transaction
 	public Set<Integer> getTrTupleSet(Database db, int type) {		
 		return this.getTrTupleSet(db, type);		
-	}
-	
-	//Generates Zipf Ranks for the Primary Tables
-	public void generateDataPopularity(Database db) {
-		
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Generating data popularity profiles for primary tables ...");
-		
-		double exponent = 2.0; // 2~3
-		
-		for(Entry<Integer, Table> tbl_entry : db.getDb_tables().entrySet()) {
-			
-			Table tbl = tbl_entry.getValue();
-			
-	    	if(tbl.getTbl_type() == 0)
-	    		this.getZipfProbability(tbl, exponent);	    	
-		}
-		
-		Global.LOGGER.info("Data popularity profile generation has been completed.");
-	}
-	
-	// Calculate Zipf probability P(X = x) for all the Data tuples in a Table following Zipf Distribution	
-	private void getZipfProbability(Table tbl, double exponent) {		
-		ZipfDistribution zipf = new ZipfDistribution(tbl.getTbl_init_tuples(), exponent);
-		zipf.reseedRandomGenerator(Global.repeated_runs);
-		
-		int d = 1;	
-		for(Entry<Integer, Tuple> data : tbl.getTbl_tuples().entrySet()) {
-			tbl.getTbl_dataRank()[(d % tbl.getTbl_tuples().size())+1] 
-					= data.getValue().getTuple_pk();
-			
-			d++;
-		}			
 	}
 	
 	public static Set<Integer> getTrDataSet(Database db, Cluster cluster, WorkloadBatch wb, 

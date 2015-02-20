@@ -515,7 +515,7 @@ public class Cluster {
 //====================================================================================================	
 	public void warmup(Database db, Workload wrl) {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Warming up the database ...");
+		Global.LOGGER.info("Warming up the workload ...");
 		Global.LOGGER.info("Targeting "+1000+" transaction generation ...");		
 
 		wrl.warmingup = true;

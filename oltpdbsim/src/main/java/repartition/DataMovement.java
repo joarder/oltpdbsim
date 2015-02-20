@@ -6,6 +6,8 @@
 
 package main.java.repartition;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -21,6 +23,7 @@ import main.java.entry.Global;
 import main.java.utils.IntPair;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
+import main.java.utils.Utility;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
@@ -57,6 +60,11 @@ public class DataMovement {
 			case "mc":
 				Global.LOGGER.info("Applying Max Column Strategy (MC) ...");
 				strategyMC(cluster, wb, partitioner);							
+				break;
+			
+			case "improved_mc":
+				Global.LOGGER.info("Applying Improved Max Column Strategy (MC) ...");
+				strategyImprovedMC(cluster, wb, partitioner);							
 				break;
 				
 			case "msm":
@@ -102,7 +110,7 @@ public class DataMovement {
 		message();
 		mapping.print();
 		
-		// Random assignment		
+		// Random assignment of which Cluster will go to which Partition
 		int[] arr = new int[mapping.getN()];
 		for (int i = 1; i <= arr.length-1; i++) {
 		    arr[i] = i;
@@ -142,6 +150,46 @@ public class DataMovement {
 		MatrixElement colMax;
 		for(int col = 1; col < mapping.getN(); col++) {
 			colMax = mapping.findColMax(col);
+			keyMap.put(colMax.getCol_pos(), colMax.getRow_pos()); // which cluster will go to which partition
+			//System.out.println("-#-Col("+col+") [ACT] C"+(colMax.getCol_pos())+"|P"+(colMax.getRow_pos()));
+		}
+		
+		// Perform Actual Data Movement
+		move(cluster, wb, keyMap, partitioner);	
+	}
+	
+	private static void strategyImprovedMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
+		setEnvironment(cluster);
+		
+		// Create Mapping Matrix
+		MappingTable mappingTable = new MappingTable();		
+		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
+		message();
+		mapping.print();
+		
+		// Create Key-Value (Destination PID-Cluster ID) Mappings from Mapping Matrix
+		Map<Integer, Integer> keyMap = new TreeMap<Integer, Integer>();
+		Map<Integer, MatrixElement> colMaxSet; // Will hold a map containing partition id and max value matrix element
+		
+		for(int col = 1; col < mapping.getN(); col++) {
+			// Get the Set of all Partitions having the max count in this Column
+			colMaxSet = mapping.findColMaxSet(col);
+			
+			// Sort the Partitions based on their size
+			Map<Integer, Integer> partitionSet = new HashMap<Integer, Integer>();
+			for(Entry<Integer, MatrixElement> entry : colMaxSet.entrySet()) {
+				Partition p = cluster.getPartition(entry.getKey());
+				int p_size = p.getPartition_dataSet().size();
+				partitionSet.put(p.getPartition_id(), p_size);
+			}
+			
+			// Sort by value in ascending order
+			List<Entry<Integer, Integer>> sortedPartitionSet = Utility.sortedByValuesAsc(partitionSet);
+			Entry<Integer, Integer> selectedPartition = sortedPartitionSet.get(0);
+			
+			// Select the Partition having lowest size
+			MatrixElement colMax = colMaxSet.get(selectedPartition.getKey());
+			
 			keyMap.put(colMax.getCol_pos(), colMax.getRow_pos()); // which cluster will go to which partition
 			//System.out.println("-#-Col("+col+") [ACT] C"+(colMax.getCol_pos())+"|P"+(colMax.getRow_pos()));
 		}

@@ -282,7 +282,7 @@ public class Utility {
 	    return sortedByValues;
 	}
 	
-	public static <K,V extends Comparable<? super V>> List<Entry<K, V>> sortedByValues(Map<K,V> map) {
+	public static <K,V extends Comparable<? super V>> List<Entry<K, V>> sortedByValuesAsc(Map<K,V> map) {
 
 		List<Entry<K,V>> sortedEntries = new ArrayList<Entry<K,V>>(map.entrySet());
 
@@ -290,7 +290,7 @@ public class Utility {
 			{
 				@Override
 				public int compare(Entry<K,V> e1, Entry<K,V> e2) {
-					return e2.getValue().compareTo(e1.getValue());
+					return e1.getValue().compareTo(e2.getValue()); // Ascending Order
 				}
 			}
 		);

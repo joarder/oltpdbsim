@@ -29,6 +29,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
+import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.db.Database;
 import main.java.entry.Global;
@@ -67,7 +68,7 @@ public class WorkloadExecutor {
 	static boolean warmingUp = true;
     static boolean changeDetected = false;
     static boolean noChangeIsRequired = false;
-    static boolean IDtThresholdReset = false;
+    static boolean repartitioningCoolingOff = false;
 	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
@@ -77,8 +78,7 @@ public class WorkloadExecutor {
 	static int _W = 0;
 	
 	static double currentIDt = 0.0;
-	static double IDtThreshold = 0.0;
-	static double IDtThresholdResetWaitingPeriod = Global.observationWindow;
+	static double RepartitioningCoolingOffPeriod = Global.observationWindow;
 	
 	// Seed
 	static long[] seed = new long[10];
@@ -90,8 +90,8 @@ public class WorkloadExecutor {
     public WorkloadExecutor() {
         
         MRG32k3a rand = new MRG32k3a();                
-        for(int i = 0; i < 5; i++)
-        	seed[i] = (long) Global.repeated_runs + i;
+        for(int i = 0; i < 4; i++)
+        	seed[i] = 1; //(long) Global.repeated_runs + i;
 
         rand.setSeed(seed);
         
@@ -260,18 +260,21 @@ public class WorkloadExecutor {
 			perfm.I_Dt.put((_i - _W), i_dt);
 			currentIDt = i_dt;
 			
-			// Resetting IDt Threshold
-			if(WorkloadExecutor.IDtThresholdReset && Sim.time() >= WorkloadExecutor.IDtThresholdResetWaitingPeriod) {
-				double old_IDtThreshold = WorkloadExecutor.IDtThreshold; 
+			// Resetting repartitioning cooling off period
+			if(WorkloadExecutor.repartitioningCoolingOff && Sim.time() >= WorkloadExecutor.RepartitioningCoolingOffPeriod) {
 				
-				WorkloadExecutor.IDtThreshold = currentIDt + currentIDt*Global.percentageIDtThresholdInc;				
-				WorkloadExecutor.IDtThresholdReset = false;
+				WorkloadExecutor.repartitioningCoolingOff = false;				
 				
-				Global.LOGGER.info("-----------------------------------------------------------------------------");				
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
+				Global.LOGGER.info("Repartitioning cooling off period ends.");
+				Global.LOGGER.info("System will now check whether another repartitioning is required at this moment.");
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 				Global.LOGGER.info("Current IDt: "+currentIDt);
-				Global.LOGGER.info("User defined increment to IDt threshold: "+Global.percentageIDtThresholdInc*100+"%");
-				Global.LOGGER.info("IDt threshold has been reset to "+WorkloadExecutor.IDtThreshold+" from previous threshold of "+old_IDtThreshold);
+				Global.LOGGER.info("User defined IDt threshold: "+Global.userDefinedIDtThreshold);
+				
+				// Collect statistics after repartitioning cooling off period
+				WorkloadExecutor.collectStatistics(cluster, wb);
 			}
 			
 			perfm.time.put((_i - _W), Sim.time());		
@@ -348,6 +351,7 @@ public class WorkloadExecutor {
 		if(!WorkloadExecutor.noChangeIsRequired) { 
 			cluster.updateLoad();
 
+			wb.setIdt(currentIDt);
 			wb.calculateDTI(cluster);		
 			wb.calculateThroughput(Global.total_transactions);
 				
@@ -362,6 +366,11 @@ public class WorkloadExecutor {
 			for(Server s : cluster.getServers()) { 
 				s.setServer_inflow(0);
 				s.setServer_outflow(0);
+			}
+			
+			for(Partition p : cluster.getPartitions()) {
+				p.setPartition_inflow(0);
+				p.setPartition_outflow(0);
 			}
 			
 			// Always schedule an hourly collection
@@ -470,7 +479,6 @@ class Arrival extends Event {
 			Global.LOGGER.info("Database finished warming up.");
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
-			WorkloadExecutor.IDtThreshold = WorkloadExecutor.currentIDt;
 			WorkloadExecutor.warmingUp = false;
 		}
 		
@@ -502,20 +510,24 @@ class Arrival extends Event {
 		if(!WorkloadExecutor.warmingUp) {
 			wb.set_tr_nums(wb.hgr.getEdgeCount());
 			
-			if(Global.workloadAware) {				
-				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning					
-					if(isRepartRequired()) {						
+			if(Global.workloadAware) {
+				
+				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
+					
+					if(isRepartRequired()) { // Checks for both Hourly and Threshold-based repartitioning						
 						++Global.repartitioningCycle;
 						
 						if(Global.repartitioningStrategy.equals("threshold")) {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 							Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
-							Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the threshold DTI of "+WorkloadExecutor.IDtThreshold+".");
+							Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the user defined threshold DTI of "+Global.userDefinedIDtThreshold+".");
+							Global.LOGGER.info("Repartitioning will start now ...");
+							
 						} else if(Global.repartitioningStrategy.equals("hourly")){
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
-							Global.LOGGER.info("Hourly repartitioning will take place now.");
+							Global.LOGGER.info("Hourly repartitioning will start now ...");
 						}
 						
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -560,16 +572,24 @@ class Arrival extends Event {
 						WorkloadExecutor.collectStatistics(cluster, wb);
 						
 						if(Global.repartitioningStrategy.equals("threshold")) {
-							WorkloadExecutor.IDtThresholdReset = true;
-							WorkloadExecutor.IDtThresholdResetWaitingPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
-							Global.LOGGER.info("IDt threshold will reset at "+WorkloadExecutor.IDtThresholdResetWaitingPeriod/(double)Global.observationWindow+" hrs after 1 hr cooling off period.");
+							WorkloadExecutor.repartitioningCoolingOff = true;
+							WorkloadExecutor.RepartitioningCoolingOffPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
+
+							Global.LOGGER.info("-----------------------------------------------------------------------------");
+							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
+							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 						}
 						
 						// Tracking the exacting repartitioning point
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
 						
 					} else {
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
+						
+						// Hourly statistic collection
+						//Global.LOGGER.info("-----------------------------------------------------------------------------");
+						//Global.LOGGER.info("No repartitioning is required at this moment.");
+						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 					}
 					
 				} else { // 2. Static Repartitioning
@@ -585,17 +605,27 @@ class Arrival extends Event {
 						DataMovement.performDataMovement(cluster, wb);
 						
 						WorkloadExecutor.collectStatistics(cluster, wb);
-						Global.staticRun = false;						
+						Global.staticRun = false;
 						
-					} else 
+						// Tracking the exacting repartitioning point
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
+						
+					} else { 
 						// Hourly statistic collection
-						WorkloadExecutor.collectHourlyStatistics(cluster, wb);					
+						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+						
+						// Tracking the exacting repartitioning point
+						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
+					}
 				}
 				
 			} else { // 1. Baseline
 				
 				// Hourly statistic collection
-				WorkloadExecutor.collectHourlyStatistics(cluster, wb);				
+				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+				
+				// Tracking the exacting repartitioning point
+				WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
 			}
 		}
 	}
@@ -609,14 +639,14 @@ class Arrival extends Event {
 				break;
 			
 			case "threshold":
-				if(WorkloadExecutor.currentIDt > WorkloadExecutor.IDtThreshold 
-						&& !WorkloadExecutor.IDtThresholdReset)
+				if(WorkloadExecutor.currentIDt > Global.userDefinedIDtThreshold 
+						&& !WorkloadExecutor.repartitioningCoolingOff)					
 					return true;
 				
 				break;
 			
 			default:
-				Global.LOGGER.error("");
+				Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");
 				break;
 		}
 		

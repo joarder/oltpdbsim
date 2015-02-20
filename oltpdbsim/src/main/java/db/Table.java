@@ -16,6 +16,7 @@ import main.java.entry.Global;
 import main.java.utils.Utility;
 
 import org.apache.commons.collections4.map.MultiKeyMap;
+import org.apache.commons.math3.distribution.ZipfDistribution;
 
 public class Table implements Comparable<Table>, java.io.Serializable {
 
@@ -29,6 +30,7 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 	private SortedSet<Integer> tbl_foreign_tables;
 	private int[] tbl_tuple_rank;
 	private int tbl_last_entry;
+	public ZipfDistribution zipfDistribution;
 	
 	// Indexes
 	private Map<Integer, ArrayList<Integer>> idx_multivalue_secondary; // For Secondary Tables

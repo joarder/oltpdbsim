@@ -326,6 +326,23 @@ final public class Matrix {
     }    
     
     // Find Max counts in a specific column of the Matrix
+    // In case of multiple max values in a Column this function will return all of them with their corresponding row id (i.e Partition id)
+    public Map<Integer, MatrixElement> findColMaxSet(int col) {
+    	double max = 0;
+    	Map<Integer, MatrixElement> e_max = new HashMap<Integer, MatrixElement>();
+    	
+    	for(int row = 1; row < this.getM(); row++) {
+    		//System.out.println("-#-r"+row+"c"+col);
+    		if(max <= matrix[row][col].getValue()) {
+    			max = matrix[row][col].getValue();
+    			e_max.put(row, matrix[row][col]);
+    		}
+    	}
+    	
+    	return e_max;
+    }
+    
+    // Find Max counts in a specific column of the Matrix
     public MatrixElement findColMax(int col) {
     	double max = 0;
     	MatrixElement e = null;

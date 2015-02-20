@@ -24,7 +24,7 @@ public class Data implements Comparable<Data> {
 	private int data_home_server_id;				// Original Home Server Id
 	// Roaming Attributes
 	private boolean data_isRoaming;
-	private boolean data_isMoveable;	
+	private boolean data_isMoveable;
 	
 	public Data(int d_id, int t_id, int v_id, int p_id, int s_id) {
 		this.setData_id(d_id);

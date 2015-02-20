@@ -4,11 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
-
 import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -148,7 +146,7 @@ public class TpccWorkload extends Workload {
 		
 		int tuple_nums, action = 0; 
 		int tpl_pk = Global.global_tupleSeq;
-		int _w_rank, _i_rank, d_id = 0;
+		int d_id = 0;
 		int _w = 1, _i = 1, _d = 1, _s = 1, _c = 1, _o = 1, _no = 1, _ol = 1, cache_key = 1;
 		
 		//System.out.println("--> Generating a transaction of type "+tr_type+" ...");
@@ -173,17 +171,15 @@ public class TpccWorkload extends Workload {
 							//================new
 							switch(tbl.getTbl_name()) {
 								case "Warehouse":
-									_w_rank = Global.rdg.nextZipf(tbl.getTbl_tuples().size(), 2.0);
-									_w = tbl.getTbl_dataRank()[_w_rank];
+									_w = tbl.zipfDistribution.sample();
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_w);
 									
 									//System.out.println("\t\t--> W("+_w+")");
 									break;
 									
-								case "Item":									
-									_i_rank = Global.rdg.nextZipf(tbl.getTbl_tuples().size(), 2.0);
-									_i = tbl.getTbl_dataRank()[_i_rank];
+								case "Item":
+									_i = tbl.zipfDistribution.sample();
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_i);
 									
@@ -192,14 +188,13 @@ public class TpccWorkload extends Workload {
 									
 								case "District":
 									if(tr_type <= 1 || this._cache.isEmpty()) {
-									//if(Global.global_trSeq < 1000) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_w);
 										tupleList = tbl.getTableData(keyList);										
 										_d = tupleList.get(1);
 									} else {
-										Collections.shuffle(this._cache_keys);
-										cache_key = this._cache_keys.get(0);
+										int index = Global.rand.nextInt(_cache.size());
+										cache_key = this._cache_keys.get(index);
 										_cache_items = this._cache.get(cache_key);
 										
 										_d = _cache_items.get(0);
@@ -220,7 +215,6 @@ public class TpccWorkload extends Workload {
 									
 								case "Stock":
 									if(tr_type <= 1 || this._cache.isEmpty()) {
-									//if(Global.global_trSeq < 1000) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_w);
 										keyList.add(_i);
@@ -236,16 +230,14 @@ public class TpccWorkload extends Workload {
 									
 								case "Customer": // District Table
 									if(tr_type <= 1 || this._cache.isEmpty()) {
-									//if(Global.global_trSeq < 1000) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_d);
 										tupleList = tbl.getTableData(keyList);
 										_c = tupleList.get(1);										
 									} else {										
 										_cache_items = new ArrayList<Integer>();
-										//index = DBMSSimulator.random.nextInt(_cache.size());
-										Collections.shuffle(this._cache_keys);
-										cache_key = this._cache_keys.get(0);										
+										int index = Global.rand.nextInt(_cache.size());
+										cache_key = this._cache_keys.get(index);									
 										_cache_items = this._cache.get(cache_key);
 										
 										_d = _cache_items.get(0);
@@ -270,7 +262,6 @@ public class TpccWorkload extends Workload {
 									
 								case "Orders":
 									if(tr_type <= 1 || this._cache.isEmpty()) {
-									//if(Global.global_trSeq < 1000) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_c);
 										tupleList = tbl.getTableData(keyList);

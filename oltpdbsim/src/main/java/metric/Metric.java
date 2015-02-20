@@ -23,6 +23,7 @@ public class Metric implements java.io.Serializable {
 	
 	public static ArrayList<Double> mean_throughput;
 	
+	public static ArrayList<Double> idt;
 	public static ArrayList<Double> percentage_dt;
 	public static ArrayList<Double> percentage_ndt;
 	
@@ -59,6 +60,7 @@ public class Metric implements java.io.Serializable {
 		
 		mean_throughput = new ArrayList<Double>();
 		
+		idt = new ArrayList<Double>();
 		percentage_dt = new ArrayList<Double>();
 		percentage_ndt = new ArrayList<Double>();
 		
@@ -99,10 +101,11 @@ public class Metric implements java.io.Serializable {
 	
 	public static void collect(Cluster cluster, WorkloadBatch wb) {
 				
-		time.add(Sim.time());
+		time.add(Sim.time()/(double)Global.observationWindow);
 		
 		mean_throughput.add(wb.get_throughput());
-	
+
+		idt.add(wb.getIdt());
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
 		
@@ -182,6 +185,7 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("IDt: "+idt);
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
 		Global.LOGGER.info("_____________________________________________________________________________");
@@ -208,14 +212,9 @@ public class Metric implements java.io.Serializable {
 		
 		try {
 			prWriter.append(index+" ");
+			
 			prWriter.append(time.get(index)+" ");
-			prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");
-			prWriter.append(percentage_dt.get(index)+" ");
-			prWriter.append(mean_partition_inflow.get(index)+" ");
-			prWriter.append(mean_partition_outflow.get(index)+" ");
-			prWriter.append(mean_partition_data.get(index)+" ");
-			prWriter.append(sd_partition_data.get(index)+" ");
 			prWriter.append(mean_server_inflow.get(index)+" ");
 			prWriter.append(mean_server_outflow.get(index)+" ");
 			prWriter.append(mean_server_data.get(index)+" ");
@@ -223,6 +222,13 @@ public class Metric implements java.io.Serializable {
 			prWriter.append(intra_server_dmv.get(index)+" ");
 			prWriter.append(inter_server_dmv.get(index)+" ");			
 			prWriter.append(total_data.get(index)+"\n");
+			
+			prWriter.append(mean_throughput.get(index)+" ");			
+			prWriter.append(percentage_dt.get(index)+" ");
+			prWriter.append(mean_partition_inflow.get(index)+" ");
+			prWriter.append(mean_partition_outflow.get(index)+" ");
+			prWriter.append(mean_partition_data.get(index)+" ");
+			prWriter.append(sd_partition_data.get(index)+" ");			
 			
 		} finally {
 			prWriter.close();
