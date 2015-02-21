@@ -10,7 +10,7 @@ public class CompressedHEdge extends SimpleHEdge {
 	private double c_e; // Contribution of each hyperedge e in H_cut towards total number of distributed transactions seen so far
 	private double ndt_e;
 	
-	public CompressedHEdge(int id, double d) {
+	public CompressedHEdge(int id, int d) {
 		super(id, d);		
 		HSet = new HashMap<Integer, SimpleHEdge>();
 		c_e = 0.0;

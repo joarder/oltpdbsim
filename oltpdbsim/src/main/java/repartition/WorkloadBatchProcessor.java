@@ -104,7 +104,7 @@ public class WorkloadBatchProcessor {
 					// Writing hyperedge weights and incident vertex ids
 					for(SimpleHEdge e : wb.hgr.getEdges()) {
 						
-						String e_weight = Integer.toString(scale(e.getWeight()));
+						String e_weight = Integer.toString(e.getWeight());
 						writer.write(e_weight+" ");
 						
 						Iterator<SimpleVertex> e_itr =  wb.hgr.getIncidentVertices(e).iterator();
@@ -210,7 +210,7 @@ public class WorkloadBatchProcessor {
 					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : vedge.entrySet()) {
 						
 						// Writing e' weight						
-						writer.write(Integer.toString(scale(entry.getKey().getWeight()))+" ");
+						writer.write(Integer.toString(entry.getKey().getWeight())+" ");
 								
 						// Writing v' incident on e'
 						Iterator<CompressedVertex> cv_itr =  entry.getValue().iterator();
@@ -281,7 +281,7 @@ public class WorkloadBatchProcessor {
 					++edges;
 										
 					String _id = Integer.toString(vertex_id_map.get(_v.getId()));
-					String _edge_weight = Integer.toString(scale(_h.getWeight()));
+					String _edge_weight = Integer.toString(_h.getWeight());
 					
 					str += _id+" "+_edge_weight+" ";
 				}
@@ -405,15 +405,5 @@ public class WorkloadBatchProcessor {
 				}
 			} // end -- for()-Data
 		} // end -- for()-Transaction		
-	}
-	
-	static int scale(double x) {
-		double min = 0;
-		double max = 1;
-		
-		double a = 1;
-		double b = 10000; // Based on an estimation, the frequency values will not go below this
-		
-		return (int) ((((b-a)*(x-min))/(max-min))+a);
 	}
 }

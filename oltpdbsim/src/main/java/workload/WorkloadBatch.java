@@ -386,7 +386,7 @@ public class WorkloadBatch {
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		double tr_frequency = 1/tr.getTr_period();
+		int tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
 				
 		if(h != null)
 			h.setWeight(tr_frequency);			

@@ -3,9 +3,9 @@ package main.java.utils.graph;
 public class SimpleHEdge implements Comparable<SimpleHEdge> {
 
 	private int id;
-	private double weight;
+	private int weight;
 	
-	public SimpleHEdge(int id, double weight) {
+	public SimpleHEdge(int id, int weight) {
 		this.setId(id);
 		this.setWeight(weight);
 	}
@@ -18,11 +18,11 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 		this.id = id;
 	}
 	
-	public double getWeight() {
+	public int getWeight() {
 		return weight;
 	}
 	
-	public void setWeight(double tr_frequency) {
+	public void setWeight(int tr_frequency) {
 		this.weight = tr_frequency;
 	}
 	
