@@ -16,7 +16,6 @@ public class PerfMetric {
 	public Map<Integer, Double> time;
 	public Map<Integer, Double> I_Dt;
 	public Map<Integer, Integer> Unqlen;
-	public Map<Integer, Integer> Repartition;
 	
 	// For unique transactions | perf2
 	public Map<Integer, Double> Period;
@@ -33,7 +32,6 @@ public class PerfMetric {
 		time = new HashMap<Integer, Double>();
 		I_Dt = new HashMap<Integer, Double>();
 		Unqlen = new HashMap<Integer, Integer>();
-		Repartition = new HashMap<Integer, Integer>();
 		
 		// For unique transactions | perf2
 		Period = new HashMap<Integer, Double>(); // Holds inter-repetition intervals
@@ -69,8 +67,7 @@ public class PerfMetric {
 			for(Entry<Integer, Double> entry : time.entrySet()) {
 				prWriter1.print(entry.getValue()+" ");
 				prWriter1.print(I_Dt.get(entry.getKey())+" ");
-				prWriter1.print(Unqlen.get(entry.getKey())+" ");
-				prWriter1.print(Repartition.get(entry.getKey()));
+				prWriter1.print(Unqlen.get(entry.getKey()));
 				prWriter1.println();
 			}
 		} finally {

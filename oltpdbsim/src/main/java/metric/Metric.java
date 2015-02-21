@@ -211,24 +211,24 @@ public class Metric implements java.io.Serializable {
 		prWriter = Utility.getPrintWriter(Global.metric_dir, file);
 		
 		try {
-			prWriter.append(index+" ");
-			
+			prWriter.append(index+" ");			
 			prWriter.append(time.get(index)+" ");
-			prWriter.append(current_dt.get(index)+" ");
-			prWriter.append(mean_server_inflow.get(index)+" ");
-			prWriter.append(mean_server_outflow.get(index)+" ");
+			prWriter.append(idt.get(index)+" ");
+			prWriter.append(mean_server_inflow.get(index)+" ");			
 			prWriter.append(mean_server_data.get(index)+" ");
-			prWriter.append(sd_server_data.get(index)+" ");
-			prWriter.append(intra_server_dmv.get(index)+" ");
-			prWriter.append(inter_server_dmv.get(index)+" ");			
+			prWriter.append(sd_server_data.get(index)+" ");			
+			prWriter.append(inter_server_dmv.get(index)+" ");		
 			prWriter.append(total_data.get(index)+"\n");
 			
-			prWriter.append(mean_throughput.get(index)+" ");			
+			/*prWriter.append(mean_throughput.get(index)+" ");
+			prWriter.append(current_dt.get(index)+" ");
 			prWriter.append(percentage_dt.get(index)+" ");
+			prWriter.append(mean_server_outflow.get(index)+" ");
+			prWriter.append(intra_server_dmv.get(index)+" ");
 			prWriter.append(mean_partition_inflow.get(index)+" ");
 			prWriter.append(mean_partition_outflow.get(index)+" ");
 			prWriter.append(mean_partition_data.get(index)+" ");
-			prWriter.append(sd_partition_data.get(index)+" ");			
+			prWriter.append(sd_partition_data.get(index)+" ");*/			
 			
 		} finally {
 			prWriter.close();

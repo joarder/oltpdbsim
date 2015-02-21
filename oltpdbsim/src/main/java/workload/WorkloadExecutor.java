@@ -342,8 +342,8 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" hrs");		
 					
 		// Statistic preparation, calculation, and reporting		
-		//collectStatistics(cluster, wb);
-		//cluster.show();		
+		collectStatistics(cluster, wb);
+		cluster.show();		
 		perfm.write();
 	}	
 	
@@ -480,6 +480,11 @@ class Arrival extends Event {
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
 			WorkloadExecutor.warmingUp = false;
+			WorkloadExecutor.collectStatistics(cluster, wb);
+			
+		} else if(WorkloadExecutor.warmingUp) {
+			// Hourly statistic collection
+			WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 		}
 		
 		/**
@@ -578,14 +583,9 @@ class Arrival extends Event {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
-						}
-						
-						// Tracking the exacting repartitioning point
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
+						}						
 						
 					} else {
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
-						
 						// Hourly statistic collection
 						//Global.LOGGER.info("-----------------------------------------------------------------------------");
 						//Global.LOGGER.info("No repartitioning is required at this moment.");
@@ -607,15 +607,9 @@ class Arrival extends Event {
 						WorkloadExecutor.collectStatistics(cluster, wb);
 						Global.staticRun = false;
 						
-						// Tracking the exacting repartitioning point
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 1);
-						
 					} else { 
 						// Hourly statistic collection
 						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
-						
-						// Tracking the exacting repartitioning point
-						WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
 					}
 				}
 				
@@ -623,9 +617,6 @@ class Arrival extends Event {
 				
 				// Hourly statistic collection
 				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
-				
-				// Tracking the exacting repartitioning point
-				WorkloadExecutor.perfm.Repartition.put((WorkloadExecutor._i - WorkloadExecutor._W), 0);
 			}
 		}
 	}
