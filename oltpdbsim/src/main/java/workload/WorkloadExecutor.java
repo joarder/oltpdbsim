@@ -69,6 +69,10 @@ public class WorkloadExecutor {
     static boolean changeDetected = false;
     static boolean noChangeIsRequired = false;
     static boolean repartitioningCoolingOff = false;
+    
+	static int uniqueMax;	
+	static double nextStatCollection = Global.observationWindow;
+	static double nextHourlyRepartition = Global.warmupPeriod;
 	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
@@ -98,8 +102,7 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 		
-		Global.uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);		
-		Global.nextCollection = Global.warmupPeriod;
+		WorkloadExecutor.uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -138,7 +141,7 @@ public class WorkloadExecutor {
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
 			
 // New improvements------------------------------------------------------------------------------
-			double initial_period = (double) Global.uniqueMax;
+			double initial_period = (double) WorkloadExecutor.uniqueMax;
 			perfm.Period.put(tr.getTr_id(), initial_period);	
 			tr.setTr_period(initial_period);
 			
@@ -267,14 +270,10 @@ public class WorkloadExecutor {
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Repartitioning cooling off period ends.");
-				Global.LOGGER.info("System will now check whether another repartitioning is required at this moment.");
-				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 				Global.LOGGER.info("Current IDt: "+currentIDt);
 				Global.LOGGER.info("User defined IDt threshold: "+Global.userDefinedIDtThreshold);
-				
-				// Collect statistics after repartitioning cooling off period
-				WorkloadExecutor.collectStatistics(cluster, wb);
+				Global.LOGGER.info("System will now check whether another repartitioning is required at this moment.");								
 			}
 			
 			perfm.time.put((_i - _W), Sim.time());		
@@ -339,14 +338,15 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total "+Global.total_transactions+" transactions have processed "
 				+ "by the Transaction Coordinator so far and of them "+Global.global_trSeq+" are unique.");
 		
-		Global.LOGGER.info("Total time: "+(Sim.time() / 3600)+" hrs");		
+		Global.LOGGER.info("Total time: "+(Sim.time()/Global.observationWindow)+" hrs");		
 					
 		// Statistic preparation, calculation, and reporting		
 		collectStatistics(cluster, wb);
 		cluster.show();		
 		perfm.write();
 	}	
-	
+
+	// On-repartition Statistics Collection
 	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
 		if(!WorkloadExecutor.noChangeIsRequired) { 
 			cluster.updateLoad();
@@ -371,18 +371,23 @@ public class WorkloadExecutor {
 			for(Partition p : cluster.getPartitions()) {
 				p.setPartition_inflow(0);
 				p.setPartition_outflow(0);
-			}
+			}						
 			
-			// Always schedule an hourly collection
-			Global.nextCollection += Global.observationWindow;
 			Global.LOGGER.info("=======================================================================================================================");
 		}
 	}
 	
-	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {		
-		if(Sim.time() >= Global.nextCollection) {			
-			Global.LOGGER.info("<-- Hourly Statistics -->");		
+	// Hourly Statistics Collection
+	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {	
+		
+		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {			
+			
+			Global.LOGGER.info("<-- Hourly Statistics -->");			
+			
 			WorkloadExecutor.collectStatistics(cluster, wb);
+			
+			// Always schedule an hourly collection
+			WorkloadExecutor.nextStatCollection += Global.observationWindow;
 		}
 	}
 	
@@ -425,6 +430,49 @@ public class WorkloadExecutor {
 			Global.LOGGER.info("Repartitioning run aborting ...");
 			Global.LOGGER.info("=======================================================================================================================");
 		}
+	}
+	
+	public static void startRepartitioning(Cluster cluster, WorkloadBatch wb) {
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
+		Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
+		Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());												
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Starting database repartitioning ...");
+		
+		//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
+		if(Global.enableTrClassification) {
+			Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+			
+			switch(Global.trClassificationStrategy) {
+				case "basic":
+					TransactionClassifier.classifyMovableDTs(cluster, wb);
+					break;
+					
+				case "fd":
+					Global.LOGGER.info("Discarding transactions which are not frequent ...");
+					TransactionClassifier.classifyMovableFD(cluster, wb);
+					break;
+					
+				case "fdfnd":
+					Global.LOGGER.info("Discarding transactions which are not frequent ...");
+					TransactionClassifier.classifyMovableFDFND(cluster, wb);
+					break;						
+			}
+		}
+		
+		Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
+				+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+
+		if(!Global.compressionBeforeSetup && !Global.dataMigrationStrategy.equals("methodX"))
+			WorkloadExecutor.runRepartitioner(cluster, wb);
+		
+		// Perform data movement
+		DataMovement.performDataMovement(cluster, wb);
+
+		Global.LOGGER.info("-----------------------------------------------------------------------------");												
+		WorkloadExecutor.collectStatistics(cluster, wb);
 	}
 	
 } // end-Class
@@ -472,6 +520,12 @@ class Arrival extends Event {
 			new Departure().schedule(tr.getTr_service_time());
 		}
 
+		// Hourly statistic collection while the database is warming up
+		if(WorkloadExecutor.warmingUp) {
+			if(!(Sim.time() >= Global.warmupPeriod))
+				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+		}
+		
 		// Checks when initial warm up state is reached
 		if(Sim.time() >= Global.warmupPeriod && WorkloadExecutor.warmingUp) {
 			
@@ -479,12 +533,7 @@ class Arrival extends Event {
 			Global.LOGGER.info("Database finished warming up.");
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
-			WorkloadExecutor.warmingUp = false;
-			WorkloadExecutor.collectStatistics(cluster, wb);
-			
-		} else if(WorkloadExecutor.warmingUp) {
-			// Hourly statistic collection
-			WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+			WorkloadExecutor.warmingUp = false;			
 		}
 		
 		/**
@@ -522,61 +571,23 @@ class Arrival extends Event {
 					if(isRepartRequired()) { // Checks for both Hourly and Threshold-based repartitioning						
 						++Global.repartitioningCycle;
 						
-						if(Global.repartitioningStrategy.equals("threshold")) {
+						if(Global.repartThreshold) {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 							Global.LOGGER.info("Significant increase in DTI has been detected !!!");			
 							Global.LOGGER.info("Current DTI is "+WorkloadExecutor.currentIDt+" which is above the user defined threshold DTI of "+Global.userDefinedIDtThreshold+".");
 							Global.LOGGER.info("Repartitioning will start now ...");
 							
-						} else if(Global.repartitioningStrategy.equals("hourly")){
+						} else if(Global.repartHourly){
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 							Global.LOGGER.info("Hourly repartitioning will start now ...");
 						}
 						
-						Global.LOGGER.info("-----------------------------------------------------------------------------");
-						Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
-						Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
-						Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());												
-						Global.LOGGER.info("-----------------------------------------------------------------------------");
-						Global.LOGGER.info("Starting database repartitioning ...");
+						// Repartition the database in an incremental manner
+						WorkloadExecutor.startRepartitioning(cluster, wb);
 						
-						//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
-						if(Global.enableTrClassification) {
-							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
-							
-							switch(Global.trClassificationStrategy) {
-								case "basic":
-									TransactionClassifier.classifyMovableDTs(cluster, wb);
-									break;
-									
-								case "fd":
-									Global.LOGGER.info("Discarding transactions which are not frequent ...");
-									TransactionClassifier.classifyMovableFD(cluster, wb);
-									break;
-									
-								case "fdfnd":
-									Global.LOGGER.info("Discarding transactions which are not frequent ...");
-									TransactionClassifier.classifyMovableFDFND(cluster, wb);
-									break;						
-							}
-						}
-						
-						Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
-								+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
-						Global.LOGGER.info("-----------------------------------------------------------------------------");
-
-						if(!Global.compressionBeforeSetup && !Global.dataMigrationStrategy.equals("methodX"))
-							WorkloadExecutor.runRepartitioner(cluster, wb);
-						
-						// Perform data movement
-						DataMovement.performDataMovement(cluster, wb);
-
-						Global.LOGGER.info("-----------------------------------------------------------------------------");												
-						WorkloadExecutor.collectStatistics(cluster, wb);
-						
-						if(Global.repartitioningStrategy.equals("threshold")) {
+						if(Global.repartThreshold) {
 							WorkloadExecutor.repartitioningCoolingOff = true;
 							WorkloadExecutor.RepartitioningCoolingOffPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
 
@@ -585,27 +596,20 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 						}						
 						
-					} else {
-						// Hourly statistic collection
-						//Global.LOGGER.info("-----------------------------------------------------------------------------");
-						//Global.LOGGER.info("No repartitioning is required at this moment.");
-						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 					}
 					
 				} else { // 2. Static Repartitioning
 
-					if(Global.staticRun) {
+					if(Global.singleRun) {
+						Global.LOGGER.info("-----------------------------------------------------------------------------");
+						Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 						Global.LOGGER.info("<-- Static Repartioning -->");
 						Global.LOGGER.info("Start repartioning the database for a single time ...");
 						
 						// Repartition the database for a single time
-						WorkloadExecutor.runRepartitioner(cluster, wb);
+						WorkloadExecutor.startRepartitioning(cluster, wb);
 						
-						// Perform data movement
-						DataMovement.performDataMovement(cluster, wb);
-						
-						WorkloadExecutor.collectStatistics(cluster, wb);
-						Global.staticRun = false;
+						Global.singleRun = false;
 						
 					} else { 
 						// Hourly statistic collection
@@ -622,24 +626,23 @@ class Arrival extends Event {
 	}
 	
 	private boolean isRepartRequired() {
-		switch(Global.repartitioningStrategy) {
-			case "hourly":
-				if(Sim.time() >= Global.nextCollection)
-					return true;
-				
-				break;
+		
+		if(Global.repartHourly) {
 			
-			case "threshold":
-				if(WorkloadExecutor.currentIDt > Global.userDefinedIDtThreshold 
-						&& !WorkloadExecutor.repartitioningCoolingOff)					
-					return true;
+			if(Sim.time() >= WorkloadExecutor.nextHourlyRepartition) {				
+				WorkloadExecutor.nextHourlyRepartition += Global.observationWindow;
+				return true;
+			}
 				
-				break;
+		} else if(Global.repartThreshold) {			
 			
-			default:
-				Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");
-				break;
-		}
+			if(WorkloadExecutor.currentIDt > Global.userDefinedIDtThreshold 
+					&& !WorkloadExecutor.repartitioningCoolingOff)					
+				return true;
+			
+		} else 
+			Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");
+			
 		
 		return false;
 	}

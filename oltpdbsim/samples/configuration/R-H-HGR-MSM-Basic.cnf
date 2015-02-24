@@ -1,8 +1,10 @@
-simulation.name=R-H-CHG-Improved_MC-Basic
+simulation.name=R-H-HGR-MSM-Basic
 
 setup=range
-repartitioning.strategy=hourly
+
+static.repartitioning=false
 hourly.repartitioning=true
+threshold.repartitioning=false
 
 workload.aware=true
 incremental.repartitioning=true
@@ -12,9 +14,9 @@ workload.representation=hgr
 transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=improved_mc
+data.migration.strategy=msm
 
-compression.enabled=true
+compression.enabled=false
 compression.before.setup=false
 compression.ratio=6
 
@@ -23,14 +25,14 @@ server.capacity=100000
 fixed.partitions=16
 number.of.replicas=1
 
-simulation.period=10800
-warmup.period=3600
+simulation.period=97200
+warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
 percentage.change.in.workload=0.15
-adjustment=0.4
+adjustment=0.6
 observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4

@@ -79,8 +79,6 @@ public final class Global implements java.io.Serializable {
 	public static double expAvgWt; // Defines how far we need to look back while repeating transactions
 	public static int observationWindow;
 	public static int uniqueMaxFixed;
-	public static int uniqueMax;	
-	public static double nextCollection;
 	
     // Workload mining
     public static int mining_serial = 0;
@@ -91,11 +89,13 @@ public final class Global implements java.io.Serializable {
     public static boolean workloadAware; // true/false
     public static boolean incrementalRepartitioning; // true/false
     public static boolean enableTrClassification;
-    public static boolean staticRun = true;
+    
+    public static boolean singleRun;    
+    public static boolean repartStatic;
+    public static boolean repartHourly;
+    public static boolean repartThreshold;
     
     public static String workloadRepresentation; // gr/cgr/hgr/chg
-    public static String repartitioningStrategy;
-    public static boolean hourlyRepartitioning;
     public static String trClassificationStrategy; // basic/fd/fdfnd
     public static String dataMigrationStrategy; // random/mc/msm/sword
     

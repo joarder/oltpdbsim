@@ -87,8 +87,7 @@ public class ReadConfig {
 			
 			// Workload execution parameters --  will be used in Workload Executor
 			Global.simulationPeriod = Double.parseDouble((String) config_param.getProperty("simulation.period"));
-			Global.warmupPeriod = Double.parseDouble((String) config_param.getProperty("warmup.period"));
-			Global.simulationPeriod += Global.warmupPeriod;
+			Global.warmupPeriod = Double.parseDouble((String) config_param.getProperty("warmup.period"));			
 			
 			Global.meanInterArrivalTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.inter.arrival.time"));
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
@@ -101,8 +100,8 @@ public class ReadConfig {
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation name: "+Global.simulation);
-			Global.LOGGER.info("Simulation Period: "+Global.simulationPeriod/3600.0+" hrs");
-			Global.LOGGER.info("Warmup time: "+Global.warmupPeriod/3600.0+" hrs");
+			Global.LOGGER.info("Simulation Period: "+(Global.simulationPeriod/Global.observationWindow)+" hrs");
+			Global.LOGGER.info("Warmup time: "+(Global.warmupPeriod/Global.observationWindow)+" hrs");
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Probability of Transaction birth and death: "+Global.percentageChangeInWorkload);
 	    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
@@ -119,8 +118,13 @@ public class ReadConfig {
 			if(Global.workloadAware) {				
 				
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
-				Global.hourlyRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
-				Global.repartitioningStrategy = (String) config_param.getProperty("repartitioning.strategy");
+				
+				Global.repartStatic = Boolean.parseBoolean((String) config_param.getProperty("static.repartitioning"));
+				Global.repartHourly = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
+				Global.repartThreshold = Boolean.parseBoolean((String) config_param.getProperty("threshold.repartitioning"));
+				
+				if(Global.repartStatic)
+					Global.singleRun = true;
 				
 				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));											
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
@@ -135,7 +139,9 @@ public class ReadConfig {
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);
-				Global.LOGGER.info("Hourly repartitioning: "+Global.hourlyRepartitioning);				
+				Global.LOGGER.info("Static repartitioning: "+Global.repartStatic);
+				Global.LOGGER.info("Hourly repartitioning: "+Global.repartHourly);
+				Global.LOGGER.info("Threshold-based repartitioning: "+Global.repartThreshold);
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Transaction classification: "+Global.enableTrClassification);

@@ -1,18 +1,20 @@
-simulation.name=R-Hourly
+simulation.name=R-T-HGR-MSM-Basic
 
 setup=range
-repartitioning.strategy=hourly
-hourly.repartitioning=false
 
-workload.aware=false
-incremental.repartitioning=false
+static.repartitioning=false
+hourly.repartitioning=false
+threshold.repartitioning=true
+
+workload.aware=true
+incremental.repartitioning=true
 
 workload.representation=hgr
 
-transaction.classification=false
+transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=improved_mc
+data.migration.strategy=msm
 
 compression.enabled=false
 compression.before.setup=false
