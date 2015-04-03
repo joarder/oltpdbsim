@@ -109,6 +109,7 @@ public class ReadConfig {
 						
 			// Read configuration parameters			
 			Global.simulation = (String) config_param.getProperty("simulation.name");
+			Global.workloadVariation = Boolean.parseBoolean((String) config_param.getProperty("workload.variation"));
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
 			Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
 			
@@ -118,6 +119,7 @@ public class ReadConfig {
 			if(Global.workloadAware) {				
 				
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
+				Global.graphcutBasedRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("graphcutbased.repartitioning"));
 				
 				Global.repartStatic = Boolean.parseBoolean((String) config_param.getProperty("static.repartitioning"));
 				Global.repartHourly = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
@@ -161,6 +163,9 @@ public class ReadConfig {
 				
 				if(Global.dataMigrationStrategy.equals("methodX"))
 					Global.priority = Double.parseDouble((String) config_param.getProperty("methodX.decision.priority"));
+				
+				if(Global.dataMigrationStrategy.equals("rbsta"))
+					Global.rbsta_span_reduction = Integer.parseInt((String) config_param.getProperty("rbsta.span.reduction"));
 			}
 			
 	    } catch (ConfigurationException e) {

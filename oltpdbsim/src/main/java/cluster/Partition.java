@@ -1,5 +1,6 @@
 package main.java.cluster;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -277,6 +278,17 @@ public class Partition implements Comparable<Partition> {
 			return (this.getPartition_label()
 					+"[Data: "+this.getPartition_dataSet().size()+"] - "
 					+"[Lookup Table: "+this.getPartition_dataLookupTable().size()+"]");
+	}
+	
+	// Ascending order
+	public static Comparator<Partition> BY_DATA_SIZE() {
+		return new Comparator<Partition>() {
+			@Override
+			public int compare(Partition p1, Partition p2) {
+				return (((int)p1.getPartition_dataSet().size() < (int)p2.getPartition_dataSet().size()) ? -1 : 
+					((int)p1.getPartition_dataSet().size() > (int)p2.getPartition_dataSet().size()) ? 1 : 0);
+			}			
+		};
 	}
 	
 	@Override

@@ -35,6 +35,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private double tr_response_time;
 	private double tr_waiting_time;	
 	
+	private double tr_idt;
+	
 	Transaction(int id, Set<Integer> dataSet) {		
 		this.setTr_id(id);
 		this.setTr_label("T"+Integer.toString(this.getTr_id()));
@@ -64,6 +66,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		
 		this.setTr_class(null);		
 		this.setTr_period(0.0);
+		
+		this.setTr_idt(0.0d);
 	}
 	
 	public int getTr_id() {
@@ -203,6 +207,27 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.tr_period = tr_period;
 	}
 	
+	public double getTr_idt() {
+		return tr_idt;
+	}
+
+	public void setTr_idt(double tr_idt) {
+		this.tr_idt = tr_idt;
+	}
+
+	// Calculates Idt
+	public void calculateIdt() {
+		double freq = 1/this.getTr_period();
+		double span = this.getTr_serverSpanCost();
+		
+		this.setTr_idt(freq*span);
+	}
+	
+	// Calculates Idt for a given server span
+	public void calculateIdt(int span) {
+		this.setTr_idt((1/this.getTr_period()) * span);
+	}
+
 	// This function will calculate the Node and Partition Span Cost for the representative Transaction
 	public void calculateSpans(Cluster cluster) {
 
@@ -250,13 +275,14 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		if(this.getTr_serverSet().size() > 1)
 			this.setDt(true);
 		
-		if(this.getTr_serverSet().size() == 2) // Only for Sword
+		if(this.getTr_serverSet().size() == 2) // For Sword and Association
 			this.setSpan2Servers(true);						
 	}
 	
 	@Override
 	public String toString() {	
 		return (this.getTr_label()+"("
+				+"IDT["+this.getTr_idt()+"] | "
 				+"Type["+this.tr_type+"] | "
 				+"DT["+this.isDt()+"] | "
 				+"SS["+this.getTr_serverSpanCost()+"] | "

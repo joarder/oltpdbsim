@@ -53,24 +53,29 @@ public class DataMovement {
 		
 		switch(Global.dataMigrationStrategy) {
 			case "random":
-				Global.LOGGER.info("Applying Random Cluster-to-Partition Strategy (Random) ...");
+				Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");
 				baseRandom(cluster, wb, partitioner);				
 				break;
 				
 			case "mc":
-				Global.LOGGER.info("Applying Max Column Strategy (MC) ...");
+				Global.LOGGER.info("Applying Max Column (MC) Strategy ...");
 				strategyMC(cluster, wb, partitioner);							
 				break;
 			
 			case "improved_mc":
-				Global.LOGGER.info("Applying Improved Max Column Strategy (MC) ...");
+				Global.LOGGER.info("Applying Improved Max Column (MC) Strategy ...");
 				strategyImprovedMC(cluster, wb, partitioner);							
 				break;
 				
 			case "msm":
-				Global.LOGGER.info("Applying Max Sub Matrix Strategy (MSM) ...");
+				Global.LOGGER.info("Applying Max Sub Matrix (MSM) Strategy ...");
 				strategyMSM(cluster, wb, partitioner);				
 				break;
+				
+			case "rbsta":
+				Global.LOGGER.info("Applying Repartitioning Based on Server-level Transactional Association (RBSTA) Strategy ...");
+				strategyRBSTA(cluster, wb, partitioner);				
+				break;				
 				
 			case "sword":
 				Global.LOGGER.info("Applying Sword Strategy (SWD) ...");
@@ -240,17 +245,88 @@ public class DataMovement {
 		move(cluster, wb, keyMap, partitioner);
 	}
 	
+	// RBSTA - incremental repartitioning	
+	private static void strategyRBSTA(Cluster cluster, WorkloadBatch wb, String partitioner) {	
+		setEnvironment(cluster);
+		
+		RBSTA.populatePQ(cluster, wb);
+		
+		int i = wb.hgr.getEdgeCount();		
+		while(i > 0) {
+			/*// Testing
+			System.out.println(RBSTA.pq.poll().toString());*/
+			
+			// Get a transaction from the priority queue
+			Tr t = RBSTA.pq.poll();
+			
+			if(t.min_data_migration != 0) { // Only DTs
+				MigrationPlan m = t.migrationPlanList.get(0);
+				
+				// Check whether processing this transaction may increase the impact of any other already processed transactions
+				if(!RBSTA.isAffected(wb, t, m))
+					RBSTA.processTransaction(cluster, wb, t, m);						
+			}
+			
+			--i;
+		}
+		
+		wb.set_intra_dmv(intra_server_dmv);
+		wb.set_inter_dmv(inter_server_dmv);
+	}
+	
+	// RBSTA specific
+	public static void migration(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
+		
+		Partition dst_partition = cluster.getPartition(dst_partition_id);
+		Partition current_partition = cluster.getPartition(data.getData_partition_id());
+		Partition home_partition = cluster.getPartition(data.getData_homePartitionId());												
+		
+		int current_server_id = data.getData_server_id();
+		int current_partition_id = data.getData_partition_id();
+		int home_partition_id = data.getData_homePartitionId();
+		
+		if(dst_partition_id != current_partition_id) { // Data needs to be moved					
+			if(data.isData_isRoaming()) { // Data is already Roaming
+				if(dst_partition_id == home_partition_id) {
+					updateData(cluster, data, dst_partition_id, dst_server_id, false);
+					updatePartition(cluster, data, current_partition_id, dst_partition_id);
+					updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);																		
+					
+					current_partition.decPartition_foreign_data();
+					home_partition.decPartition_roaming_data();
+					
+				} else if(dst_partition_id == current_partition_id) {									
+					// Nothing to do									
+				} else {
+					updateData(cluster, data, dst_partition_id, dst_server_id, true);
+					updatePartition(cluster, data, current_partition_id, dst_partition_id);
+					updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+					
+					dst_partition.incPartition_foreign_data();
+					current_partition.decPartition_foreign_data();					
+				}
+			} else {
+				updateData(cluster, data, dst_partition_id, dst_server_id, true);
+				updatePartition(cluster, data, current_partition_id, dst_partition_id);
+				updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+				
+				dst_partition.incPartition_foreign_data();								
+				home_partition.incPartition_roaming_data();
+			}
+		}
+	}
+		
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
 		setEnvironment(cluster);
 		
-		
+		// To be implemented
 	}
 	
 	// methodX - Swapping partitions
 	private static void strategyMethodX(Cluster cluster, WorkloadBatch wb) {
 		setEnvironment(cluster);
-		IntPair pSet = wb.methodX.migrationDecision(cluster);
+		IntPair pSet = Association.migrationDecision(cluster);
 
 		if(pSet != null)
 			swapPartitions(cluster, wb, pSet);			
@@ -357,7 +433,6 @@ public class DataMovement {
         Partition home_partition = cluster.getPartition(data.getData_homePartitionId());
         
         // Actual Movement
-        //dst_partition.getPartition_dataSet().add(data);
         dst_partition.getPartition_dataSet().put(data.getData_id(), data);
         current_partition.getPartition_dataSet().remove(data.getData_id());
         
@@ -380,15 +455,15 @@ public class DataMovement {
 	}
 	
 	private static void updateMovementCounts(Cluster cluster, int dst_server_id, 
-			int source_server_id, int dst_partition_id, int current_partition_id) {
+			int src_server_id, int dst_partition_id, int current_partition_id) {
 		
 		cluster.getPartition(dst_partition_id).incPartition_inflow();		 
 		cluster.getPartition(current_partition_id).incPartition_outflow();
 		
-		if(dst_server_id != source_server_id) {
+		if(dst_server_id != src_server_id) {
 			++inter_server_dmv;
 			
-			updateServerFlowCounts(cluster, source_server_id, dst_server_id);
+			updateServerFlowCounts(cluster, src_server_id, dst_server_id);
 			
 		} else
 			++intra_server_dmv;		

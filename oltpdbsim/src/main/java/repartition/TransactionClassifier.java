@@ -26,32 +26,37 @@ public class TransactionClassifier {
 	private static IncMine learner;
 	private static ZakiFileStream stream;
 
-	private static int tr_red = 0;
-	private static int tr_orange = 0;
-	private static int tr_green = 0;
-	private static int tr_infrequent = 0;
+	private static int DT = 0;
+	private static int nonDT = 0;
+	private static int movableNonDt = 0;		
 	
-	private static Set<Integer> frequent_dsfci = new TreeSet<Integer>();
-	private static Set<Integer> frequent_sfci = new TreeSet<Integer>();
-	private static Set<Integer> movable = new TreeSet<Integer>();
+	private static int DtContainingFreqDistTuples = 0;
+	private static int DtContainingFreqNonDistTuples = 0;
+	private static int nonDtContainingFreqNonDistTuples = 0;
+	
+	private static int DtContainingInfreqTuples = 0;
+	private static int nonDtContainingInfreqTuples = 0;
+	
+	private static Set<Integer> trContainingDistSemiFCI = new TreeSet<Integer>();
+	private static Set<Integer> trContainingSemiFCI = new TreeSet<Integer>();
+	private static Set<Integer> movableNonDTs = new TreeSet<Integer>();
 	
 	private static Set<Integer> toBeRemoved;
 	
 	// Basic classification
-	public static void classifyMovableDTs(Cluster cluster, WorkloadBatch wb) {
+	public static void classifyMovableNonDTs(Cluster cluster, WorkloadBatch wb) {
 		
 		toBeRemoved = new TreeSet<Integer>();
 		
-		//Find the distributed movable transactions
+		//Find DTs and movable non-DTs
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			Transaction tr = wb.getTransaction(h.getId());
 			
-			if(tr.isDt()) { // Distributed Transactions
-				tr.setTr_class("red");
-				++tr_red;
+			if(tr.isDt()) { // DTs
+				++DT;
+				tr.setTr_class("red");				
 				
-			} else {// Non-Distributed Transactions
-				
+			} else {// Finding movable non-DTs				
 				TransactionClassifier.findAllNonDT(wb, tr);
 			}			
 		}
@@ -91,20 +96,18 @@ public class TransactionClassifier {
         }		
 	}
 	
-	// DSM (FD)
-	public static void classifyMovableFD(Cluster cluster, WorkloadBatch wb) {		
-		
-		toBeRemoved = new TreeSet<Integer>();
-		
+	// DSM (FD) - Transactions containing frequent distributed tuple pairs only
+	public static void classifyFrequentDT(Cluster cluster, WorkloadBatch wb) {				
+		// Initialisation
 		init();
 		
 		//Find the list of semi-FCI
 		mine(cluster, wb);		
 		//System.out.println(this.learner);
 	
-		//Find the list of distributed semi-FCI
+		//Find the list of distributed semi-FCI (Frequent Closed Itemsets)
 		ArrayList<List<Integer>> semiFCIList = new ArrayList<List<Integer>>();
-		ArrayList<List<Integer>> dsfciList = new ArrayList<List<Integer>>();
+		ArrayList<List<Integer>> dSemiFCIList = new ArrayList<List<Integer>>();
 		
 		for(SemiFCI semiFCI : learner.getFCITable()){
 			//System.out.println("@ "+semiFCI.getItems());
@@ -114,53 +117,63 @@ public class TransactionClassifier {
 				semiFCIList.add(semiFCI.getItems());
 				
 				if(isDistributedFCI(cluster, semiFCI.getItems()))
-					dsfciList.add(semiFCI.getItems());
+					dSemiFCIList.add(semiFCI.getItems());
 			}
         }
 		
-		Global.LOGGER.info("Total "+dsfciList.size()+" distributed semi-frequent closed data tuple sets have been identified.");
+		Global.LOGGER.info("Total "+dSemiFCIList.size()+" distributed semi-frequent closed data-tuple sets have been identified.");
 		
-		//Find the transactions containing distributed semi-FCI
+		//Find the transactions containing distributed frequent semi-FCI tuple pairs
+		toBeRemoved = new TreeSet<Integer>();
+		
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
 			
 			Transaction tr = wb.getTransaction(h.getId());
 			
-			// Infrequent Transactions
-			if(!isFrequent(tr, semiFCIList)){
+			// Following Figure 3 from BDC'2014 paper
+			if(tr.isDt()) { // DTs
 				
-				if(!toBeRemoved.contains(tr.getTr_id())) {
-					++tr_infrequent;
+				++DT;
+				
+				if(isFrequent(tr, semiFCIList)) { // Frequent
+					
+					if(containsDistSemiFCI(tr, dSemiFCIList)) { // Contains distributed frequent tuple pairs
+						++DtContainingFreqDistTuples;
+						trContainingDistSemiFCI.add(tr.getTr_id());
+						
+					} else { // Contains non-distributed frequent tuple pairs
+						++DtContainingFreqNonDistTuples;
+						trContainingSemiFCI.add(tr.getTr_id());
+						
+					}
+					
+				} else { // Infrequent
+					++DtContainingInfreqTuples;
 					toBeRemoved.add(tr.getTr_id());
 				}
 				
-			} else { // Frequent Transactions
-											
-				if(tr.isDt()) { // Distributed Transactions
-					
-					// Distributed Transactions containing Distributed Semi-FCI
-					if(containsDSFCI(tr, dsfciList)){
-						
-						tr.setTr_class("red");
-						++tr_red;
-						
-						frequent_dsfci.add(tr.getTr_id());
-						
-					} else { // Distributed Transactions containing Non-Distributed Semi-FCI
-						
-						if(!toBeRemoved.contains(tr.getTr_id())) {
-							++tr_infrequent;
-							toBeRemoved.add(tr.getTr_id());
-						}
-						
-					} //end-if-else()
-					
-				} else { // Non-Distributed Transactions
+			} else { // non-DTs
 				
-					TransactionClassifier.findAllNonDT(wb, tr);
+				++nonDT;
+				
+				if(isMovable(wb, tr)) { // Movable
 					
+					++movableNonDt;
+					
+					if(isFrequent(tr, semiFCIList)) { // Frequent -- Contains non-distributed frequent tuple pairs
+						++nonDtContainingFreqNonDistTuples;
+						trContainingSemiFCI.add(tr.getTr_id());
+						
+					} else { // Infrequent
+						++nonDtContainingInfreqTuples;
+						toBeRemoved.add(tr.getTr_id());
+					}
+					
+				} else { // Non-movable
+					toBeRemoved.add(tr.getTr_id());
 				}
-			} //end-if-else()
-		} //end-for()
+			}
+		} // end-for()	
 		
 		TransactionClassifier.remove(cluster, wb);
 		wrapup(wb);
@@ -200,7 +213,7 @@ public class TransactionClassifier {
 			if(!isFrequent(tr, semiFCIList)){
 				
 				if(!toBeRemoved.contains(tr.getTr_id())) {
-					++tr_infrequent;				
+					++DtContainingInfreqTuples;				
 					toBeRemoved.add(tr.getTr_id());
 				}
 				
@@ -209,9 +222,9 @@ public class TransactionClassifier {
 				if(tr.isDt()) { // Distributed Transactions
 					
 					tr.setTr_class("red");
-					++tr_red;
+					++DT;
 					
-					frequent_sfci.add(tr.getTr_id());	
+					trContainingSemiFCI.add(tr.getTr_id());	
 
 				} else { // Non-Distributed Transactions
 				
@@ -236,8 +249,8 @@ public class TransactionClassifier {
 	}
 	
 	// Returns true if a transaction contains any of the mined distributed semi-FCI
-	private static boolean containsDSFCI(Transaction tr, ArrayList<List<Integer>> dsfciList){
-		for(List<Integer> dSemiFCI : dsfciList){
+	private static boolean containsDistSemiFCI(Transaction tr, ArrayList<List<Integer>> dSemiFCIList){
+		for(List<Integer> dSemiFCI : dSemiFCIList){
 			if(tr.getTr_dataSet().containsAll(dSemiFCI))
 				return true;
 		} 
@@ -266,33 +279,30 @@ public class TransactionClassifier {
 		for(Integer d : tr.getTr_dataSet()) {			
 			SimpleVertex v = wb.hgr.getVertex(d);
 			
-			for(SimpleHEdge nh : wb.hgr.getIncidentEdges(v)) {				
-				Transaction incident_tr = wb.getTransaction(nh.getId());
+			for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {				
+				Transaction incidentTr = wb.getTransaction(h.getId());
 				
 				switch(Global.trClassificationStrategy) {
 				
-					case "basic":
-						
-						if(incident_tr.isDt() && !incident_tr.equals(tr))					
+					case "basic": // Movable non-DT						
+						if(incidentTr.isDt() && !incidentTr.equals(tr))					
 							return true;
 						
 						break;
 					
-					case "fd":
-				
-						if(incident_tr.isDt() && !incident_tr.equals(tr) 
-								&& frequent_dsfci.contains(incident_tr.getTr_id()))
+					case "fd": // Frequent DTs containing distributed tuple pairs
+						if(incidentTr.isDt() && !incidentTr.equals(tr) 
+								&& trContainingDistSemiFCI.contains(incidentTr.getTr_id()))
 							return true;
 						
 						break;
 					
-					case "fdfnd":
-						
-						if(incident_tr.isDt() && !incident_tr.equals(tr) 
-								&& frequent_sfci.contains(incident_tr.getTr_id()))
+					case "fdfnd":  // Movable non-DT containing frequent non-DT tuples						
+						if(!incidentTr.isDt() && !incidentTr.equals(tr) 
+								&& trContainingSemiFCI.contains(incidentTr.getTr_id())) 
 							return true;
 						
-						break;	
+						break;
 				}
 			}
 		}
@@ -303,19 +313,19 @@ public class TransactionClassifier {
 	// Find all movable and non-movable non-DTs
 	private static void findAllNonDT(WorkloadBatch wb, Transaction tr) {
 		
-		// Evaluating Movable and Non-Movable Transactions
+		// Evaluating movable and non-movable non-DTs
 		if(isMovable(wb, tr)) {
 				
-				tr.setTr_class("orange");
-				++tr_orange;
-				++tr_green;
+			tr.setTr_class("orange");
+			++movableNonDt;
+			++nonDT;
 				
-				movable.add(tr.getTr_id());
+			movableNonDTs.add(tr.getTr_id());
 			
 		} else {
 			
 			tr.setTr_class("green");
-			++tr_green;
+			++nonDT;
 			
 			// Remove
 			toBeRemoved.add(tr.getTr_id());
@@ -323,11 +333,10 @@ public class TransactionClassifier {
 		} //end-if-else()
 	}
 	
-	// Remove the nonDT non-movable edges from Graph and Hypergraph
+	// Remove the non-movable non-DT edges from Graph and Hypergraph
 	private static void remove(Cluster cluster, WorkloadBatch wb) {		
 		
-		for(Integer i : toBeRemoved) {			
-			Transaction tr = wb.getTransaction(i);
+		for(Integer i : toBeRemoved) {
 			
 			// Remove from Hypergraph
 			SimpleHEdge h = wb.hgr.getHEdge(i);
@@ -335,26 +344,37 @@ public class TransactionClassifier {
 			
 			if(Global.compressionBeforeSetup && wb.sword.hCut.contains(h))
 				wb.sword.hCut.remove(h);
-				
-			if(Global.dataMigrationStrategy.equals("methodX"))
-				wb.methodX.updateAssociation(cluster, tr, true);
-		}
-		
-		Global.LOGGER.info("Total "+toBeRemoved.size()+" purely non-distributed transactions have removed.");
+		}				
 	}
 	
 	private static void wrapup(WorkloadBatch wb) {
 		
-		wb.set_tr_nums(wb.hgr.getEdgeCount() - tr_infrequent - tr_green);		
-		wb.set_old_ndt_nums(tr_infrequent + tr_green);
+		wb.set_tr_nums(wb.hgr.getEdgeCount() - DtContainingInfreqTuples - nonDT);		
+		wb.set_old_ndt_nums(DtContainingInfreqTuples + nonDT);
 				
-		Global.LOGGER.info("Classified "+tr_red+" transactions as purely distributed !!!");		
-		Global.LOGGER.info("Classified "+tr_green+" transactions as non-distributed !!!");			
-		Global.LOGGER.info("Classified "+tr_orange+" non-distributed transactions as movable !!!");
-		Global.LOGGER.info("Classified "+tr_infrequent+" transactions as infrequent.");
+		Global.LOGGER.info("Classified "+DT+" transactions as purely distributed !!!");	
+		Global.LOGGER.info("Classified "+nonDT+" transactions as non-distributed !!!");
+		Global.LOGGER.info("Classified "+movableNonDt+" non-distributed transactions as movable !!!");
+
+		Global.LOGGER.info("Classified "+DtContainingFreqDistTuples+" distributed transactions containing frequent distributed tuple pairs.");
+		Global.LOGGER.info("Classified "+DtContainingFreqNonDistTuples+" distributed transactions containing frequent but non-distributed tuple pairs.");
+		Global.LOGGER.info("Classified "+nonDtContainingFreqNonDistTuples+" non-distributed transactions containing frequent but non-distributed tuple pairs (movable).");
 		
-		tr_red = 0;
-		tr_orange = 0;
-		tr_green = 0;
+		
+		Global.LOGGER.info("Classified "+DtContainingInfreqTuples+" distributed transactions as infrequent.");
+		Global.LOGGER.info("Classified "+nonDtContainingInfreqTuples+" non-distributed transactions as infrequent (movable).");
+		
+		Global.LOGGER.info("Total "+toBeRemoved.size()+" purely non-distributed transactions have been removed from the workload hypergraph.");
+		
+		DT = 0;
+		movableNonDt = 0;
+		nonDT = 0;
+		
+		DtContainingFreqDistTuples = 0;
+		DtContainingFreqNonDistTuples = 0;
+		nonDtContainingFreqNonDistTuples = 0;
+		
+		DtContainingInfreqTuples = 0;
+		nonDtContainingInfreqTuples = 0;
 	}
 }

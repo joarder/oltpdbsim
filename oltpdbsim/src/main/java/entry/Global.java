@@ -86,9 +86,11 @@ public final class Global implements java.io.Serializable {
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)
     
+    public static boolean workloadVariation;
     public static boolean workloadAware; // true/false
     public static boolean incrementalRepartitioning; // true/false
-    public static boolean enableTrClassification;
+	public static boolean graphcutBasedRepartitioning; // true/false
+    public static boolean enableTrClassification; // true/false
     
     public static boolean singleRun;    
     public static boolean repartStatic;
@@ -118,6 +120,9 @@ public final class Global implements java.io.Serializable {
 	
 	// For methodX whether prioritise dt(alpha) minimisation or load balance (1-alpha)
 	public static double priority;
+
+	// For RBSTA
+	public static int rbsta_span_reduction;
 	
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);

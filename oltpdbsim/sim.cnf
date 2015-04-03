@@ -1,20 +1,23 @@
-simulation.name=R-T-HGR-MSM-Basic
+simulation.name=C-T-RBSTA
 
-setup=range
+setup=consistenthash
 
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
 
+workload.variation=false
+
 workload.aware=true
 incremental.repartitioning=true
+graphcutbased.repartitioning=false
 
 workload.representation=hgr
 
 transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=msm
+data.migration.strategy=rbsta
 
 compression.enabled=false
 compression.before.setup=false
@@ -22,7 +25,7 @@ compression.ratio=6
 
 initial.servers=4
 server.capacity=100000
-fixed.partitions=16
+fixed.partitions=32
 number.of.replicas=1
 
 simulation.period=97200
@@ -40,3 +43,4 @@ exponential.Avg.Weight=0.4
 admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5
+rbsta.span.reduction=1

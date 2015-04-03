@@ -1,5 +1,8 @@
 package main.java.cluster;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class Data implements Comparable<Data> {
 	private int data_id;
 	private String data_uid;
@@ -26,6 +29,8 @@ public class Data implements Comparable<Data> {
 	private boolean data_isRoaming;
 	private boolean data_isMoveable;
 	
+	private Set<Integer> data_incidentTr;
+	
 	public Data(int d_id, int t_id, int v_id, int p_id, int s_id) {
 		this.setData_id(d_id);
 		this.setData_uid(null);
@@ -50,6 +55,8 @@ public class Data implements Comparable<Data> {
 			
 		this.setData_isRoaming(false);
 		this.setData_isMoveable(true);
+		
+		this.setData_incidentTr(new HashSet<Integer>());
 	}
 
 	public String getData_label() {
@@ -202,6 +209,14 @@ public class Data implements Comparable<Data> {
 
 	public void setData_isMoveable(boolean data_isMoveable) {
 		this.data_isMoveable = data_isMoveable;
+	}
+
+	public Set<Integer> getData_incidentTr() {
+		return data_incidentTr;
+	}
+
+	public void setData_incidentTr(Set<Integer> data_incedentTr) {
+		this.data_incidentTr = data_incedentTr;
 	}
 
 	@Override

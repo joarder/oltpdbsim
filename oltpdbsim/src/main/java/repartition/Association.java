@@ -25,9 +25,10 @@ import org.paukov.combinatorics.Factory;
 import org.paukov.combinatorics.Generator;
 import org.paukov.combinatorics.ICombinatoricsVector;
 
-public class MethodX {
 
-	public Matrix association;
+public class Association {
+
+	public static Matrix association;
 
 	public void init(Cluster cluster) {		
 		int M = cluster.getPartitions().size()+1;
@@ -35,7 +36,7 @@ public class MethodX {
 		association = Utility.createMatrix(M, N);
 	}
 
-	public void updateAssociation(Cluster cluster, Transaction tr, boolean deletion) {
+	public static void updateAssociation(Cluster cluster, Transaction tr) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Get all the pairs of combinations of Partition accessed by this Transaction
 		// Create the initial vector
@@ -48,51 +49,50 @@ public class MethodX {
 		// Print all possible combinations
 		for (ICombinatoricsVector<Integer> combination : gen) {			
 		
-			int Pa = combination.getValue(0);
-			int Pb = combination.getValue(1);
+			int p_a_id = combination.getValue(0);
+			int p_b_id = combination.getValue(1);
 			
-			int Pa_data = tr.getTr_partitionSet().get(Pa).size();
-			int Pb_data = tr.getTr_partitionSet().get(Pb).size();
+			int p_a_trData = tr.getTr_partitionSet().get(p_a_id).size();
+			int p_b_trData = tr.getTr_partitionSet().get(p_b_id).size();
 			
-			double entropy = this.getEntropy(Pa_data, Pb_data);
-			
-			if(!deletion) {			
-				if(Pb > Pa) {
-					double val = association.getMatrix()[Pb][Pa].getValue();
-					association.getMatrix()[Pb][Pa].setValue(val + entropy);
-				} else {
-					double val = association.getMatrix()[Pa][Pb].getValue();
-					association.getMatrix()[Pa][Pb].setValue(val + entropy);
-				}
+			double entropy = getEntropy(p_a_trData, p_b_trData);			
+			entropy = (1/tr.getTr_period()) * entropy;			
+			entropy /= 2;
+						
+			if(p_b_id > p_a_id) {
+				double old_entropy = association.getMatrix()[p_b_id][p_a_id].getValue();					
+				double new_entropy = entropy * (1 - Global.expAvgWt) 
+						+ old_entropy * Global.expAvgWt;						
+
+				association.getMatrix()[p_b_id][p_a_id].setValue(new_entropy);
+				
 			} else {
-				if(Pb > Pa) {
-					double val = association.getMatrix()[Pb][Pa].getValue();
-					association.getMatrix()[Pb][Pa].setValue(val - entropy);
-				} else {
-					double val = association.getMatrix()[Pa][Pb].getValue();
-					association.getMatrix()[Pa][Pb].setValue(val - entropy);
-				}
-			}
+				double old_entropy = association.getMatrix()[p_a_id][p_b_id].getValue();
+				double new_entropy = entropy * (1 - Global.expAvgWt) 
+						+ old_entropy * Global.expAvgWt;
+					
+				association.getMatrix()[p_a_id][p_b_id].setValue(new_entropy);
+			}			
 		}
 		
 		// Verification
-//		System.out.println("====================================================================");
-//		association.print();
+		//System.out.println("====================================================================");
+		//association.print();
 		//this.migrationDecision(cluster);
 	}
 	
-	private double getEntropy(int Pa_data, int Pb_data) {
+	private static double getEntropy(int p_a_trData, int p_b_trData) {
 		double entropy = 0.0d;
 		
-		double total = Pa_data + Pb_data;
-		entropy = total * (-(Pa_data/total) * (Math.log(Pa_data/total)/Math.log(2))
-						 -(Pb_data/total) * (Math.log(Pb_data/total)/Math.log(2)));
+		double p_total = p_a_trData + p_b_trData;
+		entropy = p_total * (-(p_a_trData/p_total) * (Math.log(p_a_trData/p_total)/Math.log(2))
+						 -(p_b_trData/p_total) * (Math.log(p_b_trData/p_total)/Math.log(2)));
 		
 		return entropy;
 	}
 	
 // Migration decision	
-	public IntPair migrationDecision(Cluster cluster) {
+	public static IntPair migrationDecision(Cluster cluster) {
 		
 		ArrayList<Element> swappingCandidates = new ArrayList<Element>();			
 		Set<Integer> serverSet = new TreeSet<Integer>();
@@ -105,41 +105,41 @@ public class MethodX {
 		// Create a simple combination generator to generate 2-combinations of the initial vector
 		Generator<Integer> gen = Factory.createSimpleCombinationGenerator(initialVector, 2);
 		
-		Server S_a = null;
-		Server S_b = null;
+		Server s_a = null;
+		Server s_b = null;
 		
 		// Print all possible combinations
 		for (ICombinatoricsVector<Integer> combination : gen) {	
 			
-			S_a = cluster.getServer(combination.getValue(0));
-			S_b = cluster.getServer(combination.getValue(1));						
+			s_a = cluster.getServer(combination.getValue(0));
+			s_b = cluster.getServer(combination.getValue(1));						
 			
-			for(int Pa : S_a.getServer_partitions()) {
-				Partition P_a = cluster.getPartition(Pa);
+			for(int p_a_id : s_a.getServer_partitions()) {
+				Partition p_a = cluster.getPartition(p_a_id);
 				
-				for(int Pb : S_b.getServer_partitions()) {
+				for(int p_b_id : s_b.getServer_partitions()) {
 					
-					Partition P_b = cluster.getPartition(Pb);
+					Partition p_b = cluster.getPartition(p_b_id);
 					MatrixElement me = null;
 					
-					if(Pa > Pb)
-						me = association.getMatrix()[Pa][Pb];
+					if(p_a_id > p_b_id)
+						me = association.getMatrix()[p_a_id][p_b_id];
 					else
-						me = association.getMatrix()[Pb][Pa];
+						me = association.getMatrix()[p_b_id][p_a_id];
 						
 					Element e = new Element(me.getId());
 					
-					e.PPair.x = me.getRow_pos();
-					e.PPair.y = me.getCol_pos();
+					e.p_pair.x = me.getRow_pos();
+					e.p_pair.y = me.getCol_pos();
 					
-					e.SPair.x = S_a.getServer_id();
-					e.SPair.y = S_b.getServer_id();
+					e.s_pair.x = s_a.getServer_id();
+					e.s_pair.y = s_b.getServer_id();
 					
-					e.PdataPair.x = P_a.getPartition_dataSet().size();
-					e.PdataPair.y = P_b.getPartition_dataSet().size();
+					e.p_dataPair.x = p_a.getPartition_dataSet().size();
+					e.p_dataPair.y = p_b.getPartition_dataSet().size();
 					
-					e.swapping_gain = getSwappingGain(cluster, e, P_a, P_b);
-					e.data_distance = getDataDistance(e);
+					e.swapping_gain = getSwappingGain(cluster, e, p_a, p_b);
+					e.p_data_distance = getDataDistance(e);
 					
 					swappingCandidates.add(e);
 					
@@ -182,8 +182,8 @@ public class MethodX {
 		Collections.sort(swappingCandidates, new Comparator<Element>(){
 			@Override
 			public int compare(Element e1, Element e2) {					
-				return (((int)e1.data_distance < (int)e2.data_distance) ? -1 : 
-        			((int)e1.data_distance > (int)e2.data_distance) ? 1 : 0);
+				return (((int)e1.p_data_distance < (int)e2.p_data_distance) ? -1 : 
+        			((int)e1.p_data_distance > (int)e2.p_data_distance) ? 1 : 0);
 			}
 		});
 
@@ -191,7 +191,7 @@ public class MethodX {
 		rank = swappingCandidates.size();
 		for(int i = 0; i < swappingCandidates.size(); i++) {
 			if(i != 0)
-				if(swappingCandidates.get(i).data_distance != swappingCandidates.get(i-1).data_distance) 
+				if(swappingCandidates.get(i).p_data_distance != swappingCandidates.get(i-1).p_data_distance) 
 					--rank;
 			
 			swappingCandidates.get(i).distance_rank = rank*(1 - Global.priority); // Prioritise balance (1-alpha)	
@@ -219,18 +219,18 @@ public class MethodX {
 		// Select the element with maximum combined rank value
 		if(swappingCandidates.size() != 0) {			
 			
-//			Global.LOGGER.info("----------------------------------------------");
-//			Global.LOGGER.info("Sorted list of potential swapping pairs:");
+			Global.LOGGER.info("----------------------------------------------");
+			Global.LOGGER.info("Sorted list of potential swapping pairs:");
 			
-//			for(Element p : swappingCandidates)
-//				Global.LOGGER.info("--"+p.toString());
+			for(Element p : swappingCandidates)
+				Global.LOGGER.info("--"+p.toString());
 						
 			Element selected = swappingCandidates.get(0);
 			
 			Global.LOGGER.info("----------------------------------------------");
 			Global.LOGGER.info("Selected swapping pair: "+selected.toString());
 					
-			return (new IntPair(selected.PPair.x, selected.PPair.y));
+			return (new IntPair(selected.p_pair.x, selected.p_pair.y));
 		
 		} else {
 			return null;
@@ -238,47 +238,47 @@ public class MethodX {
 	}
 	
 	// Returns the swapping gain	
-	private double getSwappingGain(Cluster cluster, Element e, Partition P_a, Partition P_b) {		
+	private static double getSwappingGain(Cluster cluster, Element e, Partition p_x, Partition p_y) {		
 		
-		double Pa_gain = getGain(cluster, P_a, P_b);
-		double Pb_gain = getGain(cluster, P_b, P_a);
+		double p_x_gain = getGain(cluster, p_x, p_y);
+		double p_y_gain = getGain(cluster, p_y, p_x);
 		
-		return (Pa_gain + Pb_gain);
+		return (p_x_gain + p_y_gain);
 	}
 	
 	// Returns the actual gain for a migrating partition P_x into server S_y 
 	// x = source, y = target
-	private double getGain(Cluster cluster, Partition P_x, Partition P_y) {
+	private static double getGain(Cluster cluster, Partition p_i, Partition p_j) {
 		
-		int Px = P_x.getPartition_id();
+		int p_i_id = p_i.getPartition_id();
 		
-		Server S_x = cluster.getServer(P_x.getPartition_serverId());
-		Server S_y = cluster.getServer(P_y.getPartition_serverId());
+		Server s_i = cluster.getServer(p_i.getPartition_serverId());
+		Server s_j = cluster.getServer(p_j.getPartition_serverId());
 		
-		// Get the gain
+		// Get the gain for Pi
 		double gain = 0.0d;
 		double value = 0.0d;
 		
-		for(int Py_id : S_y.getServer_partitions()) {
+		for(int p_id : s_j.getServer_partitions()) {
 			
-			if(Px > Py_id)			
-				value = association.getMatrix()[Px][Py_id].getValue();
+			if(p_i_id > p_id)			
+				value = association.getMatrix()[p_i_id][p_id].getValue();
 			else
-				value = association.getMatrix()[Py_id][Px].getValue();
+				value = association.getMatrix()[p_id][p_i_id].getValue();
 			
 			gain += value;
 		}
 		
-		// Get the loss
+		// Get the loss for Pj
 		double loss = 0.0d;
-		for(int Px_id : S_x.getServer_partitions()) {
+		for(int p_id : s_i.getServer_partitions()) {
 			
-			if(Px > Px_id)		
-				value = association.getMatrix()[Px][Px_id].getValue();
+			if(p_i_id > p_id)		
+				value = association.getMatrix()[p_i_id][p_id].getValue();
 			else
-				value = association.getMatrix()[Px_id][Px].getValue();
+				value = association.getMatrix()[p_id][p_i_id].getValue();
 			
-			if(Px != Px_id)
+			if(p_i_id != p_id)
 				loss += value;
 		}
 				
@@ -287,30 +287,30 @@ public class MethodX {
 	}
 	
 	// Returns the difference of data volume of two partitions as a distance
-	private int getDataDistance(Element e) {		
-		return Math.abs(e.PdataPair.x - e.PdataPair.y);
+	private static int getDataDistance(Element e) {		
+		return Math.abs(e.p_dataPair.x - e.p_dataPair.y);
 	}	
 }
 
 // A specialised Element Class
 class Element {
 	int id;
-	IntPair PPair;
-	IntPair SPair;
-	IntPair PdataPair;
+	IntPair p_pair;
+	IntPair s_pair;
+	IntPair p_dataPair;
 	double swapping_gain;
-	int data_distance;
+	int p_data_distance;
 	double gain_rank;
 	double distance_rank;
 	double combined_rank;
 	
 	public Element(int id) {
 		this.setId(id);
-		this.PPair = new IntPair(-1, -1);
-		this.SPair = new IntPair(-1, -1);
-		this.PdataPair = new IntPair(-1, -1);
+		this.p_pair = new IntPair(-1, -1);
+		this.s_pair = new IntPair(-1, -1);
+		this.p_dataPair = new IntPair(-1, -1);
 		this.swapping_gain = Double.MIN_VALUE;
-		this.data_distance = Integer.MIN_VALUE;
+		this.p_data_distance = Integer.MIN_VALUE;
 		this.gain_rank = -1;
 		this.distance_rank = -1;
 		this.combined_rank = -1;
@@ -344,7 +344,7 @@ class Element {
 	
 	@Override
 	public String toString() {		
-		return ("P"+this.PPair+" | S"+this.SPair+" | Pdata"+this.PdataPair
-				+" [Swapping Gain = "+this.swapping_gain+"|"+" Data Distance = "+this.data_distance+"]");	
+		return ("P"+this.p_pair+" | S"+this.s_pair+" | Pdata"+this.p_dataPair
+				+" [Swapping Gain = "+this.swapping_gain+"|"+" Data Distance = "+this.p_data_distance+"]");	
 	}
 }

@@ -238,7 +238,7 @@ final public class Matrix {
     public void print() {
     	
     	DecimalFormat df = new DecimalFormat();
-    	df.setMaximumFractionDigits(1);
+    	df.setMaximumFractionDigits(5);
     	
         for (int i = 0; i < M; i++) {
         	System.out.print("\t");
@@ -252,7 +252,7 @@ final public class Matrix {
             		if(i == 0 && j == 0)
             			System.out.print("X\t");
             		else
-            			System.out.print(Math.round(matrix[i][j].getValue())+"\t");
+            			System.out.print(df.format(matrix[i][j].getValue())+"\t");
             		
             	} else            	
             		System.out.print("X\t");

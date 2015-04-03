@@ -15,7 +15,7 @@ import java.util.TreeSet;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
-import main.java.repartition.MethodX;
+import main.java.repartition.Association;
 import main.java.repartition.Sword;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
@@ -36,7 +36,7 @@ public class WorkloadBatch {
 	public Sword sword;
 	
 	// MethodX specific
-	public MethodX methodX;
+	public Association methodX;
 		
 	// To keep track of edge id and corresponding hyperedge/transaction id
 	public Map<Integer, Set<Integer>> edge_id_map;
@@ -111,7 +111,7 @@ public class WorkloadBatch {
 		
 		if(Global.workloadAware)
 			if(Global.dataMigrationStrategy.equals("methodX"))
-				this.methodX = new MethodX();		
+				this.methodX = new Association();			
 	}
 
 	public int getWrl_id() {
@@ -419,21 +419,25 @@ public class WorkloadBatch {
 		return null;
 	}
 	
+	private void removeIncidentTrId(Cluster cluster, Transaction tr) {
+		for(int d_id : tr.getTr_dataSet()) {
+			Data data = cluster.getData(d_id);
+			data.getData_incidentTr().remove(tr.getTr_id());
+		}
+	}
+	
 	// Removes edges and hyperedges from the graphs and hypergraphs
 	// Remove the nonDT non-movable edges from Graph and Hypergraph
 	public void removeTransaction(Cluster cluster, Transaction tr) {
+				
+		// Remove incident tr id from the data set
+		removeIncidentTrId(cluster, tr);
 		
-//		for(Integer d : tr.getTr_dataSet())
-//			this.deleteTrDataFromWorkload(d);
 		++Global.remove_count;
 		this.getTrMap().get(tr.getTr_type()).remove(tr.getTr_id());
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		this.hgr.removeHEdge(h);
-		
-		if(Global.workloadAware)
-			if(Global.dataMigrationStrategy.equals("methodX"))
-				this.methodX.updateAssociation(cluster, tr, true);		
+		this.hgr.removeHEdge(h);		
 	}	
 	
 	// Unused function
@@ -505,6 +509,15 @@ public class WorkloadBatch {
 		
 		this.getMiner_prWriter().flush();
 		this.getMiner_prWriter().close();
+	}
+	
+	// Add the incident transaction id
+	public void addIncidentTr(Cluster cluster, Set<Integer> trDataSet, int trId) {
+		
+		for(int d : trDataSet) {		
+			Data data = cluster.getData(d);
+			data.getData_incidentTr().add(trId);
+		}
 	}
 	
 	// Calculate the percentage of Distributed Transactions within the Workload (before and after the Data movements)

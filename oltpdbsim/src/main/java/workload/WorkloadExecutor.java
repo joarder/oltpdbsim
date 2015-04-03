@@ -18,6 +18,7 @@ package main.java.workload;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,6 +36,7 @@ import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
+import main.java.repartition.Association;
 import main.java.repartition.DataMovement;
 import main.java.repartition.MinCut;
 import main.java.repartition.TransactionClassifier;
@@ -74,6 +76,9 @@ public class WorkloadExecutor {
 	static double nextStatCollection = Global.observationWindow;
 	static double nextHourlyRepartition = Global.warmupPeriod;
 	
+	static boolean varyWorkload = false;
+	static double nextWorkloadVariation = Global.warmupPeriod+2*Global.observationWindow;
+	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
 	static Map<Integer, Double> Time = new HashMap<Integer, Double>();
@@ -102,12 +107,15 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 		
-		WorkloadExecutor.uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
+		uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
 			Workload wrl, WorkloadBatch wb) {
 
+		if(varyWorkload)
+			varyWorkload();
+		
 		Set<Integer> trTupleSet = null;
 		Set<Integer> trDataSet = null;
 		
@@ -136,6 +144,9 @@ public class WorkloadExecutor {
 			
 			++Global.global_trSeq;			
 			tr = new Transaction(Global.global_trSeq, type, trDataSet, Sim.time());
+			
+			// Add the incident transaction id
+			wb.addIncidentTr(cluster, trDataSet, Global.global_trSeq);
 			
 			// Add the newly created Transaction in the Workload Transaction map	
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
@@ -218,6 +229,9 @@ public class WorkloadExecutor {
 		// Calculate latest Span
 		tr.calculateSpans(cluster);
 		
+		// Update Idt
+		tr.calculateIdt();
+		
 		if(perfm.Span.containsKey(tr.getTr_id()))
 			perfm.Span.remove(tr.getTr_id());
 		
@@ -252,8 +266,8 @@ public class WorkloadExecutor {
 				int span = perfm.Span.get(unq_T);
 				double period = perfm.Period.get(unq_T);
 				
-				double span_by_period = span/period; // Frequency = 1/Period (f=1/t)
-				double one_by_period = 1/period;	 // Frequency = 1/Period (f=1/t) per unit time (i.e. second)
+				double span_by_period = span/period; // Frequency = 1/Period (f=1/t) per unit time (i.e. 1 second)
+				double one_by_period = 1/period;	 // Frequency = 1/Period (f=1/t) per unit time (i.e. 1 second)
 				
 				sum_of_span_by_period += span_by_period;
 				sum_of_one_by_period += one_by_period;
@@ -261,7 +275,11 @@ public class WorkloadExecutor {
 			
 			double i_dt = (sum_of_span_by_period)/(Global.servers * sum_of_one_by_period);			
 			perfm.I_Dt.put((_i - _W), i_dt);
-			currentIDt = i_dt;
+			
+			if(Double.isNaN(i_dt))
+				currentIDt = 0;
+			else
+				currentIDt = i_dt;
 			
 			// Resetting repartitioning cooling off period
 			if(WorkloadExecutor.repartitioningCoolingOff && Sim.time() >= WorkloadExecutor.RepartitioningCoolingOffPeriod) {
@@ -284,7 +302,7 @@ public class WorkloadExecutor {
 		
 		if(Global.workloadAware)
 			if(Global.dataMigrationStrategy.equals("methodX"))
-				wb.methodX.updateAssociation(cluster, tr, false);
+				Association.updateAssociation(cluster, tr);
 		
 		return tr;
 	}
@@ -440,41 +458,128 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting database repartitioning ...");
 		
-		//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
-		if(Global.enableTrClassification) {
-			Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+		if(!Global.dataMigrationStrategy.equals("methodX") || !Global.dataMigrationStrategy.equals("sword")) {			
 			
-			switch(Global.trClassificationStrategy) {
-				case "basic":
-					TransactionClassifier.classifyMovableDTs(cluster, wb);
-					break;
-					
-				case "fd":
-					Global.LOGGER.info("Discarding transactions which are not frequent ...");
-					TransactionClassifier.classifyMovableFD(cluster, wb);
-					break;
-					
-				case "fdfnd":
-					Global.LOGGER.info("Discarding transactions which are not frequent ...");
-					TransactionClassifier.classifyMovableFDFND(cluster, wb);
-					break;						
+			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
+			if(Global.enableTrClassification) {
+				Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+				
+				switch(Global.trClassificationStrategy) {
+					case "basic":
+						TransactionClassifier.classifyMovableNonDTs(cluster, wb);
+						break;
+						
+					case "fd":
+						Global.LOGGER.info("Discarding transactions which are not frequent ...");
+						TransactionClassifier.classifyFrequentDT(cluster, wb);
+						break;
+						
+					case "fdfnd":
+						Global.LOGGER.info("Discarding transactions which are not frequent ...");
+						TransactionClassifier.classifyMovableFDFND(cluster, wb);
+						break;						
+				}
 			}
+			
+			Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
+					+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
+			Global.LOGGER.info("-----------------------------------------------------------------------------");
+	
+			if(Global.graphcutBasedRepartitioning)
+				WorkloadExecutor.runRepartitioner(cluster, wb);		
 		}
 		
-		Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
-				+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-
-		if(!Global.compressionBeforeSetup && !Global.dataMigrationStrategy.equals("methodX"))
-			WorkloadExecutor.runRepartitioner(cluster, wb);
-		
-		// Perform data movement
+		// Perform data migrations
 		DataMovement.performDataMovement(cluster, wb);
 
 		Global.LOGGER.info("-----------------------------------------------------------------------------");												
 		WorkloadExecutor.collectStatistics(cluster, wb);
 	}
 	
+	static boolean beginning = true;
+	static boolean firstArrival1 = false;
+	static boolean firstArrival2 = false;
+	static boolean incline = false;
+	
+	private static void varyWorkload() {
+		if(Sim.time() >= nextWorkloadVariation) {			
+			
+			Global.LOGGER.info("-----------------------------------------------------------------------------");
+			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
+			Global.LOGGER.info("Current workload variation: "+Global.percentageChangeInWorkload);
+			Global.LOGGER.info("Current variation adjustment: "+Global.adjustment);
+			Global.LOGGER.info("Varying workload ...");
+			
+			if(Global.percentageChangeInWorkload > 0.01 &&  Global.percentageChangeInWorkload < 0.25) {
+				
+				if(incline) {
+					double val = Global.percentageChangeInWorkload + 0.05;
+					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
+				
+				} else {
+					double val = Global.percentageChangeInWorkload - 0.05;
+					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
+					
+					if(Global.percentageChangeInWorkload == 0)
+						Global.percentageChangeInWorkload = 0.01;
+				}
+				
+			} else if(Global.percentageChangeInWorkload == 0.25) {
+				if(!firstArrival2) {					
+					firstArrival2 = true;
+					
+				} else {
+					double val = Global.percentageChangeInWorkload - 0.05;
+					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
+					
+					firstArrival2 = false;
+					incline = false;
+				}
+				
+			} else if(Global.percentageChangeInWorkload == 0.01) {				
+				if(!firstArrival1) {					
+					firstArrival1 = true;
+					
+					if(beginning) {
+						Global.percentageChangeInWorkload = 0.05;
+						
+						incline = true;
+						beginning = false;
+					}
+					
+				} else {
+					Global.percentageChangeInWorkload = 0.05;
+					
+					firstArrival1 = false;
+					incline = true;
+				}
+			}
+			
+			Global.LOGGER.info("New workload variation: "+Global.percentageChangeInWorkload);
+			
+			Global.adjustment = wrlVarAdjustment.get(Global.percentageChangeInWorkload);
+			Global.LOGGER.info("New variation adjustment: "+Global.adjustment);
+			
+			uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
+			
+			nextWorkloadVariation += 2*Global.observationWindow;			
+			Global.LOGGER.info("Workload vairation will occur again at "+(nextWorkloadVariation/Global.observationWindow)+" hrs.");			
+		}		
+	}
+	
+	private static final Map<Double, Double> wrlVarAdjustment;
+	static {
+		Map<Double, Double> map = new HashMap<Double, Double>();
+		
+		map.put(0.01, 0.1);
+		map.put(0.05, 0.2);
+		map.put(0.10, 0.4);
+		map.put(0.15, 0.6);
+		map.put(0.20, 0.8);
+		map.put(0.25, 1.0);
+		
+		wrlVarAdjustment = Collections.unmodifiableMap(map);
+	}	
 } // end-Class
 
 //=======================================================================================
@@ -528,12 +633,16 @@ class Arrival extends Event {
 		
 		// Checks when initial warm up state is reached
 		if(Sim.time() >= Global.warmupPeriod && WorkloadExecutor.warmingUp) {
+			WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");			
 			Global.LOGGER.info("Database finished warming up.");
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
-			WorkloadExecutor.warmingUp = false;			
+			WorkloadExecutor.warmingUp = false;
+			
+			if(Global.workloadVariation)
+				WorkloadExecutor.varyWorkload = true;
 		}
 		
 		/**
@@ -549,7 +658,7 @@ class Arrival extends Event {
 		 * 		incrementalRepartitioning = false
 		 * 		enableTrClassification = false
 		 * 		workloadRepresentation = GR/HGR/CHG
-		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/MethodX		
+		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/Association
 		 * 
 		 * 3. Incremental Repartitioning -- incremental repartitioning based on DT margin
 		 * 		workloadAware = true
@@ -557,7 +666,7 @@ class Arrival extends Event {
 		 * 		enableTrClassification = true 
 		 * 		workloadRepresentation = GR/HGR/CHG
 		 * 		transactionClassificationStrategy = Basic/FD/FDFND
-		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/MethodX
+		 * 		dataMigrationStrategy = Random/MC/MSM/Sword/Association
 		 *  
 		 */
 		
@@ -594,8 +703,7 @@ class Arrival extends Event {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
-						}						
-						
+						}												
 					}
 					
 				} else { // 2. Static Repartitioning
