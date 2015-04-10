@@ -247,28 +247,20 @@ public class DataMovement {
 	
 	// RBSTA - incremental repartitioning	
 	private static void strategyRBSTA(Cluster cluster, WorkloadBatch wb, String partitioner) {	
-		setEnvironment(cluster);
-		
+		setEnvironment(cluster);		
 		RBSTA.populatePQ(cluster, wb);
-		
-		int i = wb.hgr.getEdgeCount();		
-		while(i > 0) {
-			/*// Testing
-			System.out.println(RBSTA.pq.poll().toString());*/
-			
+
+		while(RBSTA.pq.size() != 0) {			
 			// Get a transaction from the priority queue
 			Tr t = RBSTA.pq.poll();
+			MigrationPlan m = t.migrationPlanList.get(0);
 			
-			if(t.min_data_migration != 0) { // Only DTs
-				MigrationPlan m = t.migrationPlanList.get(0);
-				
-				// Check whether processing this transaction may increase the impact of any other already processed transactions
-				if(!RBSTA.isAffected(wb, t, m))
-					RBSTA.processTransaction(cluster, wb, t, m);						
-			}
-			
-			--i;
-		}
+			// Check whether processing this transaction may increase the impact of any other already processed transactions
+			if(!RBSTA.isAffected(wb, t, m))
+				RBSTA.processTransaction(cluster, wb, t, m);
+			else
+				t.processed = true;			
+		}		
 		
 		wb.set_intra_dmv(intra_server_dmv);
 		wb.set_inter_dmv(inter_server_dmv);

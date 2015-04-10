@@ -43,4 +43,4 @@ exponential.Avg.Weight=0.4
 admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5
-rbsta.span.reduction=1
+rbsta.span.reduction=3
