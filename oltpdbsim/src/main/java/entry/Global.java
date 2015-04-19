@@ -123,6 +123,9 @@ public final class Global implements java.io.Serializable {
 
 	// For RBSTA
 	public static int rbsta_span_reduction;
+
+	// For Sword
+	public static boolean sword_cluster_setup;
 	
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);

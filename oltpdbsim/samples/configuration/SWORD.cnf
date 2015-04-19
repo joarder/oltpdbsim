@@ -1,4 +1,4 @@
-simulation.name=C-T-RBSTA-MIN-NORM-VAL
+simulation.name=SWORD
 
 setup=consistenthash
 
@@ -10,17 +10,17 @@ workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=false
+graphcutbased.repartitioning=true
 
 workload.representation=hgr
 
-transaction.classification=true
+transaction.classification=false
 transaction.classification.strategy=basic
 
-data.migration.strategy=rbsta
+data.migration.strategy=sword
 
-compression.enabled=false
-compression.before.setup=false
+compression.enabled=true
+compression.before.setup=true
 compression.ratio=6
 
 initial.servers=4
@@ -28,7 +28,7 @@ server.capacity=100000
 fixed.partitions=32
 number.of.replicas=1
 
-simulation.period=615600
+simulation.period=97200
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
@@ -43,4 +43,4 @@ exponential.Avg.Weight=0.4
 admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5
-rbsta.span.reduction=1
+rbsta.span.reduction=3

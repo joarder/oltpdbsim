@@ -150,7 +150,7 @@ public class WorkloadBatchProcessor {
 		Map<CompressedHEdge, Set<CompressedVertex>> vedge = new TreeMap<CompressedHEdge, Set<CompressedVertex>>();
 		Set<CompressedVertex> vvertex = new TreeSet<CompressedVertex>();
 		
-		Global.LOGGER.info("Total compressed hyperedges = "+wb.hgr.getcHEdges().size());
+		Global.LOGGER.info("Total "+wb.hgr.getcHEdges().size()+" compressed hyperedges present in the current workload.");
 		
 		// Only select the compressed hyperedges having at least two compressed vertices
 		Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");
@@ -163,7 +163,7 @@ public class WorkloadBatchProcessor {
 			}
 		}
 		
-		Global.LOGGER.info("Total "+vedge.size()+" compressed hyperedges containing "+vvertex.size()+" compressed vertices are selected.");
+		Global.LOGGER.info("Total "+vedge.size()+" compressed hyperedges spanning "+vvertex.size()+" compressed vertices are selected.");
 		
 		vvertex_id_map = new TreeMap<Integer, Integer>();
 		int vvertex_id = 0;

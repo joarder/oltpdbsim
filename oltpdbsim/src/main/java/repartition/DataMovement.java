@@ -310,9 +310,8 @@ public class DataMovement {
 		
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
-		setEnvironment(cluster);
-		
-		// To be implemented
+		setEnvironment(cluster);		
+		Sword.populatePQ(cluster, wb);
 	}
 	
 	// methodX - Swapping partitions
@@ -561,8 +560,8 @@ public class DataMovement {
 				} // end -- if()-Data
 			} // end -- for()-Data
 			
-			if(tr.isDt() && Global.compressionBeforeSetup)
-				wb.sword.hCut.add(h);
+			//if(tr.isDt() && Global.compressionBeforeSetup)
+				//wb.sword.hCut.add(h);
 			
 		} // end -- for()		
 		

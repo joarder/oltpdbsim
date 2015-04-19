@@ -1,20 +1,16 @@
 package main.java.utils.graph;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public class CompressedHEdge extends SimpleHEdge {
 
-	private Map<Integer, SimpleHEdge> HSet;	
-	private double c_e; // Contribution of each hyperedge e in H_cut towards total number of distributed transactions seen so far
-	private double ndt_e;
+	private Map<Integer, SimpleHEdge> HSet;
 	
 	public CompressedHEdge(int id, int d) {
 		super(id, d);		
-		HSet = new HashMap<Integer, SimpleHEdge>();
-		c_e = 0.0;
-		ndt_e = 0;		
+		HSet = new HashMap<Integer, SimpleHEdge>();		
 	}	
 
 	public Map<Integer, SimpleHEdge> getHESet() {
@@ -23,24 +19,8 @@ public class CompressedHEdge extends SimpleHEdge {
 
 	public void setHESet(Map<Integer, SimpleHEdge> HSet) {
 		this.HSet = HSet;
-	}
-
-	public double getC_e() {
-		return c_e;
-	}
-
-	public void setC_e(double c_e) {
-		this.c_e = c_e;
-	}
-
-	public double getNdt_e() {
-		return ndt_e;
-	}
-
-	public void setNdt_e(double ndt_e2) {
-		this.ndt_e = ndt_e2;
-	}
-
+	}		
+	
 	public void updateWeight() {
 		int weight = 0;
 		

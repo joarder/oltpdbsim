@@ -416,7 +416,7 @@ public class Cluster {
 		_setup = true;
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");		
-		Global.LOGGER.info("Creating "+Global.virtualDataNodes+" virtual nodes from "
+		Global.LOGGER.info("Creating "+Global.virtualDataNodes+" compressed vertices from "
 									  +db.getDb_tuple_counts()+" tuples ...");
 		
 		// Initial Data distribution
@@ -467,7 +467,7 @@ public class Cluster {
 		}
 		
 		// Initialize Sword's incremental repartitioning algorithm		
-		wb.sword.init(cluster, wb);
+		//wb.sword.init(cluster, wb);
 		
 		_setup = false;
 		
@@ -475,7 +475,8 @@ public class Cluster {
 	}
 
 //====================================================================================================
-	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {		
+	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {	
+		Global.sword_cluster_setup = true;
 		WorkloadBatch wb = new WorkloadBatch(0);
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -485,7 +486,7 @@ public class Cluster {
 		// i -- Transaction types
 		for(int i = 1; i <= wrl.tr_types; i++) {
 			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
+			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow/4); // 3600 transactions ~ 1hr workload			
 			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
 
 			// j -- number of Transactions for a specific Transaction type
@@ -509,6 +510,7 @@ public class Cluster {
 		wb.setWrl_totalDataObjects(Global.global_dataCount);
 		wb.setDb_tuple_counts(db.getDb_tuple_counts());
 		
+		Global.sword_cluster_setup = false;
 		return wb;
 	}
 	

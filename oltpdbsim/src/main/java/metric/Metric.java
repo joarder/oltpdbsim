@@ -124,6 +124,17 @@ public class Metric implements java.io.Serializable {
 		getPartitionStatistic(cluster);
 	}
 	
+	// Returns the Coefficient of Variance on server data
+	public static double getServerLoadBalance(Cluster cluster) {		
+		DescriptiveStatistics server_data = new DescriptiveStatistics();
+		
+		for(Server server : cluster.getServers())
+			server_data.addValue(server.getServer_total_data());
+		
+		double c_v = server_data.getStandardDeviation()/server_data.getMean();
+		return c_v; 
+	}	
+	
 	public static void getServerStatistic(Cluster cluster) {		
 		DescriptiveStatistics _data = new DescriptiveStatistics();
 		DescriptiveStatistics _inflow = new DescriptiveStatistics();

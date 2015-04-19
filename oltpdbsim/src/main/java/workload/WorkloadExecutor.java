@@ -338,15 +338,15 @@ public class WorkloadExecutor {
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
 		
-		// Sword :: Create a new Workload Batch
-		if(!Global.compressionBeforeSetup) {
+		// Sword -- Use the already created workload batch
+		//if(!Global.compressionBeforeSetup) {
 			wb = new WorkloadBatch(Global.repeated_runs);
 		
 			if(Global.workloadAware)
 				// MethodX :: initialisation
 				if(Global.dataMigrationStrategy.equals("methodX"))
 					wb.methodX.init(cluster);
-		}
+		//}
 		
 		// Start simulation
 		WorkloadExecutor.simulate(db, cluster, wrl, wb, Global.simulationPeriod);

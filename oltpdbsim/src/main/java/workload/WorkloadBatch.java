@@ -102,7 +102,7 @@ public class WorkloadBatch {
 				if(Global.compressionEnabled) {
 					this.cHEdge_id_map = new TreeMap<Integer, Integer>();
 					
-					if(Global.compressionBeforeSetup)
+					if(Global.compressionBeforeSetup && !Global.sword_cluster_setup)
 						this.sword = new Sword();
 				}
 				
@@ -386,7 +386,12 @@ public class WorkloadBatch {
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		int tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
+		int tr_frequency = 0;
+		
+		if(Global.compressionBeforeSetup)
+			tr_frequency = 1;
+		else
+			tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
 				
 		if(h != null)
 			h.setWeight(tr_frequency);			
@@ -537,8 +542,8 @@ public class WorkloadBatch {
 			if(tr.isDt()) {
 				++dt_nums;
 				
-				if(Global.compressionBeforeSetup)
-					this.sword.hCut.add(h);
+				//if(Global.compressionBeforeSetup)
+					//this.sword.hCut.add(h);
 				
 			} else { // Non-distributed transactions
 				++ndt_nums;
@@ -561,8 +566,8 @@ public class WorkloadBatch {
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
 		
-		if(Global.compressionBeforeSetup)
-			this.sword.calculateContribution(cluster, this);
+		//if(Global.compressionBeforeSetup)
+			//this.sword.calculateContribution(cluster, this);
 	}
 	
 	public void show() {		

@@ -342,8 +342,8 @@ public class TransactionClassifier {
 			SimpleHEdge h = wb.hgr.getHEdge(i);
 			wb.hgr.removeHEdge(h);
 			
-			if(Global.compressionBeforeSetup && wb.sword.hCut.contains(h))
-				wb.sword.hCut.remove(h);
+			if(Global.compressionBeforeSetup && Sword.hCut.contains(h))
+				Sword.hCut.remove(h);
 		}				
 	}
 	
