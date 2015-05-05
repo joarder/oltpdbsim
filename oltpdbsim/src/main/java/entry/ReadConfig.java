@@ -109,6 +109,7 @@ public class ReadConfig {
 						
 			// Read configuration parameters			
 			Global.simulation = (String) config_param.getProperty("simulation.name");
+			Global.analysis = Boolean.parseBoolean((String) config_param.getProperty("analysis"));
 			Global.workloadVariation = Boolean.parseBoolean((String) config_param.getProperty("workload.variation"));
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
 			Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
@@ -164,8 +165,11 @@ public class ReadConfig {
 				if(Global.dataMigrationStrategy.equals("methodX"))
 					Global.priority = Double.parseDouble((String) config_param.getProperty("methodX.decision.priority"));
 				
-				if(Global.dataMigrationStrategy.equals("rbsta"))
+				if(Global.dataMigrationStrategy.equals("rbsta")) {
 					Global.rbsta_span_reduction = Integer.parseInt((String) config_param.getProperty("rbsta.span.reduction"));
+					Global.rbsta_idt_priority = Double.parseDouble((String) config_param.getProperty("rbsta.idt.priority"));
+					Global.rbsta_lb_priority = Double.parseDouble((String) config_param.getProperty("rbsta.lb.priority"));
+				}
 			}
 			
 	    } catch (ConfigurationException e) {

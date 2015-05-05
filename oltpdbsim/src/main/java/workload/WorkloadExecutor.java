@@ -36,6 +36,7 @@ import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
+import main.java.repartition.Analysis;
 import main.java.repartition.Association;
 import main.java.repartition.DataMovement;
 import main.java.repartition.MinCut;
@@ -398,9 +399,11 @@ public class WorkloadExecutor {
 	// Hourly Statistics Collection
 	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {	
 		
-		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {			
-			
+		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {				
 			Global.LOGGER.info("<-- Hourly Statistics -->");			
+			
+			if(Global.analysis)
+				Analysis.analyse(wb);
 			
 			WorkloadExecutor.collectStatistics(cluster, wb);
 			
@@ -727,7 +730,7 @@ class Arrival extends Event {
 				
 			} else { // 1. Baseline
 				
-				// Hourly statistic collection
+				// Hourly statistic collection				
 				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 			}
 		}

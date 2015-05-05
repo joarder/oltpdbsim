@@ -1,9 +1,9 @@
 package main.java.workload;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
@@ -20,8 +20,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	private double tr_period;
 	
 	private Set<Integer> tr_dataSet;	
-	private HashMap<Integer, TreeSet<Integer>> tr_partitionSet;
-	private HashMap<Integer, TreeSet<Integer>> tr_serverSet;
+	private HashMap<Integer, HashSet<Integer>> tr_partitionSet;
+	private HashMap<Integer, HashSet<Integer>> tr_serverSet;
 	
 	private int tr_ssCost; // Server Span Cost or, Distributed Transaction Cost
 	private int tr_psCost; // Partition Span Cost	
@@ -61,8 +61,8 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		this.setTr_service_time(0.0);
 		this.setTr_response_time(0.0);
 		
-		this.setTr_partitionSet(new HashMap<Integer, TreeSet<Integer>>());
-		this.setTr_serverSet(new HashMap<Integer, TreeSet<Integer>>());
+		this.setTr_partitionSet(new HashMap<Integer, HashSet<Integer>>());
+		this.setTr_serverSet(new HashMap<Integer, HashSet<Integer>>());
 		
 		this.setTr_class(null);		
 		this.setTr_period(0.0);
@@ -175,19 +175,19 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	}
 	
 	
-	public HashMap<Integer, TreeSet<Integer>> getTr_partitionSet() {
+	public HashMap<Integer, HashSet<Integer>> getTr_partitionSet() {
 		return tr_partitionSet;
 	}
 
-	public void setTr_partitionSet(HashMap<Integer, TreeSet<Integer>> hashMap) {
+	public void setTr_partitionSet(HashMap<Integer, HashSet<Integer>> hashMap) {
 		this.tr_partitionSet = hashMap;
 	}
 
-	public HashMap<Integer, TreeSet<Integer>> getTr_serverSet() {
+	public HashMap<Integer, HashSet<Integer>> getTr_serverSet() {
 		return tr_serverSet;
 	}
 
-	public void setTr_serverSet(HashMap<Integer, TreeSet<Integer>> tr_serverSet) {
+	public void setTr_serverSet(HashMap<Integer, HashSet<Integer>> tr_serverSet) {
 		this.tr_serverSet = tr_serverSet;
 	}
 
@@ -232,12 +232,12 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 	public void calculateSpans(Cluster cluster) {
 
 		// Reset
-		this.setTr_partitionSet(new HashMap<Integer, TreeSet<Integer>>());
-		this.setTr_serverSet(new HashMap<Integer, TreeSet<Integer>>());
+		this.setTr_partitionSet(new HashMap<Integer, HashSet<Integer>>());
+		this.setTr_serverSet(new HashMap<Integer, HashSet<Integer>>());
 		
 		// Calculate Server and Partition span cost which is equivalent to the cost of Distributed Transaction			
-		TreeSet<Integer> tr_partitions;
-		TreeSet<Integer> tr_servers;
+		HashSet<Integer> tr_partitions;
+		HashSet<Integer> tr_servers;
 		
 		Iterator<Integer> d = this.getTr_dataSet().iterator();
 		while(d.hasNext()) {
@@ -251,7 +251,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 			if(this.getTr_partitionSet().containsKey(p_id))
 				this.getTr_partitionSet().get(p_id).add(data_id);
 			else {
-				tr_partitions = new TreeSet<Integer>();
+				tr_partitions = new HashSet<Integer>();
 				tr_partitions.add(data_id);
 				this.getTr_partitionSet().put(p_id, tr_partitions);
 			}			
@@ -260,7 +260,7 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 			if(this.getTr_serverSet().containsKey(s_id))
 				this.getTr_serverSet().get(s_id).add(data_id);
 			else {
-				tr_servers = new TreeSet<Integer>();
+				tr_servers = new HashSet<Integer>();
 				tr_servers.add(data_id);
 				this.getTr_serverSet().put(s_id, tr_servers);
 			}

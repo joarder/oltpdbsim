@@ -18,7 +18,9 @@ import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
+import main.java.entry.Global;
 import main.java.metric.Metric;
+import main.java.utils.IntPair;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -55,7 +57,7 @@ public class RBSTA {
 		t.populateServerSet(cluster, tr);
 		
 		if(t.serverMap.size() > 1)	 // DTs
-			t.populateMovementList(cluster);
+			t.populateMovementList(cluster, wb);
 		else {						 // Movable non-DTs
 			t.min_dmv = 0;
 			t.max_idt_reduction_improvement = 0.0;
@@ -68,22 +70,22 @@ public class RBSTA {
 	// Checks whether processing current transaction affect any other transaction adversely
 	public static boolean isAffected(WorkloadBatch wb, Tr t, MigrationPlan m) {			
 		// Search the incident transactions for the targeted data rows to be moved
-		for(int d : m.dataSet) {
-			SimpleVertex v = wb.hgr.getVertex(d);
-			
-			for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-				Tr incidentT = tMap.get(h.getId());				
+		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
+			for(int d : entry.getValue()) {
+				SimpleVertex v = wb.hgr.getVertex(d);
 				
-				if(!incidentT.equals(t) && incidentT.processed) {									
-					int dst_server_id = m.to;
+				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
+					Tr incidentT = tMap.get(h.getId());				
 					
-					if(incidentT.serverMap.containsKey(dst_server_id)) { // Either no change or potential reduction in the impact  
-						return false;
-					} else { // Destination server is not covered by the incident transaction						
-						if(!isContainsAll(incidentT, m)) // Either no change or potential reduction in the impact
+					if(!incidentT.equals(t) && incidentT.processed) {					
+						if(incidentT.serverMap.containsKey(m.to)) { // Either no change or potential reduction in the impact  
 							return false;
-						else // Not all of the data ids from the source servers are included in the migration plan
-							return true;
+						} else { // Destination server is not covered by the incident transaction						
+							if(!isContainsAll(incidentT, m)) // Either no change or potential reduction in the impact
+								return false;
+							else // Not all of the data ids from the source servers are included in the migration plan
+								return true;
+						}
 					}
 				}
 			}
@@ -96,9 +98,9 @@ public class RBSTA {
 		
 		boolean contains = false;
 		
-		for(int src_server_id : m.fromSet) {
-			if(incidentT.serverMap.containsKey(src_server_id))
-				if(incidentT.serverMap.get(src_server_id).containsAll(m.dataSet))
+		for(int s_id : m.fromSet) {
+			if(incidentT.serverMap.containsKey(s_id))
+				if(incidentT.serverMap.get(s_id).containsAll(m.dataMap.get(s_id)))
 					contains = true;
 		}
 		
@@ -109,38 +111,38 @@ public class RBSTA {
 	}
 	
 	public static void processTransaction(Cluster cluster, WorkloadBatch wb, Tr t, MigrationPlan m) {
-				
-		int dst_server_id = m.to;
-		HashSet<Integer> dataSet = new HashSet<Integer>(m.dataSet);
-		
+						
 		// Data migrations
-		dataMigration(cluster, dst_server_id, dataSet);
+		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.dataMap);	
+		dataMigration(cluster, m.to, dataMap);
 		
 		// Adjust transaction's serverSet				
-		for(int src_server_id : m.fromSet) {
-			for(int d : t.serverMap.get(src_server_id))
-				t.serverMap.get(dst_server_id).add(d);			
+		for(int s_id : m.fromSet) {
+			for(int d : t.serverMap.get(s_id))
+				t.serverMap.get(m.to).add(d);			
 			
-			t.serverMap.remove(src_server_id);
+			t.serverMap.remove(s_id);
 		}
 		
 		// Update incident transactions
-		for(int d : m.dataSet) {
-			SimpleVertex v = wb.hgr.getVertex(d);
-
-			for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-				Tr incidentT = tMap.get(h.getId());
-				
-				if(!incidentT.equals(t) && !incidentT.processed) {				
-					pq.remove(incidentT);
-					tMap.remove(h.getId());
+		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
+			for(int d : entry.getValue()) {
+				SimpleVertex v = wb.hgr.getVertex(d);
+	
+				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
+					Tr incidentT = tMap.get(h.getId());
 					
-					Tr new_incidentT = prepare(cluster, wb, h);
-					tMap.put(new_incidentT.id, new_incidentT);
-					
-					 // Only DTs will be added back after recalculations
-					if(new_incidentT.serverMap.size() > 1)						
-						pq.add(tMap.get(new_incidentT.id));					
+					if(!incidentT.equals(t) && !incidentT.processed) {				
+						pq.remove(incidentT);
+						tMap.remove(h.getId());
+						
+						Tr new_incidentT = prepare(cluster, wb, h);
+						tMap.put(new_incidentT.id, new_incidentT);
+						
+						 // Only DTs will be added back after recalculations
+						if(new_incidentT.serverMap.size() > 1)						
+							pq.add(tMap.get(new_incidentT.id));					
+					}
 				}
 			}
 		}
@@ -149,7 +151,7 @@ public class RBSTA {
 	} 
 	
 	// Perform data migrations
-	private static void dataMigration(Cluster cluster, int dst_server_id, HashSet<Integer> dataSet) {
+	private static void dataMigration(Cluster cluster, int dst_server_id, HashMap<Integer, HashSet<Integer>> dataMap) {
 		// Chose the destination partition ids
 		Server dst_server = cluster.getServer(dst_server_id);
 		ArrayList<Partition> dst_partitionList = new ArrayList<Partition>();		
@@ -162,21 +164,23 @@ public class RBSTA {
 		int dst_partition_id = 0;
 		int r = 0;
 		
-		for(int d : dataSet) {
-			Data data = cluster.getData(d);
-	
-			if(dataSet.size() > 1) {				
-				if(r == dst_partitionList.size())
-					r = 0;
+		for(Entry<Integer, HashSet<Integer>> entry : dataMap.entrySet()) {
+			for(int d : entry.getValue()) {
+				Data data = cluster.getData(d);
+		
+				if(dataMap.size() > 1) {				
+					if(r == dst_partitionList.size())
+						r = 0;
+					
+					dst_partition_id = dst_partitionList.get(r).getPartition_id();				
+					++r;
+					
+				} else {
+					dst_partition_id = dst_partitionList.get(0).getPartition_id();
+				}
 				
-				dst_partition_id = dst_partitionList.get(r).getPartition_id();				
-				++r;
-				
-			} else {
-				dst_partition_id = dst_partitionList.get(0).getPartition_id();
-			}
-			
-			DataMovement.migration(cluster, dst_server_id, dst_partition_id, data);		
+				DataMovement.migration(cluster, dst_server_id, dst_partition_id, data);		
+		}
 		}
 	}
 }
@@ -218,7 +222,7 @@ class Tr implements Comparable<Tr> {
 		}
 	}
 	
-	void populateMovementList(Cluster cluster) {
+	void populateMovementList(Cluster cluster, WorkloadBatch wb) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
 		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.serverMap.keySet());
@@ -228,7 +232,7 @@ class Tr implements Comparable<Tr> {
 		HashMap<HashSet<Integer>, Integer> uniqueFromSet = new HashMap<HashSet<Integer>, Integer>();
 		
 		// Get all possible N-permutations		
-		HashSet<Integer> dataSet = new HashSet<Integer>();		
+		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>();		
 		int to = 0, req_dmv = 0;
 		
 		for (ICombinatoricsVector<Integer> permutations : permutationGen) {
@@ -247,11 +251,15 @@ class Tr implements Comparable<Tr> {
 					
 					for(int from : fromSet) {						
 						req_dmv += this.serverMap.get(from).size();
-						dataSet.addAll(this.serverMap.get(from));
+						dataMap.put(from, this.serverMap.get(from));
 					}
 					
-					double idt_reduction_per_dmv = getIdtReductionImprovement(this, fromSet, req_dmv);
-					double lb_improvement_per_dmv = getLbImprovement(cluster, this, fromSet, to, req_dmv);
+					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_dmv);
+					this.migrationPlanList.add(m); // From Source Server
+					
+					//double idt_reduction_per_dmv = getIdtReductionImprovement(this, fromSet, req_dmv);
+					double idt_reduction_per_dmv = getIdtReductionImprovement(wb, this, m);					
+					double lb_improvement_per_dmv = getLbImprovement(cluster, this, m);
 					
 					if(idt_reduction_per_dmv > this.max_idt_reduction_improvement)
 						this.max_idt_reduction_improvement = idt_reduction_per_dmv;
@@ -260,9 +268,10 @@ class Tr implements Comparable<Tr> {
 						this.max_lb_improvement = lb_improvement_per_dmv;
 					
 					if(req_dmv < this.min_dmv)
-						this.min_dmv = req_dmv;
+						this.min_dmv = req_dmv;										
 					
-					this.migrationPlanList.add(new MigrationPlan(fromSet, to, idt_reduction_per_dmv, lb_improvement_per_dmv, dataSet)); // From Source Server					
+					m.idt_reduction_per_dmv = idt_reduction_per_dmv;
+					m.lb_improvement_per_dmv = lb_improvement_per_dmv;					
 					
 					if(fromSet.size() > 1)
 						uniqueFromSet.put(fromSet, to);
@@ -281,53 +290,175 @@ class Tr implements Comparable<Tr> {
 				
 		// Testing
 		// After sorting
-		System.out.println(">> "+this.toString());
+		/*System.out.println(">> "+this.toString());
 		for(MigrationPlan m : this.migrationPlanList) {
 			System.out.println(m.toString());
+		}*/
+		
+		// Rank based on IDt priority (descending order)
+		int idt_rank = this.migrationPlanList.size();
+		for(int i = 0; i < this.migrationPlanList.size(); i++) {
+			if(i != 0)
+				if(this.migrationPlanList.get(i).idt_reduction_per_dmv != this.migrationPlanList.get(i-1).idt_reduction_per_dmv)
+					--idt_rank;
+			
+			this.migrationPlanList.get(i).idt_rank = idt_rank * Global.rbsta_idt_priority; // Prioritise IDt
+		}
+
+		// Testing
+		// After sorting
+		/*System.out.println(">> "+this.toString());
+		for(MigrationPlan m : this.migrationPlanList) {
+			System.out.println(m.toString());
+		}*/
+		
+		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
+			@Override
+			public int compare(MigrationPlan m1, MigrationPlan m2) {				
+				return (((int)m1.lb_improvement_per_dmv > (int)m2.lb_improvement_per_dmv) ? -1 : 
+					((int)m1.lb_improvement_per_dmv < (int)m2.lb_improvement_per_dmv) ? 1 : 0);				
+			}
+		});
+		
+		// Rank based on Lb priority (descending order)
+		int lb_rank = this.migrationPlanList.size();
+		for(int i = 0; i < this.migrationPlanList.size(); i++) {
+			if(i != 0)
+				if(this.migrationPlanList.get(i).lb_improvement_per_dmv != this.migrationPlanList.get(i-1).lb_improvement_per_dmv)
+					--lb_rank;
+			
+			this.migrationPlanList.get(i).lb_rank = lb_rank * Global.rbsta_lb_priority; // Prioritise Lb
+		}
+
+		// Assign combined rank		
+		for(MigrationPlan m : this.migrationPlanList)
+			m.combined_rank = (m.idt_rank + m.lb_rank);
+		
+		// Sort the array list by the value of combined rank (descending order)
+		
+		
+		// Select the element with maximum combined rank value
+		if(this.migrationPlanList.size() != 0) {			
+			
+			Global.LOGGER.info("----------------------------------------------");
+			Global.LOGGER.info("Sorted list of potential migration plans:");
+			
+			for(MigrationPlan m : this.migrationPlanList)
+				Global.LOGGER.info("--"+m.toString());
+						
+			MigrationPlan selected = this.migrationPlanList.get(0);
+			
+			Global.LOGGER.info("----------------------------------------------");
+			Global.LOGGER.info("Selected migration plan: "+selected.toString());
+					
+			return (new IntPair(selected.p_pair.x, selected.p_pair.y));
+		
+		} else {
+			return null;
 		}
 	}
 	
 	// Returns the idt reduction improvement
-	static double getIdtReductionImprovement(Tr t, HashSet<Integer> fromSet, int req_dmv) {
-		
+	static double getIdtReductionImprovement(Tr t, MigrationPlan m) {
+		// Frequency over the past observation period: (Global.observationWindow/t.period)
 		double old_idt = t.serverMap.size()*(1/t.period);
-		double new_idt = (t.serverMap.size() - fromSet.size())*(1/t.period);
+		double new_idt = (t.serverMap.size() - m.fromSet.size())*(1/t.period);
 		double idt_improvement = old_idt - new_idt;
 		
-		return (idt_improvement/req_dmv);
+		return (idt_improvement/m.req_dmv);
 	}
 
 	// Returns the idt reduction improvement -- improved methodology 
-	static double getIdtReductionImprovement(WorkloadBatch wb, Tr t, HashSet<Integer> fromSet, int req_dmv) {
-		
-		double new_idt = (t.serverMap.size() - fromSet.size())*(1/t.period);
+	static double getIdtReductionImprovement(WorkloadBatch wb, Tr t, MigrationPlan m) {
+		// Frequency over the past observation period: (Global.observationWindow/t.period)		
+		double new_idt = (t.serverMap.size() - m.fromSet.size())*(1/t.period);
 		double incident_idt = 0.0;
-		
+			
 		for(Entry<Integer, HashSet<Integer>> entry : t.serverMap.entrySet()) {
 			
 			HashSet<Integer> unique_trSet = new HashSet<Integer>();
+			
 			for(Integer d_id : entry.getValue()) {
 				SimpleVertex v = wb.hgr.getVertex(d_id);
 				
 				for(SimpleHEdge  h : wb.hgr.getIncidentEdges(v)) {
 					Transaction incident_tr = wb.getTransaction(h.getId());
 					
-					if(!unique_trSet.contains(incident_tr.getTr_id())) {						
-						incident_idt += incident_tr.getTr_serverSet().size()*(1/incident_tr.getTr_period());
+					if(t.id != incident_tr.getTr_id()) {
+						if(!unique_trSet.contains(incident_tr.getTr_id())) {
+							
+							//incident_idt += incident_tr.getTr_serverSet().size()*(1/incident_tr.getTr_period());
+							
+							// new code here
+							incident_idt += getIdtReduction(incident_tr, m);
+						}
+											
+						unique_trSet.add(incident_tr.getTr_id());
 					}
-					
-					unique_trSet.add(incident_tr.getTr_id());
 				}			
 			}
 		}		
 				
 		double idt_improvement = new_idt + incident_idt;
 		
-		return (idt_improvement/req_dmv);
+		return (idt_improvement/m.req_dmv);
+	}
+	
+	static double getIdtReduction(Transaction tr, MigrationPlan m) {
+		
+		double current_idt = (tr.getTr_serverSet().size())*(1/tr.getTr_period());
+		
+		// Perform a dummy movement to determine the new span
+		Tr t = new Tr(tr.getTr_id(), tr.getTr_period());
+		for(Entry<Integer, HashSet<Integer>> entry : tr.getTr_serverSet().entrySet()) {
+			t.serverMap.put(entry.getKey(), entry.getValue());
+		}
+		
+		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
+			if(t.serverMap.containsKey(entry.getKey())) {
+				for(Integer d_id : entry.getValue()) {
+					if(t.serverMap.containsValue(d_id)) {
+						t.serverMap.get(entry.getKey()).remove(d_id);
+						
+						if(t.serverMap.containsKey(m.to))
+							t.serverMap.get(m.to).add(d_id);
+						else {
+							HashSet<Integer> dataSet = new HashSet<Integer>();
+							dataSet.add(d_id);
+							t.serverMap.put(m.to, dataSet);
+						}
+					}
+				}
+			}
+		}
+				
+		double new_idt = (t.serverMap.size())*(1/t.period);
+		
+		if(new_idt <= current_idt)
+			new_idt *= 1;
+		else 
+			new_idt *= -1;		
+		
+		return new_idt;
+	}
+	
+	static boolean isContainsAllKeys(Transaction tr, HashSet<Integer> keys) {
+		
+		boolean contains = false;
+		
+		for(int key : keys) {
+			if(tr.getTr_serverSet().containsKey(key))
+					contains = true;
+		}
+		
+		if(contains)
+			return false;
+		else
+			return true;				
 	}
 	
 	// Returns the lb improvement
-	static double getLbImprovement(Cluster cluster, Tr t, HashSet<Integer> fromSet, int to, int req_dmv) {
+	static double getLbImprovement(Cluster cluster, Tr t, MigrationPlan m) {
 		
 		double old_lb = Metric.getServerLoadBalance(cluster);
 		
@@ -336,11 +467,11 @@ class Tr implements Comparable<Tr> {
 		DescriptiveStatistics server_data = new DescriptiveStatistics();
 		
 		for(Server s : cluster.getServers()) {
-			if(t.serverMap.containsKey(s.getServer_id()) && fromSet.contains(s.getServer_id())) {
+			if(t.serverMap.containsKey(s.getServer_id()) && m.fromSet.contains(s.getServer_id())) {
 				int data_count = s.getServer_total_data() - t.serverMap.get(s.getServer_id()).size();
 				server_data.addValue(data_count);
-			} else if(t.serverMap.containsKey(to)) {
-				int data_count = s.getServer_total_data() + t.serverMap.get(to).size();
+			} else if(t.serverMap.containsKey(m.to)) {
+				int data_count = s.getServer_total_data() + t.serverMap.get(m.to).size();
 				server_data.addValue(data_count);
 			}
 		}
@@ -348,7 +479,7 @@ class Tr implements Comparable<Tr> {
 		double new_lb = server_data.getStandardDeviation()/server_data.getMean();
 		double lb_improvement = old_lb - new_lb;
 		
-		return (lb_improvement/req_dmv);
+		return (lb_improvement/m.req_dmv);
 	}
 	
 	// Ascending order
@@ -392,27 +523,38 @@ class Tr implements Comparable<Tr> {
 	
 	@Override
 	public String toString() {
-		return (">> T("+this.id+") | Minimum required # of data migrations ("+this.min_dmv+") | Min nomalized value ("+this.max_idt_reduction_improvement+") | "+this.serverMap);
+		return (">> T"+this.id+": Minimum required # of data migrations ("+this.min_dmv+") "
+				+ "| Max Idt reduction improvement ("+this.max_idt_reduction_improvement+") "
+				+ "| Max Lb improvement ("+this.max_lb_improvement+") "
+						+ "| "+this.serverMap);
 	}
 }
 
 class MigrationPlan {
 	HashSet<Integer> fromSet;	// From Server's Ids (for 1/2/3/...N span reductions)
 	int to;		// To Server Id
+	int req_dmv;
 	double idt_reduction_per_dmv;
 	double lb_improvement_per_dmv;
-	HashSet<Integer> dataSet;
+	HashMap<Integer, HashSet<Integer>> dataMap;
+	double idt_rank;
+	double lb_rank;
+	double combined_rank;
 	
-	MigrationPlan(HashSet<Integer> fromSet, int to, double idt, double lb, HashSet<Integer> dataSet) {
+	MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_dmv) {
 		this.fromSet = new HashSet<Integer>(fromSet);
 		this.to = to;
-		this.idt_reduction_per_dmv = idt;
-		this.lb_improvement_per_dmv = lb;
-		this.dataSet = new HashSet<Integer>(dataSet);		
+		this.req_dmv = req_dmv;
+		this.idt_reduction_per_dmv = 0.0;
+		this.lb_improvement_per_dmv = 0.0;
+		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);
+		this.idt_rank = 0.0;
+		this.lb_rank = 0.0;
+		this.combined_rank = 0.0;
 	}	
 	
 	@Override
 	public String toString() {
-		return (">> From("+this.fromSet+") | To("+this.to+") | Required # of data migrations("+this.dataSet.size()+") | Idt improvement("+this.idt_reduction_per_dmv+") | Lb improvement ("+this.lb_improvement_per_dmv+")");
+		return (">> From("+this.fromSet+") | To("+this.to+") | Required # of data migrations("+this.dataMap.size()+") | Idt improvement("+this.idt_reduction_per_dmv+") | Lb improvement ("+this.lb_improvement_per_dmv+")");
 	}
 }
