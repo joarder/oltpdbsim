@@ -20,7 +20,6 @@ import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.entry.Global;
 import main.java.metric.Metric;
-import main.java.utils.IntPair;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -350,11 +349,6 @@ class Tr implements Comparable<Tr> {
 			
 			Global.LOGGER.info("----------------------------------------------");
 			Global.LOGGER.info("Selected migration plan: "+selected.toString());
-					
-			return (new IntPair(selected.p_pair.x, selected.p_pair.y));
-		
-		} else {
-			return null;
 		}
 	}
 	

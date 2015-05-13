@@ -6,23 +6,29 @@ import java.util.List;
 import java.util.Map;
 
 import main.java.entry.Global;
+import main.java.metric.PerfMetric;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
 public class Analysis {	
 	
-	public static void analyse(WorkloadBatch wb) {
-		performAnalysis(wb, Global.servers);
+	public static void analyse(WorkloadBatch wb, PerfMetric perfm) {
+		++Global.repartitioningCycle;
+		
+		double pl1 = performAnalysis(wb, Global.servers);
+		perfm.ParallelismBefore.put(Global.repartitioningCycle, pl1);
 		
 		System.out.println();
 		System.out.println("Analysis having a faulty server in the system ...");		
-		performAnalysis(wb, Global.servers - 1);
+		
+		double pl2 = performAnalysis(wb, Global.servers - 1);
+		perfm.ParallelismAfter.put(Global.repartitioningCycle, pl2);
 	}
 	
 	static Map<Integer, List<T_dummy>> tMap;
 	
-	public static void performAnalysis(WorkloadBatch wb, int servers) {
+	public static double performAnalysis(WorkloadBatch wb, int servers) {
 		
 		tMap = new HashMap<Integer, List<T_dummy>>();
 		
@@ -35,9 +41,9 @@ public class Analysis {
 		System.out.println("HGraph Size = "+wb.hgr.getEdgeCount());
 		
 		for(SimpleHEdge h : wb.hgr.getEdges()) {
-			Transaction tr = wb.getTransaction(h.getId());
-			System.out.println(tr.toString());
+			Transaction tr = wb.getTransaction(h.getId());			
 			int t_span = tr.getTr_serverSet().size();
+			
 			T_dummy t = new T_dummy(tr.getTr_id(), t_span, tr.getTr_period());
 			
 			if(tMap.containsKey(t_span)) {
@@ -50,14 +56,17 @@ public class Analysis {
 				
 				if(t_span < lowest_span)
 					lowest_span = t_span;
-				else if(t_span > highest_span)
+				
+				if(t_span > highest_span)
 					highest_span = t_span;
 			}
+			
+			//System.out.println("t_span = "+t_span+" | highest_span = "+highest_span+" | lowest_span = "+lowest_span);
 		}
 		
-		System.out.println("Size = "+tMap.size());
-		System.out.println("HSpan = "+highest_span);
-		System.out.println("LSpan = "+lowest_span);
+		//System.out.println("Size = "+tMap.size());
+		//System.out.println("highest_span = "+highest_span);
+		//System.out.println("lowest_span = "+lowest_span);
 		
 		if(highest_span > servers) {
 			denial_of_service = tMap.get(highest_span).size();
@@ -68,52 +77,57 @@ public class Analysis {
 		}
 		
 		// Scheduling	
-		System.out.println("Size = "+tMap.size());
+		//System.out.println("Size = "+tMap.size());
 		while(tMap.size() != 0) {			
 			if(tMap.containsKey(highest_span)) {				
-					++groups;
-					//System.out.println("--> Group-"+groups);
-					
-					T_dummy t = tMap.get(highest_span).remove(0);
-					//System.out.println(t.toString());			
-	
-					// Adjust
-					if(tMap.get(highest_span).size() == 0) {
-						tMap.remove(highest_span);
-						--highest_span;
-					}				
-					
-					if(t.span != servers) {
-						int req = servers - t.span;
-	
-						if(tMap.containsKey(req)) {						
-							T_dummy t1 = tMap.get(req).remove(0);
-							//System.out.println(t1.toString());
-	
-							// Adjust
-							if(tMap.get(req).size() == 0) {
-								tMap.remove(req);
-								
-								if(lowest_span == req)
+				++groups;
+				//System.out.println("--> Group-"+groups);
+				//System.out.println("--> highest_span = "+highest_span+" | lowest_span = "+lowest_span);
+				
+				T_dummy t = tMap.get(highest_span).remove(0);
+				//System.out.println(t.toString());			
+
+				// Adjust
+				if(tMap.get(highest_span).size() == 0) {
+					tMap.remove(highest_span);
+					--highest_span;
+				}				
+				
+				if(t.span != servers) {
+					int req = servers - t.span;
+
+					if(tMap.containsKey(req)) {						
+						T_dummy t1 = tMap.get(req).remove(0);
+						//System.out.println(t1.toString());
+
+						// Adjust
+						if(tMap.get(req).size() == 0) {
+							tMap.remove(req);
+							
+							if(lowest_span == req)
+								++lowest_span;
+							else if(highest_span == req)
+								--highest_span;								
+						}
+						
+					} else {
+						if(req > lowest_span) {
+							for(int i = 0; i < req; ++i) {
+								T_dummy t2 = tMap.get(lowest_span).remove(0);
+								//System.out.println(t2.toString());
+						
+								// Adjust
+								if(tMap.get(lowest_span).size() == 0) {
+									tMap.remove(lowest_span);
 									++lowest_span;
-							}
-							
-						} else {
-							if(req > lowest_span) {
-								for(int i = 0; i < req; ++i) {
-									T_dummy t2 = tMap.get(lowest_span).remove(0);
-									//System.out.println(t2.toString());
-							
-									// Adjust
-									if(tMap.get(lowest_span).size() == 0) {
-										tMap.remove(lowest_span);
-										++lowest_span;
-									} //end-if
-								} //end-for
-							} //end-if
-						} //end-else-if
-					} //end-if
+								} //end-if
+							} //end-for
+						} //end-if
+					} //end-else-if
 				} //end-if
+				
+				//System.out.println("->> highest_span = "+highest_span+" | lowest_span = "+lowest_span);
+			} //end-if
 		} //end-while()
 		
 		double parallelism = (double) (transactions + denial_of_service)/(groups + denial_of_service);
@@ -125,6 +139,8 @@ public class Analysis {
 		System.out.println("Total groups = "+(groups + denial_of_service));
 		System.out.println("Total groups for denied transactions = "+denial_of_service);
 		System.out.println("Parallelism achieved = "+parallelism);
+		
+		return parallelism;
 	}
 }
 

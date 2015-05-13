@@ -403,7 +403,7 @@ public class WorkloadExecutor {
 			Global.LOGGER.info("<-- Hourly Statistics -->");			
 			
 			if(Global.analysis)
-				Analysis.analyse(wb);
+				Analysis.analyse(wb, perfm);
 			
 			WorkloadExecutor.collectStatistics(cluster, wb);
 			

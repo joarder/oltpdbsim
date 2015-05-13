@@ -22,11 +22,17 @@ public class PerfMetric {
 	public Map<Integer, Integer> Span;
 	public Map<Integer, Double> Response;
 	
+	// For parallelism analysis
+	public Map<Integer, Double> ParallelismBefore;
+	public Map<Integer, Double> ParallelismAfter;
+	
 	private static File file1;
 	private static File file2;
+	private static File file3;
 	
 	private PrintWriter prWriter1;
 	private PrintWriter prWriter2;
+	private PrintWriter prWriter3;
 	
 	public PerfMetric() {
 		time = new HashMap<Integer, Double>();
@@ -38,6 +44,10 @@ public class PerfMetric {
 		Span = new HashMap<Integer, Integer>();
 		Response = new  HashMap<Integer, Double>();
 		
+		// For analysis | perf3
+		ParallelismBefore = new HashMap<Integer, Double>();
+		ParallelismAfter = new HashMap<Integer, Double>();
+		
 		// Creating a metric files
 		file1 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf1.out");
@@ -45,12 +55,18 @@ public class PerfMetric {
 		file2 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf2.out");
 		
+		file3 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf3.out");
+		
 		try {			
 			file1.getParentFile().mkdirs();
 			file2.getParentFile().mkdirs();
+			file3.getParentFile().mkdirs();
 			
 			file1.createNewFile();
 			file2.createNewFile();
+			file3.createNewFile();
+			
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
 		}
@@ -58,6 +74,7 @@ public class PerfMetric {
 		// File Writers
 		prWriter1 = Utility.getPrintWriter(Global.metric_dir, file1);
 		prWriter2 = Utility.getPrintWriter(Global.metric_dir, file2);
+		prWriter3 = Utility.getPrintWriter(Global.metric_dir, file3);
 	}
 	
 	public void write() {
@@ -84,6 +101,19 @@ public class PerfMetric {
 			}
 		} finally {
 			prWriter2.close();
+		}
+		
+		if(Global.analysis) {
+			// Write perf3		
+			try {
+				for(Entry<Integer, Double> entry : ParallelismBefore.entrySet()) {
+					prWriter3.print(entry.getValue()+" ");
+					prWriter3.print(ParallelismAfter.get(entry.getKey()));
+					prWriter3.println();
+				}
+			} finally {
+				prWriter3.close();
+			}
 		}
 	}
 }
