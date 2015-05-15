@@ -22,17 +22,13 @@ public class PerfMetric {
 	public Map<Integer, Integer> Span;
 	public Map<Integer, Double> Response;
 	
-	// For parallelism analysis
-	public Map<Integer, Double> ParallelismBefore;
-	public Map<Integer, Double> ParallelismAfter;
-	
 	private static File file1;
 	private static File file2;
-	private static File file3;
+	public static File file3;
 	
 	private PrintWriter prWriter1;
 	private PrintWriter prWriter2;
-	private PrintWriter prWriter3;
+	public PrintWriter prWriter3;
 	
 	public PerfMetric() {
 		time = new HashMap<Integer, Double>();
@@ -43,10 +39,6 @@ public class PerfMetric {
 		Period = new HashMap<Integer, Double>(); // Holds inter-repetition intervals
 		Span = new HashMap<Integer, Integer>();
 		Response = new  HashMap<Integer, Double>();
-		
-		// For analysis | perf3
-		ParallelismBefore = new HashMap<Integer, Double>();
-		ParallelismAfter = new HashMap<Integer, Double>();
 		
 		// Creating a metric files
 		file1 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
@@ -96,24 +88,13 @@ public class PerfMetric {
 			for(Entry<Integer, Double> entry : Period.entrySet()) {
 				prWriter2.print(entry.getValue()+" ");
 				prWriter2.print(Span.get(entry.getKey())+" ");
-				prWriter2.print(Response.get(entry.getKey()));
+				//prWriter2.print(Response.get(entry.getKey()));
 				prWriter2.println();
 			}
 		} finally {
 			prWriter2.close();
 		}
 		
-		if(Global.analysis) {
-			// Write perf3		
-			try {
-				for(Entry<Integer, Double> entry : ParallelismBefore.entrySet()) {
-					prWriter3.print(entry.getValue()+" ");
-					prWriter3.print(ParallelismAfter.get(entry.getKey()));
-					prWriter3.println();
-				}
-			} finally {
-				prWriter3.close();
-			}
-		}
+		prWriter3.close();
 	}
 }

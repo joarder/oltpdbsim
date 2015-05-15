@@ -78,7 +78,7 @@ public class WorkloadExecutor {
 	static double nextHourlyRepartition = Global.warmupPeriod;
 	
 	static boolean varyWorkload = false;
-	static double nextWorkloadVariation = Global.warmupPeriod+2*Global.observationWindow;
+	static double nextWorkloadVariation = Global.warmupPeriod + 2*Global.observationWindow;
 	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
@@ -402,7 +402,7 @@ public class WorkloadExecutor {
 		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {				
 			Global.LOGGER.info("<-- Hourly Statistics -->");			
 			
-			if(Global.analysis)
+			if(Global.analysis && !WorkloadExecutor.warmingUp)
 				Analysis.analyse(wb, perfm);
 			
 			WorkloadExecutor.collectStatistics(cluster, wb);
