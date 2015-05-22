@@ -169,7 +169,7 @@ public class Association {
 				if(swappingCandidates.get(i).swapping_gain != swappingCandidates.get(i-1).swapping_gain)
 					--rank;
 			
-			swappingCandidates.get(i).gain_rank = rank * Global.priority; // Prioritise gain (alpha)
+			swappingCandidates.get(i).gain_rank = rank * Global.idt_priority; // Prioritise gain (alpha)
 		}
 		
 //		// Testing
@@ -194,7 +194,7 @@ public class Association {
 				if(swappingCandidates.get(i).p_data_distance != swappingCandidates.get(i-1).p_data_distance) 
 					--rank;
 			
-			swappingCandidates.get(i).distance_rank = rank*(1 - Global.priority); // Prioritise balance (1-alpha)	
+			swappingCandidates.get(i).distance_rank = rank*(1 - Global.idt_priority); // Prioritise balance (1-alpha)	
 		}
 
 		// Testing

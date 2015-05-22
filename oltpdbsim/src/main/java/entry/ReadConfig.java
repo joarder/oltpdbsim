@@ -137,8 +137,16 @@ public class ReadConfig {
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
-				if(Global.incrementalRepartitioning)
-					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("admin.idt.threshold"));
+				if(Global.incrementalRepartitioning) {
+					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));					
+					Global.span_reduction = Integer.parseInt((String) config_param.getProperty("span.reduction"));
+					Global.idt_priority = Double.parseDouble((String) config_param.getProperty("idt.priority"));
+						
+					if(Global.idt_priority < 0 || Global.idt_priority > 1) {
+						Global.LOGGER.error("Wrong value set for the Idt priority !!");
+						Global.idt_priority = 0.5;
+					}
+				}
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 				Global.LOGGER.info("Incremental repartitioning: "+Global.incrementalRepartitioning);
@@ -161,22 +169,7 @@ public class ReadConfig {
 					Global.compressionRatio = Double.parseDouble((String) config_param.getProperty("compression.ratio"));
 					Global.LOGGER.info("Compression ratio: "+Global.compressionRatio);
 				}
-				
-				if(Global.dataMigrationStrategy.equals("methodX"))
-					Global.priority = Double.parseDouble((String) config_param.getProperty("methodX.decision.priority"));
-				
-				if(Global.dataMigrationStrategy.equals("rbsta")) {
-					Global.rbsta_span_reduction = Integer.parseInt((String) config_param.getProperty("rbsta.span.reduction"));
-					Global.rbsta_idt_priority = Double.parseDouble((String) config_param.getProperty("rbsta.idt.priority"));
-					//Global.rbsta_lb_priority = Double.parseDouble((String) config_param.getProperty("rbsta.lb.priority"));
-					
-					if(Global.rbsta_idt_priority < 0 || Global.rbsta_idt_priority > 1) {
-						Global.LOGGER.error("Wrong value set for the RBSTA priority !!");
-						Global.rbsta_idt_priority = 0.5;
-					}
-				}
-			}
-			
+			}			
 	    } catch (ConfigurationException e) {
 	    	Global.LOGGER.error("Failed to read the configurations from sim.cnf file !!", e);
 		} finally {

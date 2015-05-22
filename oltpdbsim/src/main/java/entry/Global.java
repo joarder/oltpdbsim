@@ -114,20 +114,14 @@ public final class Global implements java.io.Serializable {
     public static int[] tpccLineNumbers = new int[5];
     
 	// Logger
-	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);
+	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);	
 
-	public static int virtualDataNodes;	
-	
-	// For methodX whether prioritise dt(alpha) minimisation or load balance (1-alpha)
-	public static double priority;
-
-	// For RBSTA
-	public static int rbsta_span_reduction;
-	public static double rbsta_idt_priority;
-	public static double rbsta_lb_priority;
+	public static int span_reduction;
+	public static double idt_priority;
 
 	// For Sword
 	public static boolean sword_cluster_setup;
+	public static int virtualDataNodes;
 
 	// For Analysis
 	public static boolean analysis;

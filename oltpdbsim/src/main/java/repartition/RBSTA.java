@@ -14,7 +14,6 @@ import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.entry.Global;
-import main.java.metric.Metric;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -59,7 +58,7 @@ public class RBSTA {
 			t.populateMovementList(cluster, wb);
 		else {						 // Movable non-DTs
 			t.min_dmv = 0;
-			t.max_idt_reduction_improvement = 0.0;
+			t.max_idt_gain = 0.0;
 			t.processed = true;
 		}
 		
@@ -188,8 +187,8 @@ class Tr implements Comparable<Tr> {
 	int id;		
 	int min_dmv;
 	double period;
-	double max_idt_reduction_improvement;
-	double max_lb_improvement;
+	double max_idt_gain;
+	double max_lb_gain;
 	HashMap<Integer, HashSet<Integer>> serverMap;
 	List<MigrationPlan> migrationPlanList;	
 	boolean processed;
@@ -198,8 +197,8 @@ class Tr implements Comparable<Tr> {
 		this.id = id;
 		this.min_dmv = Integer.MAX_VALUE;
 		this.period = period;
-		this.max_idt_reduction_improvement = 0;
-		this.max_lb_improvement = 0;
+		this.max_idt_gain = 0;
+		this.max_lb_gain = 0;
 		this.serverMap = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.processed = false;
@@ -256,21 +255,20 @@ class Tr implements Comparable<Tr> {
 					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_dmv);
 					this.migrationPlanList.add(m); // From Source Server
 					
-					//double idt_reduction_per_dmv = getIdtReductionImprovement(this, fromSet, req_dmv);
-					double idt_reduction_per_dmv = getIdtImprovement(wb, this, m);					
-					double lb_improvement_per_dmv = getLbImprovement(cluster, this, m);
+					double idt_gain_per_dmv = getIdtGain(wb, this, m);					
+					double lb_gain_per_dmv = getLbGain(cluster, this, m);
 					
-					if(idt_reduction_per_dmv > this.max_idt_reduction_improvement)
-						this.max_idt_reduction_improvement = idt_reduction_per_dmv;
+					if(idt_gain_per_dmv > this.max_idt_gain)
+						this.max_idt_gain = idt_gain_per_dmv;
 					
-					if(lb_improvement_per_dmv > this.max_lb_improvement)
-						this.max_lb_improvement = lb_improvement_per_dmv;
+					if(lb_gain_per_dmv > this.max_lb_gain)
+						this.max_lb_gain = lb_gain_per_dmv;
 					
 					if(req_dmv < this.min_dmv)
 						this.min_dmv = req_dmv;										
 					
-					m.idt_reduction_per_dmv = idt_reduction_per_dmv;
-					m.lb_improvement_per_dmv = lb_improvement_per_dmv;					
+					m.idt_gain_per_dmv = idt_gain_per_dmv;
+					m.lb_gain_per_dmv = lb_gain_per_dmv;					
 					
 					if(fromSet.size() > 1)
 						uniqueFromSet.put(fromSet, to);
@@ -282,8 +280,8 @@ class Tr implements Comparable<Tr> {
 		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 			@Override
 			public int compare(MigrationPlan m1, MigrationPlan m2) {				
-				return (((double)m1.idt_reduction_per_dmv > (double)m2.idt_reduction_per_dmv) ? -1 : 
-					((double)m1.idt_reduction_per_dmv < (double)m2.idt_reduction_per_dmv) ? 1 : 0);				
+				return (((double)m1.idt_gain_per_dmv > (double)m2.idt_gain_per_dmv) ? -1 : 
+					((double)m1.idt_gain_per_dmv < (double)m2.idt_gain_per_dmv) ? 1 : 0);				
 			}
 		});
 				
@@ -300,18 +298,18 @@ class Tr implements Comparable<Tr> {
 		int idt_rank = this.migrationPlanList.size();
 		for(int i = 0; i < this.migrationPlanList.size(); i++) {
 			if(i != 0)
-				if(this.migrationPlanList.get(i).idt_reduction_per_dmv != this.migrationPlanList.get(i-1).idt_reduction_per_dmv)
+				if(this.migrationPlanList.get(i).idt_gain_per_dmv != this.migrationPlanList.get(i-1).idt_gain_per_dmv)
 					--idt_rank;
 			
-			this.migrationPlanList.get(i).idt_rank = idt_rank * Global.rbsta_idt_priority;
+			this.migrationPlanList.get(i).idt_rank = idt_rank * Global.idt_priority;
 		}
 		
-		// Sorting in descending order
+		// Sorting in ascending order
 		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 			@Override
 			public int compare(MigrationPlan m1, MigrationPlan m2) {				
-				return (((double)m1.lb_improvement_per_dmv > (double)m2.lb_improvement_per_dmv) ? -1 : 
-					((double)m1.lb_improvement_per_dmv < (double)m2.lb_improvement_per_dmv) ? 1 : 0);				
+				return (((double)m1.lb_gain_per_dmv < (double)m2.lb_gain_per_dmv) ? -1 : 
+					((double)m1.lb_gain_per_dmv > (double)m2.lb_gain_per_dmv) ? 1 : 0);				
 			}
 		});
 		
@@ -328,10 +326,10 @@ class Tr implements Comparable<Tr> {
 		int lb_rank = this.migrationPlanList.size();
 		for(int i = 0; i < this.migrationPlanList.size(); i++) {
 			if(i != 0)
-				if(this.migrationPlanList.get(i).lb_improvement_per_dmv != this.migrationPlanList.get(i-1).lb_improvement_per_dmv)
+				if(this.migrationPlanList.get(i).lb_gain_per_dmv != this.migrationPlanList.get(i-1).lb_gain_per_dmv)
 					--lb_rank;
 			
-			this.migrationPlanList.get(i).lb_rank = lb_rank * (1 - Global.rbsta_idt_priority);
+			this.migrationPlanList.get(i).lb_rank = lb_rank * (1 - Global.idt_priority);
 		}
 
 		// Assign combined rank		
@@ -369,28 +367,13 @@ class Tr implements Comparable<Tr> {
 			Global.LOGGER.info("Selected migration plan: "+selected.toString());
 		}*/
 	}
-	
-	// Returns the idt reduction improvement
-	static double getIdtReductionImprovement(Tr t, MigrationPlan m) {
-		// Frequency over the past observation period: (Global.observationWindow/t.period)
-		double old_idt = t.serverMap.size()*(1/t.period);
-		double new_idt = (t.serverMap.size() - m.fromSet.size())*(1/t.period);
-		double idt_improvement = old_idt - new_idt;
-		
-		return (idt_improvement/m.req_dmv);
-	}
 
-	// Returns the idt reduction improvement -- improved methodology 
-	static double getIdtImprovement(WorkloadBatch wb, Tr t, MigrationPlan m) {
-		// Frequency over the past observation period: (Global.observationWindow/t.period)		
-		double original_idt = t.serverMap.size()*(1/t.period);
-		double new_idt = (t.serverMap.size() - m.fromSet.size())*(1/t.period);
+	// Returns the Idt gain per data movement 
+	static double getIdtGain(WorkloadBatch wb, Tr t, MigrationPlan m) {
 		
-		// Get the Idt change for the given transaction, t
-		// Lower is better -- 0: no change; (-ve): improvement; (+ve): deterioration
-		double idt_change = (new_idt - original_idt)/original_idt;
+		double new_idt = (t.serverMap.size() - m.fromSet.size())*(1/t.period);		
+		double incident_idt = 0.0;			
 		
-		double incident_idt_change = 0.0;			
 		for(Entry<Integer, HashSet<Integer>> entry : t.serverMap.entrySet()) {
 			
 			HashSet<Integer> unique_trSet = new HashSet<Integer>();
@@ -402,27 +385,24 @@ class Tr implements Comparable<Tr> {
 					Transaction incident_tr = wb.getTransaction(h.getId());
 					
 					if(incident_tr.getTr_id() != t.id) {
-						if(!unique_trSet.contains(incident_tr.getTr_id())) {							
-							// Get the Idt change for incident transactions
-							// Lower is better -- 0: no change; (-ve): improvement; (+ve): deterioration 
-							incident_idt_change += getIdtChange(incident_tr, m);
-						}
+						if(!unique_trSet.contains(incident_tr.getTr_id())) 
+							incident_idt += getIdt(incident_tr, m);						
 											
 						unique_trSet.add(incident_tr.getTr_id());
 					}
 				}			
 			}
 		}		
-				
-		double idt_improvement = idt_change + incident_idt_change;
-		return (idt_improvement/m.req_dmv);
+						
+		return ((new_idt + incident_idt)/m.req_dmv);
 	}
 	
-	static double getIdtChange(Transaction tr, MigrationPlan m) {
+	// Returns the expected Idt for a Transaction if a data migration plan would have been executed
+	static double getIdt(Transaction tr, MigrationPlan m) {
 		
-		double original_idt = (tr.getTr_serverSet().size())*(1/tr.getTr_period());
+		double original_idt = tr.getTr_serverSet().size()*(1/tr.getTr_period());
 		
-		// Perform a dummy movement to determine the new span
+		// Execute a dummy data migration plan to determine the expected server-span
 		Tr t = new Tr(tr.getTr_id(), tr.getTr_period());
 		for(Entry<Integer, HashSet<Integer>> entry : tr.getTr_serverSet().entrySet()) {
 			t.serverMap.put(entry.getKey(), entry.getValue());
@@ -445,53 +425,18 @@ class Tr implements Comparable<Tr> {
 				}
 			}
 		}
-				
-		double new_idt = t.serverMap.size()*(1/t.period);		
-		return (new_idt - original_idt)/original_idt;
+			
+		double new_idt = t.serverMap.size()*(1/t.period);
+		
+		if(new_idt > original_idt)
+			new_idt *= -1;
+		
+		// Return the expected Idt gain
+		return new_idt;
 	}
 	
-	static boolean isContainsAllKeys(Transaction tr, HashSet<Integer> keys) {
-		
-		boolean contains = false;
-		
-		for(int key : keys) {
-			if(tr.getTr_serverSet().containsKey(key))
-					contains = true;
-		}
-		
-		if(contains)
-			return false;
-		else
-			return true;				
-	}
-	
-	// Returns the lb improvement
-	static double getLbImprovement(Cluster cluster, WorkloadBatch wb, Tr t, MigrationPlan m) {
-		
-		double original_lb = Metric.getCVServerData(cluster, wb.getTransaction(t.id));
-		
-		// Calculating new load-balance metric i.e. coefficient of variance
-		// The higher the CV, the greater the dispersion in the variable. 
-		DescriptiveStatistics server_data = new DescriptiveStatistics();
-		
-		for(Server s : cluster.getServers()) {
-			if(t.serverMap.containsKey(s.getServer_id()) && m.fromSet.contains(s.getServer_id())) {
-				int data_count = s.getServer_total_data() - t.serverMap.get(s.getServer_id()).size();
-				server_data.addValue(data_count);
-			} else if(t.serverMap.containsKey(m.to)) {
-				int data_count = s.getServer_total_data() + t.serverMap.get(m.to).size();
-				server_data.addValue(data_count);
-			}
-		}
-		
-		double new_lb = server_data.getStandardDeviation()/server_data.getMean();
-		double lb_change = (new_lb - original_lb)/original_lb;
-		
-		return (lb_change/m.req_dmv);
-	}
-	
-	// Returns the lb improvement
-	static double getLbImprovement(Cluster cluster, Tr t, MigrationPlan m) {
+	// Returns the lb gain
+	static double getLbGain(Cluster cluster, Tr t, MigrationPlan m) {
 		
 		// Calculating new load-balance metric i.e. coefficient of variance
 		// The higher the CV, the greater the dispersion in the variable. 
@@ -509,9 +454,7 @@ class Tr implements Comparable<Tr> {
 		double original_val = 0.0; 		
 		for(double d : original_server_data.getValues()) {
 			original_val += Math.abs(original_server_data.getMean() - d);
-		}
-		
-		//original_val = original_val/original_server_data.getMean();
+		}		
 		
 		// Calculating new load-balance metric i.e. coefficient of variance
 		// The higher the CV, the greater the dispersion in the variable. 
@@ -529,12 +472,9 @@ class Tr implements Comparable<Tr> {
 		double new_val = 0.0; 		
 		for(double d : new_server_data.getValues()) {
 			new_val += Math.abs(new_server_data.getMean() - d);
-		}
-				
-		//new_val = new_val/new_server_data.getMean();
-		
-		double lb_improvement = (new_val - original_val); ///original_val;		
-		return (lb_improvement/m.req_dmv);
+		}				
+						
+		return (Math.abs(original_val - new_val)/m.req_dmv);
 	}
 	
 	// Ascending order
@@ -553,8 +493,8 @@ class Tr implements Comparable<Tr> {
 		return new Comparator<Tr>() {
 			@Override
 			public int compare(Tr t1, Tr t2) {
-				return (((int)t1.max_idt_reduction_improvement > (int)t2.max_idt_reduction_improvement) ? -1 : 
-					((int)t1.max_idt_reduction_improvement < (int)t2.max_idt_reduction_improvement) ? 1 : 0);
+				return (((int)t1.max_idt_gain > (int)t2.max_idt_gain) ? -1 : 
+					((int)t1.max_idt_gain < (int)t2.max_idt_gain) ? 1 : 0);
 			}			
 		};
 	}
@@ -564,8 +504,8 @@ class Tr implements Comparable<Tr> {
 		return new Comparator<Tr>() {
 			@Override
 			public int compare(Tr t1, Tr t2) {
-				return (((int)t1.max_lb_improvement > (int)t2.max_lb_improvement) ? -1 : 
-					((int)t1.max_lb_improvement < (int)t2.max_lb_improvement) ? 1 : 0);
+				return (((int)t1.max_lb_gain > (int)t2.max_lb_gain) ? -1 : 
+					((int)t1.max_lb_gain < (int)t2.max_lb_gain) ? 1 : 0);
 			}			
 		};
 	}
@@ -578,9 +518,9 @@ class Tr implements Comparable<Tr> {
 	
 	@Override
 	public String toString() {
-		return (">> T"+this.id+": Minimum required # of data migrations ("+this.min_dmv+") "
-				+ "| Max Idt reduction improvement ("+this.max_idt_reduction_improvement+") "
-				+ "| Max Lb improvement ("+this.max_lb_improvement+") "
+		return (">> T"+this.id+": Required DMs ("+this.min_dmv+") "
+				+ "| Idt gain ("+this.max_idt_gain+") "
+				+ "| Lb gain ("+this.max_lb_gain+") "
 						+ "| "+this.serverMap);
 	}
 }
@@ -589,8 +529,8 @@ class MigrationPlan {
 	HashSet<Integer> fromSet;	// From Server's Ids (for 1/2/3/...N span reductions)
 	int to;		// To Server Id
 	int req_dmv;
-	double idt_reduction_per_dmv;
-	double lb_improvement_per_dmv;
+	double idt_gain_per_dmv;
+	double lb_gain_per_dmv;
 	HashMap<Integer, HashSet<Integer>> dataMap;
 	double idt_rank;
 	double lb_rank;
@@ -600,8 +540,8 @@ class MigrationPlan {
 		this.fromSet = new HashSet<Integer>(fromSet);
 		this.to = to;
 		this.req_dmv = req_dmv;
-		this.idt_reduction_per_dmv = 0.0;
-		this.lb_improvement_per_dmv = 0.0;
+		this.idt_gain_per_dmv = 0.0;
+		this.lb_gain_per_dmv = 0.0;
 		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);
 		this.idt_rank = 0.0;
 		this.lb_rank = 0.0;
@@ -610,6 +550,6 @@ class MigrationPlan {
 	
 	@Override
 	public String toString() {
-		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.dataMap.size()+") | Idt improvement("+this.idt_reduction_per_dmv+") | Lb improvement ("+this.lb_improvement_per_dmv+") | Combined Rank ("+this.combined_rank+")");
+		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.dataMap.size()+") | Idt improvement("+this.idt_gain_per_dmv+") | Lb improvement ("+this.lb_gain_per_dmv+") | Combined Rank ("+this.combined_rank+")");
 	}
 }
