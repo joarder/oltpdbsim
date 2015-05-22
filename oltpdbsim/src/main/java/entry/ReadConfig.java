@@ -168,7 +168,12 @@ public class ReadConfig {
 				if(Global.dataMigrationStrategy.equals("rbsta")) {
 					Global.rbsta_span_reduction = Integer.parseInt((String) config_param.getProperty("rbsta.span.reduction"));
 					Global.rbsta_idt_priority = Double.parseDouble((String) config_param.getProperty("rbsta.idt.priority"));
-					Global.rbsta_lb_priority = Double.parseDouble((String) config_param.getProperty("rbsta.lb.priority"));
+					//Global.rbsta_lb_priority = Double.parseDouble((String) config_param.getProperty("rbsta.lb.priority"));
+					
+					if(Global.rbsta_idt_priority < 0 || Global.rbsta_idt_priority > 1) {
+						Global.LOGGER.error("Wrong value set for the RBSTA priority !!");
+						Global.rbsta_idt_priority = 0.5;
+					}
 				}
 			}
 			

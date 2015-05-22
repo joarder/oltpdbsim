@@ -2,6 +2,8 @@ simulation.name=C-T-RBSTA-MIN-NORM-VAL
 
 setup=consistenthash
 
+analysis = true
+
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
@@ -28,7 +30,7 @@ server.capacity=100000
 fixed.partitions=32
 number.of.replicas=1
 
-simulation.period=615600
+simulation.period=97200
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
@@ -44,5 +46,4 @@ admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5
 rbsta.span.reduction=1
-rbsta.idt.priority=0.5
-rbsta.lb.priority=0.5
+rbsta.idt.priority=0.0

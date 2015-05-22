@@ -4,16 +4,20 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Map.Entry;
 
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-
-import umontreal.iro.lecuyer.simevents.Sim;
 import main.java.cluster.Cluster;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.entry.Global;
 import main.java.utils.Utility;
+import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
+
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+
+import umontreal.iro.lecuyer.simevents.Sim;
 
 public class Metric implements java.io.Serializable {
 	
@@ -125,7 +129,7 @@ public class Metric implements java.io.Serializable {
 	}
 	
 	// Returns the Coefficient of Variance on server data
-	public static double getServerLoadBalance(Cluster cluster) {		
+	public static double getCVServerData(Cluster cluster) {		
 		DescriptiveStatistics server_data = new DescriptiveStatistics();
 		
 		for(Server server : cluster.getServers())
@@ -133,7 +137,40 @@ public class Metric implements java.io.Serializable {
 		
 		double c_v = server_data.getStandardDeviation()/server_data.getMean();
 		return c_v; 
-	}	
+	}
+	
+	// Returns the CMean on server data
+	public static double getCVServerData(Cluster cluster, Transaction tr) {		
+		DescriptiveStatistics server_data = new DescriptiveStatistics();
+		
+		for(Entry<Integer, HashSet<Integer>> entry : tr.getTr_serverSet().entrySet()) {
+			server_data.addValue(entry.getValue().size());
+		}			
+		
+		double c_v = server_data.getStandardDeviation()/server_data.getMean();
+		return c_v;		
+	}
+	
+	// Returns the Mean on server data
+	public static double getMeanServerData(Cluster cluster) {		
+		DescriptiveStatistics server_data = new DescriptiveStatistics();
+		
+		for(Server server : cluster.getServers())
+			server_data.addValue(server.getServer_total_data());
+		
+		return server_data.getMean();		
+	}
+	
+	// Returns the Mean on server data
+	public static double getMeanServerData(Cluster cluster, Transaction tr) {		
+		DescriptiveStatistics server_data = new DescriptiveStatistics();
+		
+		for(Entry<Integer, HashSet<Integer>> entry : tr.getTr_serverSet().entrySet()) {
+			server_data.addValue(entry.getValue().size());
+		}			
+		
+		return server_data.getMean();		
+	}
 	
 	public static void getServerStatistic(Cluster cluster) {		
 		DescriptiveStatistics _data = new DescriptiveStatistics();

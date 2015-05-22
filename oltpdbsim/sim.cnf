@@ -1,4 +1,4 @@
-simulation.name=Hourly-Analysis
+simulation.name=C-T-RBSTA-MIN-NORM-VAL
 
 setup=consistenthash
 
@@ -6,20 +6,20 @@ analysis = true
 
 static.repartitioning=false
 hourly.repartitioning=false
-threshold.repartitioning=false
+threshold.repartitioning=true
 
 workload.variation=false
 
-workload.aware=false
-incremental.repartitioning=false
+workload.aware=true
+incremental.repartitioning=true
 graphcutbased.repartitioning=false
 
 workload.representation=hgr
 
-transaction.classification=false
+transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=analysis
+data.migration.strategy=rbsta
 
 compression.enabled=false
 compression.before.setup=false
@@ -30,7 +30,7 @@ server.capacity=100000
 fixed.partitions=32
 number.of.replicas=1
 
-simulation.period=21600
+simulation.period=97200
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
@@ -46,3 +46,4 @@ admin.idt.threshold=0.5
 
 methodX.decision.priority=0.5
 rbsta.span.reduction=1
+rbsta.idt.priority=0.0
