@@ -25,12 +25,15 @@ import org.paukov.combinatorics.Factory;
 import org.paukov.combinatorics.Generator;
 import org.paukov.combinatorics.ICombinatoricsVector;
 
+/*
+ * Repartition Based on Partition-level Transactional Association (RBPTA)
+ */
 
-public class Association {
+public class RBPTA {
 
 	public static Matrix association;
 
-	public void init(Cluster cluster) {		
+	public static void init(Cluster cluster) {		
 		int M = cluster.getPartitions().size()+1;
 		int N = M;				
 		association = Utility.createMatrix(M, N);

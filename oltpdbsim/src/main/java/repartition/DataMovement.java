@@ -77,15 +77,15 @@ public class DataMovement {
 				strategyRBSTA(cluster, wb, partitioner);				
 				break;				
 				
+			case "rbpta":
+				Global.LOGGER.info("Applying Repartitioning Based on Partition-level Transactional Association (RBPTA) Strategy ...");
+				strategyRBPTA(cluster, wb);		
+				break;
+				
 			case "sword":
 				Global.LOGGER.info("Applying Sword Strategy (SWD) ...");
 				strategySword(cluster, wb, "random");				
-				break;
-				
-			case "methodX":
-				Global.LOGGER.info("Applying methodX Strategy (X) ...");
-				strategyMethodX(cluster, wb);		
-				break;	
+				break;				
 		}
 	}
 	
@@ -314,10 +314,10 @@ public class DataMovement {
 		Sword.populatePQ(cluster, wb);
 	}
 	
-	// methodX - Swapping partitions
-	private static void strategyMethodX(Cluster cluster, WorkloadBatch wb) {
+	// RBPTA - Swapping partitions
+	private static void strategyRBPTA(Cluster cluster, WorkloadBatch wb) {
 		setEnvironment(cluster);
-		IntPair pSet = Association.migrationDecision(cluster);
+		IntPair pSet = RBPTA.migrationDecision(cluster);
 
 		if(pSet != null)
 			swapPartitions(cluster, wb, pSet);			

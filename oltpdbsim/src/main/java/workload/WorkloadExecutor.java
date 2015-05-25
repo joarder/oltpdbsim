@@ -37,7 +37,7 @@ import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.Analysis;
-import main.java.repartition.Association;
+import main.java.repartition.RBPTA;
 import main.java.repartition.DataMovement;
 import main.java.repartition.MinCut;
 import main.java.repartition.TransactionClassifier;
@@ -302,8 +302,8 @@ public class WorkloadExecutor {
 		wb.addHGraphEdge(cluster, tr);
 		
 		if(Global.workloadAware)
-			if(Global.dataMigrationStrategy.equals("methodX"))
-				Association.updateAssociation(cluster, tr);
+			if(Global.dataMigrationStrategy.equals("rbpta"))
+				RBPTA.updateAssociation(cluster, tr);
 		
 		return tr;
 	}
@@ -338,16 +338,12 @@ public class WorkloadExecutor {
 		
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
+				
+		wb = new WorkloadBatch(Global.repeated_runs);
 		
-		// Sword -- Use the already created workload batch
-		//if(!Global.compressionBeforeSetup) {
-			wb = new WorkloadBatch(Global.repeated_runs);
-		
-			if(Global.workloadAware)
-				// MethodX :: initialisation
-				if(Global.dataMigrationStrategy.equals("methodX"))
-					wb.methodX.init(cluster);
-		//}
+		// RBPTA specific
+		if(Global.dataMigrationStrategy.equals("rbpta"))
+			RBPTA.init(cluster);
 		
 		// Start simulation
 		WorkloadExecutor.simulate(db, cluster, wrl, wb, Global.simulationPeriod);
@@ -461,7 +457,7 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting database repartitioning ...");
 		
-		if(!Global.dataMigrationStrategy.equals("methodX") || !Global.dataMigrationStrategy.equals("sword")) {			
+		if(!Global.dataMigrationStrategy.equals("rbpta") || !Global.dataMigrationStrategy.equals("sword")) {			
 			
 			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
 			if(Global.enableTrClassification) {

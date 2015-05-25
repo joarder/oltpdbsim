@@ -1,4 +1,4 @@
-simulation.name=C-T-RBSTA-LB
+simulation.name=C-T-RBPTA-COM-0.5
 
 setup=consistenthash
 
@@ -11,14 +11,14 @@ workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=false
+graphcutbased.repartitioning=true
 
 workload.representation=hgr
 
-transaction.classification=false
+transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=rbsta
+data.migration.strategy=rbpta
 
 compression.enabled=false
 compression.before.setup=false
@@ -42,5 +42,5 @@ unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
 span.reduction=1
-idt.priority=0.0
+idt.priority=0.5
 idt.threshold=0.5

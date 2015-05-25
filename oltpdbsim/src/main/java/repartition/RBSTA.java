@@ -35,7 +35,12 @@ public class RBSTA {
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
+		
+		if(Global.idt_priority >= (1 - Global.idt_priority))		
+			pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
+		else
+			pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_LB_IMPROVEMENT());		
+		
 		tMap = new HashMap<Integer, Tr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
@@ -198,7 +203,7 @@ class Tr implements Comparable<Tr> {
 		this.min_dmv = Integer.MAX_VALUE;
 		this.period = period;
 		this.max_idt_gain = 0;
-		this.max_lb_gain = 0;
+		this.max_lb_gain = Integer.MAX_VALUE;
 		this.serverMap = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.processed = false;
@@ -255,13 +260,13 @@ class Tr implements Comparable<Tr> {
 					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_dmv);
 					this.migrationPlanList.add(m); // From Source Server
 					
-					double idt_gain_per_dmv = getIdtGain(wb, this, m);					
+					double idt_gain_per_dmv = 0.0;//getIdtGain(wb, this, m);					
 					double lb_gain_per_dmv = getLbGain(cluster, this, m);
 					
 					if(idt_gain_per_dmv > this.max_idt_gain)
 						this.max_idt_gain = idt_gain_per_dmv;
 					
-					if(lb_gain_per_dmv > this.max_lb_gain)
+					if(lb_gain_per_dmv < this.max_lb_gain)
 						this.max_lb_gain = lb_gain_per_dmv;
 					
 					if(req_dmv < this.min_dmv)
@@ -276,35 +281,35 @@ class Tr implements Comparable<Tr> {
 			} //end-if()	
 		} // end-for(
 
-		// Sorting in descending order by the maximum normalised value 
-		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
+		// Sorting in descending order by the Idt 
+		/*Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 			@Override
 			public int compare(MigrationPlan m1, MigrationPlan m2) {				
 				return (((double)m1.idt_gain_per_dmv > (double)m2.idt_gain_per_dmv) ? -1 : 
 					((double)m1.idt_gain_per_dmv < (double)m2.idt_gain_per_dmv) ? 1 : 0);				
 			}
-		});
-				
-		// Testing
-		// After sorting
-		System.out.println("-------------------------------------------------------------------------");
-		System.out.println("Sorting based on Idt improvement per data migration ...");
-		System.out.println("--> "+this.toString());
-		for(MigrationPlan m : this.migrationPlanList) {
-			System.out.println("\t"+m.toString());
-		}
+		});*/
 		
 		// Rank based on IDt priority (descending order)
-		int idt_rank = this.migrationPlanList.size();
+		/*int idt_rank = this.migrationPlanList.size();
 		for(int i = 0; i < this.migrationPlanList.size(); i++) {
 			if(i != 0)
 				if(this.migrationPlanList.get(i).idt_gain_per_dmv != this.migrationPlanList.get(i-1).idt_gain_per_dmv)
 					--idt_rank;
 			
 			this.migrationPlanList.get(i).idt_rank = idt_rank * Global.idt_priority;
-		}
+		}*/
 		
-		// Sorting in ascending order
+		// Testing
+		// After sorting
+		/*System.out.println("-------------------------------------------------------------------------");
+		System.out.println("Sorting based on Idt improvement per data migration ...");
+		System.out.println("--> "+this.toString());
+		for(MigrationPlan m : this.migrationPlanList) {
+			System.out.println("\t"+m.toString());
+		}*/
+				
+		// Sorting in ascending order by Lb
 		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 			@Override
 			public int compare(MigrationPlan m1, MigrationPlan m2) {				
@@ -313,16 +318,7 @@ class Tr implements Comparable<Tr> {
 			}
 		});
 		
-		// Testing
-		// After sorting
-		System.out.println("-------------------------------------------------------------------------");
-		System.out.println("Sorting based on Lb improvement per data migration ...");
-		System.out.println("--> "+this.toString());
-		for(MigrationPlan m : this.migrationPlanList) {
-			System.out.println("\t"+m.toString());
-		}
-		
-		// Rank based on Lb priority (descending order)
+		/*// Rank based on Lb priority (ascending order)
 		int lb_rank = this.migrationPlanList.size();
 		for(int i = 0; i < this.migrationPlanList.size(); i++) {
 			if(i != 0)
@@ -330,10 +326,19 @@ class Tr implements Comparable<Tr> {
 					--lb_rank;
 			
 			this.migrationPlanList.get(i).lb_rank = lb_rank * (1 - Global.idt_priority);
-		}
+		}*/
+				
+		// Testing
+		// After sorting
+		/*System.out.println("-------------------------------------------------------------------------");
+		System.out.println("Sorting based on Lb improvement per data migration ...");
+		System.out.println("--> "+this.toString());
+		for(MigrationPlan m : this.migrationPlanList) {
+			System.out.println("\t"+m.toString());
+		}*/
 
 		// Assign combined rank		
-		for(MigrationPlan m : this.migrationPlanList)
+		/*for(MigrationPlan m : this.migrationPlanList)
 			m.combined_rank = (m.idt_rank + m.lb_rank);
 		
 		// Sort the array list by the value of combined rank (descending order)
@@ -350,21 +355,6 @@ class Tr implements Comparable<Tr> {
 		System.out.println("--> "+this.toString());
 		for(MigrationPlan m : this.migrationPlanList) {
 			System.out.println("\t"+m.toString());
-		}
-		
-		// Select the element with maximum combined rank value
-		/*if(this.migrationPlanList.size() != 0) {			
-			
-			Global.LOGGER.info("----------------------------------------------");
-			Global.LOGGER.info("Sorted list of potential migration plans:");
-			
-			for(MigrationPlan m : this.migrationPlanList)
-				Global.LOGGER.info("--"+m.toString());
-						
-			MigrationPlan selected = this.migrationPlanList.get(0);
-			
-			Global.LOGGER.info("----------------------------------------------");
-			Global.LOGGER.info("Selected migration plan: "+selected.toString());
 		}*/
 	}
 
@@ -440,7 +430,7 @@ class Tr implements Comparable<Tr> {
 		
 		// Calculating new load-balance metric i.e. coefficient of variance
 		// The higher the CV, the greater the dispersion in the variable. 
-		DescriptiveStatistics original_server_data = new DescriptiveStatistics();		
+		/*DescriptiveStatistics original_server_data = new DescriptiveStatistics();		
 		for(Server s : cluster.getServers()) {
 			if(t.serverMap.containsKey(s.getServer_id()) && m.fromSet.contains(s.getServer_id())) {
 				int data_count = s.getServer_total_data();
@@ -454,27 +444,32 @@ class Tr implements Comparable<Tr> {
 		double original_val = 0.0; 		
 		for(double d : original_server_data.getValues()) {
 			original_val += Math.abs(original_server_data.getMean() - d);
-		}		
+		}*/		
 		
 		// Calculating new load-balance metric i.e. coefficient of variance
 		// The higher the CV, the greater the dispersion in the variable. 
 		DescriptiveStatistics new_server_data = new DescriptiveStatistics();		
 		for(Server s : cluster.getServers()) {
-			if(t.serverMap.containsKey(s.getServer_id()) && m.fromSet.contains(s.getServer_id())) {
-				int data_count = s.getServer_total_data() - t.serverMap.get(s.getServer_id()).size();
-				new_server_data.addValue(data_count);
-			} else if(t.serverMap.containsKey(m.to)) {
-				int data_count = s.getServer_total_data() + t.serverMap.get(m.to).size();
-				new_server_data.addValue(data_count);
+			if(t.serverMap.containsKey(s.getServer_id())) {
+				
+				if(m.fromSet.contains(s.getServer_id())) {
+					int data_count = s.getServer_total_data() - t.serverMap.get(s.getServer_id()).size();
+					new_server_data.addValue(data_count);
+					
+				} else if(m.to == s.getServer_id()) {
+					int data_count = s.getServer_total_data() + t.serverMap.get(s.getServer_id()).size();
+					new_server_data.addValue(data_count);
+				}
 			}
 		}
 		
-		double new_val = 0.0; 		
+		/*double new_val = 0.0; 		
 		for(double d : new_server_data.getValues()) {
 			new_val += Math.abs(new_server_data.getMean() - d);
-		}				
+		}*/				
 						
-		return (Math.abs(original_val - new_val)/m.req_dmv);
+		//return ((original_val - new_val)/m.req_dmv);
+		return (new_server_data.getVariance()/m.req_dmv);
 	}
 	
 	// Ascending order
@@ -499,13 +494,13 @@ class Tr implements Comparable<Tr> {
 		};
 	}
 	
-	// Descending order
+	// Ascending order
 	static Comparator<Tr> by_MAX_LB_IMPROVEMENT() {
 		return new Comparator<Tr>() {
 			@Override
 			public int compare(Tr t1, Tr t2) {
-				return (((int)t1.max_lb_gain > (int)t2.max_lb_gain) ? -1 : 
-					((int)t1.max_lb_gain < (int)t2.max_lb_gain) ? 1 : 0);
+				return (((int)t1.max_lb_gain < (int)t2.max_lb_gain) ? -1 : 
+					((int)t1.max_lb_gain > (int)t2.max_lb_gain) ? 1 : 0);
 			}			
 		};
 	}
@@ -550,6 +545,6 @@ class MigrationPlan {
 	
 	@Override
 	public String toString() {
-		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.dataMap.size()+") | Idt improvement("+this.idt_gain_per_dmv+") | Lb improvement ("+this.lb_gain_per_dmv+") | Combined Rank ("+this.combined_rank+")");
+		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.dataMap.size()+") | Idt improvement("+this.idt_gain_per_dmv+") | Lb improvement ("+this.lb_gain_per_dmv+") | Idt Rank ("+this.idt_rank+") | Lb Rank ("+this.lb_rank+") | Combined Rank ("+this.combined_rank+")");
 	}
 }

@@ -15,7 +15,6 @@ import java.util.TreeSet;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
-import main.java.repartition.Association;
 import main.java.repartition.Sword;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
@@ -34,9 +33,6 @@ public class WorkloadBatch {
 	
 	// Sword specific
 	public Sword sword;
-	
-	// MethodX specific
-	public Association methodX;
 		
 	// To keep track of edge id and corresponding hyperedge/transaction id
 	public Map<Integer, Set<Integer>> edge_id_map;
@@ -108,10 +104,6 @@ public class WorkloadBatch {
 				
 				break;
 		}
-		
-		if(Global.workloadAware)
-			if(Global.dataMigrationStrategy.equals("methodX"))
-				this.methodX = new Association();			
 	}
 
 	public int getWrl_id() {
