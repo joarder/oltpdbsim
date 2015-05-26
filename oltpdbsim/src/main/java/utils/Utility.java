@@ -21,6 +21,11 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
 	
+	// Returns a normalised value between a and b for the given x 
+	public static double normalise(double min, double max, double x, double a, double b) {
+		return (a + (((x - min) * (b - a))/(max - min)));
+	}	
+	
 	// Used for creating 2D Matrix of size of total Partition numbers
 	// Used in MethodX
 	public static Matrix createMatrix(int M, int N) {		

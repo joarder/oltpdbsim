@@ -47,17 +47,22 @@ public class PerfMetric {
 		file2 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf2.out");
 		
-		file3 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+		if(Global.analysis)
+			file3 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf3.out");
 		
 		try {			
 			file1.getParentFile().mkdirs();
 			file2.getParentFile().mkdirs();
-			file3.getParentFile().mkdirs();
+			
+			if(Global.analysis)
+				file3.getParentFile().mkdirs();
 			
 			file1.createNewFile();
 			file2.createNewFile();
-			file3.createNewFile();
+			
+			if(Global.analysis)
+				file3.createNewFile();
 			
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
@@ -66,7 +71,9 @@ public class PerfMetric {
 		// File Writers
 		prWriter1 = Utility.getPrintWriter(Global.metric_dir, file1);
 		prWriter2 = Utility.getPrintWriter(Global.metric_dir, file2);
-		prWriter3 = Utility.getPrintWriter(Global.metric_dir, file3);
+		
+		if(Global.analysis)
+			prWriter3 = Utility.getPrintWriter(Global.metric_dir, file3);
 	}
 	
 	public void write() {
@@ -95,6 +102,7 @@ public class PerfMetric {
 			prWriter2.close();
 		}
 		
-		prWriter3.close();
+		if(Global.analysis)
+			prWriter3.close();
 	}
 }
