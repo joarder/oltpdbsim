@@ -38,7 +38,7 @@ import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.Analysis;
 import main.java.repartition.RBPTA;
-import main.java.repartition.DataMovement;
+import main.java.repartition.DataMigration;
 import main.java.repartition.MinCut;
 import main.java.repartition.TransactionClassifier;
 import main.java.repartition.WorkloadBatchProcessor;
@@ -288,11 +288,16 @@ public class WorkloadExecutor {
 				WorkloadExecutor.repartitioningCoolingOff = false;				
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
-				Global.LOGGER.info("Repartitioning cooling off period ends.");
 				Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
+				Global.LOGGER.info("Repartitioning cooling off period ends.");
+				Global.LOGGER.info("System will now check whether another repartitioning is required at this moment.");
 				Global.LOGGER.info("Current IDt: "+currentIDt);
 				Global.LOGGER.info("User defined IDt threshold: "+Global.userDefinedIDtThreshold);
-				Global.LOGGER.info("System will now check whether another repartitioning is required at this moment.");								
+				
+				if(currentIDt < Global.userDefinedIDtThreshold) {
+					Global.LOGGER.info("Repartitioning is not required at this moment.");
+					Global.LOGGER.info("Continuing transaction processing ...");
+				}
 			}
 			
 			perfm.time.put((_i - _W), Sim.time());		
@@ -301,9 +306,8 @@ public class WorkloadExecutor {
 		// Add a hyperedge to Workload Hypergraph
 		wb.addHGraphEdge(cluster, tr);
 		
-		if(Global.workloadAware)
-			if(Global.dataMigrationStrategy.equals("rbpta"))
-				RBPTA.updateAssociation(cluster, tr);
+		// Collect transaction stream if data stream mining is enabled
+		Global.dsm.collectStream(cluster, tr);
 		
 		return tr;
 	}
@@ -411,25 +415,34 @@ public class WorkloadExecutor {
 	public static void runRepartitioner(Cluster cluster, WorkloadBatch wb) {
 		// Generate workload file
 		boolean empty = false;
-		try {
-			empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
-		} catch (IOException e) {
-			e.printStackTrace();
+		
+		if(!Global.trClassificationStrategy.equals("fcimining")) {
+			try {
+				empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		if(!empty) {
 			
-			int partitions = Global.partitions;
-			Global.LOGGER.info("Starting partitioner to repartition the workload into "+partitions+" clusters ...");	
+			int k_clusters = 0;
+			
+			if(Global.trClassificationStrategy.equals("fcimining"))
+				k_clusters = Global.servers;
+			else
+				k_clusters = Global.partitions;
+			
+			Global.LOGGER.info("Starting partitioner to repartition the workload into "+k_clusters+" clusters ...");	
 			
 			// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
-			MinCut.runMinCut(wb, partitions, true);
+			MinCut.runMinCut(wb, k_clusters, true);
 
 			// Mapping cluster id to partition id
-			Global.LOGGER.info("Applying data movement strategies ...");
+			Global.LOGGER.info("Applying data migration strategy ...");
 			
 			try {
-				WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
+				WorkloadBatchProcessor.processPartFile(cluster, wb, k_clusters);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -457,8 +470,7 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting database repartitioning ...");
 		
-		if(!Global.dataMigrationStrategy.equals("rbpta") || !Global.dataMigrationStrategy.equals("sword")) {			
-			
+		if(!Global.dataMigrationStrategy.equals("rbpta") || !Global.dataMigrationStrategy.equals("sword")) {						
 			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
 			if(Global.enableTrClassification) {
 				Global.LOGGER.info("Identifying most frequently occurred transactions ...");
@@ -468,8 +480,13 @@ public class WorkloadExecutor {
 						TransactionClassifier.classifyMovableNonDTs(cluster, wb);
 						break;
 						
+					case "fcimining":	
+						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
+						Global.dsm.performDSM(cluster, wb);
+						break;
+						
 					case "fd":
-						Global.LOGGER.info("Discarding transactions which are not frequent ...");
+						Global.LOGGER.info("Discarding transactions which are not frequent ...");						
 						TransactionClassifier.classifyFrequentDT(cluster, wb);
 						break;
 						
@@ -480,16 +497,18 @@ public class WorkloadExecutor {
 				}
 			}
 			
-			Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
-					+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
-			Global.LOGGER.info("-----------------------------------------------------------------------------");
-	
-			if(Global.graphcutBasedRepartitioning)
-				WorkloadExecutor.runRepartitioner(cluster, wb);		
-		}
+			if(!Global.trClassificationStrategy.equals("fcimining")) {
+				Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
+						+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
+				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-		// Perform data migrations
-		DataMovement.performDataMovement(cluster, wb);
+				if(Global.graphcutBasedRepartitioning)
+					WorkloadExecutor.runRepartitioner(cluster, wb);
+								
+				// Perform data migrations
+				DataMigration.performDataMigration(cluster, wb);
+			}
+		}
 
 		Global.LOGGER.info("-----------------------------------------------------------------------------");												
 		WorkloadExecutor.collectStatistics(cluster, wb);
@@ -702,8 +721,9 @@ class Arrival extends Event {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
-						}												
-					}
+						}	
+						
+					}					
 					
 				} else { // 2. Static Repartitioning
 
@@ -728,8 +748,11 @@ class Arrival extends Event {
 				
 				// Hourly statistic collection				
 				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
-			}
+			}						
 		}
+		
+		if(Global.dataMigrationStrategy.equals("rbpta"))
+			RBPTA.updateAssociation(cluster, tr);
 	}
 	
 	private boolean isRepartRequired() {

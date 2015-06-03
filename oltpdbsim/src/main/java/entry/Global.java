@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import main.java.repartition.DataStreamMining;
+
 import org.apache.commons.math3.random.RandomDataGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +84,9 @@ public final class Global implements java.io.Serializable {
 	
     // Workload mining
     public static int mining_serial = 0;
+    public static DataStreamMining dsm;
+    public static boolean streamCollection;
+    public static int streamCollectorSizeFactor = 1;
     
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)
@@ -107,11 +112,6 @@ public final class Global implements java.io.Serializable {
     
     public static int repartitioningCycle = 0;
     public static double userDefinedIDtThreshold;
-    
-    // TPC-C specific
-    public static final int[] tpccTrTypes = {1, 2, 3, 4, 5};
-    public static final double[] tpccTrProbabilities = {0.45, 0.43, 0.04, 0.04, 0.04};
-    public static int[] tpccLineNumbers = new int[5];
     
 	// Logger
 	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);	

@@ -1,7 +1,9 @@
 package main.java.utils;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -16,10 +18,46 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+
 import main.java.entry.Global;
+
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
+	
+	// Collected from http://rosettacode.org/wiki/Remove_lines_from_a_file#Java
+	public static void deleteLinesFromFile(String filename, int startline, int numlines) {
+		try {
+			BufferedReader br=new BufferedReader(new FileReader(filename));
+ 
+			//String buffer to store contents of the file
+			StringBuffer sb=new StringBuffer("");
+ 
+			//Keep track of the line number
+			int linenumber=1;
+			String line;
+ 
+			while((line=br.readLine())!=null) {
+				//Store each valid line in the string buffer
+				if(linenumber<startline||linenumber>=startline+numlines)
+					sb.append(line+"\n");
+				linenumber++;
+			}
+			
+			if(startline+numlines>linenumber)
+				System.out.println("End of file reached.");
+			br.close();
+ 
+			FileWriter fw=new FileWriter(new File(filename));
+			
+			//Write entire string buffer into the file
+			fw.write(sb.toString());
+			fw.close();
+			
+		} catch (Exception e) {
+			System.out.println("Something went horribly wrong: "+e.getMessage());
+		}
+	}
 	
 	// Returns a normalised value between a and b for the given x 
 	public static double normalise(double min, double max, double x, double a, double b) {

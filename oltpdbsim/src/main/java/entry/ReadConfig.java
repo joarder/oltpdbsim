@@ -3,6 +3,7 @@ package main.java.entry;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import main.java.repartition.DataStreamMining;
 import main.java.utils.Utility;
 
 import org.apache.commons.configuration.AbstractFileConfiguration;
@@ -128,8 +129,14 @@ public class ReadConfig {
 				
 				if(Global.repartStatic)
 					Global.singleRun = true;
+								
+				Global.streamCollection = Boolean.parseBoolean((String) config_param.getProperty("stream.collection"));								
+				Global.streamCollectorSizeFactor = Integer.parseInt((String) config_param.getProperty("stream.collector.size.factor"));
 				
-				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));											
+				if(Global.streamCollection)
+					Global.dsm = new DataStreamMining();				
+				
+				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
 				
 				Global.dataMigrationStrategy = (String) config_param.getProperty("data.migration.strategy");

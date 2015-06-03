@@ -284,9 +284,10 @@ public class Transaction implements Comparable<Transaction>, java.io.Serializabl
 		return (this.getTr_label()+"("
 				+"IDT["+this.getTr_idt()+"] | "
 				+"Type["+this.tr_type+"] | "
-				+"DT["+this.isDt()+"] | "
-				+"SS["+this.getTr_serverSpanCost()+"] | "
+				+"DT["+this.isDt()+"] | "				
 				+"DS"+this.getTr_dataSet()+" | "
+				+"PS"+this.getTr_partitionSet()+" | "
+				+"SS"+this.getTr_serverSet()+" | "
 				+" RSP["+this.getTr_response_time()+"]"//+"|"
 				//+" Arrival = "+this.getTr_arrival_time()+"|"
 				//+" Service = "+this.getTr_service_time()

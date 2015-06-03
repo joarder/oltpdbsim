@@ -3,7 +3,6 @@ package main.java.utils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Set;
 import java.util.TreeSet;
 
 public class SortingTest {
@@ -11,9 +10,12 @@ public class SortingTest {
 	static double income_preference = 0.5;
 	static double age_preference = 1 - income_preference;
 	
+	@SuppressWarnings("rawtypes")
 	static TreeSet ageRank = new TreeSet();
+	@SuppressWarnings("rawtypes")
 	static TreeSet incomeRank = new TreeSet();
 	
+	@SuppressWarnings("unchecked")
 	public static void main(String args[]) {
 		ArrayList<Person> persons = new ArrayList<Person>();
 		
@@ -84,9 +86,10 @@ public class SortingTest {
 		
 		// Sort the array list by the value of combined rank (descending order)
 		Collections.sort(persons, new Comparator<Person>(){
+			@SuppressWarnings("rawtypes")
 			@Override
 			public int compare(Person p1, Person p2) {
-				
+								
 				int ageRank1 = ((TreeSet) ageRank).tailSet(p1.age).size();
 	            int ageRank2 = ((TreeSet) ageRank).tailSet(p2.age).size();
 	            int incomeRank1 = ((TreeSet) incomeRank).headSet(p1.income).size();

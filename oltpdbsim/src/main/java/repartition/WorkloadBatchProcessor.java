@@ -12,11 +12,11 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.Map.Entry;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
@@ -24,8 +24,8 @@ import main.java.entry.Global;
 import main.java.utils.graph.CompressedHEdge;
 import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.SimpleHEdge;
+import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
-import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
 public class WorkloadBatchProcessor {
@@ -50,7 +50,7 @@ public class WorkloadBatchProcessor {
 				if(Global.compressionEnabled)
 					empty = generateCHGraphWorkloadFile(cluster, wb);
 				else
-					empty = generateHGraphWorkloadFile(cluster, wb);			
+					empty = generateHGraphWorkloadFile(cluster, wb, wb.hgr);			
 				
 				break;			
 			
@@ -66,12 +66,12 @@ public class WorkloadBatchProcessor {
 	private static Map<Integer, Integer> vvertex_id_map;
 	
 	// Generates Workload File for Hypergraph partitioning
-	private static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
+	public static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
 		
 		vertex_id_map = new TreeMap<Integer, Integer>();
 		int vertex_id = 0;
 		
-		for(SimpleVertex v : wb.hgr.getVertices()) {
+		for(SimpleVertex v : hgr.getVertices()) {
 			vertex_id_map.put(v.getId(), ++vertex_id);
 						
 			Data data = cluster.getData(v.getId());			
@@ -79,8 +79,8 @@ public class WorkloadBatchProcessor {
 			data.setData_inUse(true);						
 		}		
 		
-		int edges = wb.hgr.getEdgeCount();		
-		int vertices = wb.hgr.getVertexCount();
+		int edges = hgr.getEdgeCount();		
+		int vertices = hgr.getVertexCount();
 		int hasTransactionWeight = 1;
 		int hasDataWeight = 1;
 		
@@ -102,12 +102,12 @@ public class WorkloadBatchProcessor {
 					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
 					
 					// Writing hyperedge weights and incident vertex ids
-					for(SimpleHEdge e : wb.hgr.getEdges()) {
+					for(SimpleHEdge e : hgr.getEdges()) {
 						
 						String e_weight = Integer.toString(e.getWeight());
 						writer.write(e_weight+" ");
 						
-						Iterator<SimpleVertex> e_itr =  wb.hgr.getIncidentVertices(e).iterator();
+						Iterator<SimpleVertex> e_itr =  hgr.getIncidentVertices(e).iterator();
 						while(e_itr.hasNext()) {
 							String v_id = Integer.toString(vertex_id_map.get(e_itr.next().getId()));							
 							writer.write(v_id);				
@@ -120,7 +120,7 @@ public class WorkloadBatchProcessor {
 					}
 					
 					// Writing vertex weights
-					Iterator<SimpleVertex> v_itr = wb.hgr.getVertices().iterator();
+					Iterator<SimpleVertex> v_itr = hgr.getVertices().iterator();
 					while(v_itr.hasNext()) {
 						String v_weight = Integer.toString(v_itr.next().getWeight());							
 						writer.write(v_weight);
@@ -353,16 +353,27 @@ public class WorkloadBatchProcessor {
 			scanner.close();
 		}					
 		
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			WorkloadBatchProcessor.processClusterElements(cluster, wb, Global.dsm.hgr, keyMap);
+		else
+			WorkloadBatchProcessor.processClusterElements(cluster, wb, wb.hgr, keyMap);
+	}
+	
+	private static void processClusterElements(Cluster cluster, WorkloadBatch wb, 
+			SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, Map<Integer, Integer> keyMap) {
+		
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		for(SimpleHEdge h : wb.hgr.getEdges()) {	
-			Transaction tr = wb.getTransaction(h.getId());
+		//for(SimpleHEdge h : hgr.getEdges()) {	
+			//Transaction tr = wb.getTransaction(h.getId());
 			
-			for(Integer d : tr.getTr_dataSet()) {				
-				Data data = cluster.getData(d);
+			//for(Integer d : tr.getTr_dataSet()) {			
+			//for(SimpleVertex v : hgr.getVertices(h)) {
+			for(SimpleVertex v : hgr.getVertices()) {
+				Data data = cluster.getData(v.getId());
 				
-				if(!dataSet.contains(d) && data.isData_inUse()) {
-					dataSet.add(d);
+				if(!dataSet.contains(v.getId()) && data.isData_inUse()) {
+					dataSet.add(v.getId());
 					
 					int shadow_id = -1;
 					int cluster_id = -1;
@@ -382,7 +393,7 @@ public class WorkloadBatchProcessor {
 								
 							} else {							
 								shadow_id = vertex_id_map.get(data.getData_id());
-								cluster_id = keyMap.get(shadow_id)+1;
+								cluster_id = keyMap.get(shadow_id) + 1;
 								data.setData_hmetisClusterId(cluster_id);
 								wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
 							}
@@ -391,7 +402,7 @@ public class WorkloadBatchProcessor {
 							
 						case "gr":
 							shadow_id = vertex_id_map.get(data.getData_id());
-							cluster_id = keyMap.get(shadow_id)+1;
+							cluster_id = keyMap.get(shadow_id) + 1;
 							data.setData_metisClusterId(cluster_id);
 							wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
 							
@@ -404,6 +415,6 @@ public class WorkloadBatchProcessor {
 					data.setData_hasShadowId(false);					
 				}
 			} // end -- for()-Data
-		} // end -- for()-Transaction		
+		//} // end -- for()-Transaction
 	}
 }

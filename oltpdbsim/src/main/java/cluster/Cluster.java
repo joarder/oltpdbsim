@@ -15,7 +15,7 @@ import main.java.db.Database;
 import main.java.db.Table;
 import main.java.db.Tuple;
 import main.java.entry.Global;
-import main.java.repartition.DataMovement;
+import main.java.repartition.DataMigration;
 import main.java.repartition.MinCut;
 import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.Utility;
@@ -457,7 +457,7 @@ public class Cluster {
 			}					
 			
 			// Perform data movement			
-			DataMovement.performDataMovement(cluster, wb);					
+			DataMigration.performDataMigration(cluster, wb);					
 			
 			// Update server-level load statistic and show
 			cluster.updateLoad();

@@ -21,6 +21,7 @@ import main.java.utils.MatrixElement;
 import main.java.utils.Utility;
 import main.java.workload.Transaction;
 
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.paukov.combinatorics.Factory;
 import org.paukov.combinatorics.Generator;
 import org.paukov.combinatorics.ICombinatoricsVector;
@@ -40,6 +41,7 @@ public class RBPTA {
 	}
 
 	public static void updateAssociation(Cluster cluster, Transaction tr) {
+		//System.out.println(">> "+tr.toString());
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Get all the pairs of combinations of Partition accessed by this Transaction
 		// Create the initial vector
@@ -59,22 +61,31 @@ public class RBPTA {
 			int p_b_trData = tr.getTr_partitionSet().get(p_b_id).size();
 			
 			double entropy = getEntropy(p_a_trData, p_b_trData);			
-			entropy = (1/tr.getTr_period()) * entropy;			
 			entropy /= 2;
+			double association_value = (1/tr.getTr_period()) * (p_a_trData + p_b_trData) * entropy;
+			//double association_value = entropy;
+			//System.out.println("\t>> P"+p_a_id+"-P"+p_b_id);
+			//System.out.println("\t\t--> New entropy = "+entropy);
 						
 			if(p_b_id > p_a_id) {
-				double old_entropy = association.getMatrix()[p_b_id][p_a_id].getValue();					
-				double new_entropy = entropy * (1 - Global.expAvgWt) 
-						+ old_entropy * Global.expAvgWt;						
-
-				association.getMatrix()[p_b_id][p_a_id].setValue(new_entropy);
+				double old_association = association.getMatrix()[p_b_id][p_a_id].getValue();
+				//System.out.println("\t\t--> Old association = "+old_association);
+				
+				double new_association = old_association * Global.expAvgWt 
+						+ association_value * (1 - Global.expAvgWt);
+				
+				association.getMatrix()[p_b_id][p_a_id].setValue(new_association);
+				//System.out.println("\t\t--> New association = "+new_association);
 				
 			} else {
-				double old_entropy = association.getMatrix()[p_a_id][p_b_id].getValue();
-				double new_entropy = entropy * (1 - Global.expAvgWt) 
-						+ old_entropy * Global.expAvgWt;
-					
-				association.getMatrix()[p_a_id][p_b_id].setValue(new_entropy);
+				double old_association = association.getMatrix()[p_a_id][p_b_id].getValue();
+				//System.out.println("\t\t--> Old association = "+old_association);
+				
+				double new_association = old_association * Global.expAvgWt 
+						+ association_value * (1 - Global.expAvgWt);
+								
+				association.getMatrix()[p_a_id][p_b_id].setValue(new_association);
+				//System.out.println("\t\t--> New association = "+new_association);
 			}			
 		}
 		
@@ -88,16 +99,23 @@ public class RBPTA {
 		double entropy = 0.0d;
 		
 		double p_total = p_a_trData + p_b_trData;
-		entropy = p_total * (-(p_a_trData/p_total) * (Math.log(p_a_trData/p_total)/Math.log(2))
+		entropy = (-(p_a_trData/p_total) * (Math.log(p_a_trData/p_total)/Math.log(2))
 						 -(p_b_trData/p_total) * (Math.log(p_b_trData/p_total)/Math.log(2)));
 		
 		return entropy;
 	}
 	
-// Migration decision	
+	
+	@SuppressWarnings("rawtypes")
+	static TreeSet sgGainRank;
+	@SuppressWarnings("rawtypes")
+	static TreeSet lbGainRank;		
+	
+	// Migration decision
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static IntPair migrationDecision(Cluster cluster) {
 		
-		ArrayList<Element> swappingCandidates = new ArrayList<Element>();			
+		ArrayList<SwappingCandidate> swappingCandidates = new ArrayList<SwappingCandidate>();			
 		Set<Integer> serverSet = new TreeSet<Integer>();
 		
 		for(Server s : cluster.getServers())
@@ -120,7 +138,11 @@ public class RBPTA {
 			for(int p_a_id : s_a.getServer_partitions()) {
 				Partition p_a = cluster.getPartition(p_a_id);
 				
-				for(int p_b_id : s_b.getServer_partitions()) {
+				// Sets for preserving the ranks
+				sgGainRank = new TreeSet();
+				lbGainRank = new TreeSet();
+				
+				for(int p_b_id : s_b.getServer_partitions()) {					
 					
 					Partition p_b = cluster.getPartition(p_b_id);
 					MatrixElement me = null;
@@ -130,159 +152,153 @@ public class RBPTA {
 					else
 						me = association.getMatrix()[p_b_id][p_a_id];
 						
-					Element e = new Element(me.getId());
+					SwappingCandidate sc = new SwappingCandidate(me.getId());
 					
-					e.p_pair.x = me.getRow_pos();
-					e.p_pair.y = me.getCol_pos();
+					sc.p_pair.x = me.getRow_pos();
+					sc.p_pair.y = me.getCol_pos();
 					
-					e.s_pair.x = s_a.getServer_id();
-					e.s_pair.y = s_b.getServer_id();
+					sc.s_pair.x = s_a.getServer_id();
+					sc.s_pair.y = s_b.getServer_id();
 					
-					e.p_dataPair.x = p_a.getPartition_dataSet().size();
-					e.p_dataPair.y = p_b.getPartition_dataSet().size();
+					sc.swapping_gain = getSwappingGain(cluster, p_a, p_b);					
+					sc.lb_gain = getLbGain(cluster, sc);
 					
-					e.swapping_gain = getSwappingGain(cluster, e, p_a, p_b);
-					e.p_data_distance = getDataDistance(e);
+					sgGainRank.add(sc.swapping_gain);
+					lbGainRank.add(sc.lb_gain);
 					
-					swappingCandidates.add(e);
+					swappingCandidates.add(sc);
 					
 				} // end-for()
 			} // end-for()
 		} // end-while()
 		
-//		// Testing
-//		System.out.println("--> List of potential swapping candidates: ");
-//		for(Element e : swappingCandidates) {
-//			System.out.println("\t\t"+e.toString());
-//		}
-		
-		// Sort the array list by swapping gain
-		Collections.sort(swappingCandidates, new Comparator<Element>(){
-			@Override
-			public int compare(Element e1, Element e2) {					
-				return (((double)e1.swapping_gain > (double)e2.swapping_gain) ? -1 : 
-        			((double)e1.swapping_gain < (double)e2.swapping_gain) ? 1 : 0);
-			}
-		});
-		
-		// Rank based on swapping gain (descending order)
-		int rank = swappingCandidates.size();
-		for(int i = 0; i < swappingCandidates.size(); i++) {
-			if(i != 0)
-				if(swappingCandidates.get(i).swapping_gain != swappingCandidates.get(i-1).swapping_gain)
-					--rank;
-			
-			swappingCandidates.get(i).gain_rank = rank * Global.idt_priority; // Prioritise gain (alpha)
-		}
-		
-//		// Testing
-//		System.out.println("--> List of potential swapping candidates (sorted based on swapping gain): ");
-//		for(Element e : swappingCandidates) {
-//			System.out.println("\t\t"+e.toString());
-//		}
-
-		// Sort the array list by distance
-		Collections.sort(swappingCandidates, new Comparator<Element>(){
-			@Override
-			public int compare(Element e1, Element e2) {					
-				return (((int)e1.p_data_distance < (int)e2.p_data_distance) ? -1 : 
-        			((int)e1.p_data_distance > (int)e2.p_data_distance) ? 1 : 0);
-			}
-		});
-
-		// Rank based on distance (ascending order)
-		rank = swappingCandidates.size();
-		for(int i = 0; i < swappingCandidates.size(); i++) {
-			if(i != 0)
-				if(swappingCandidates.get(i).p_data_distance != swappingCandidates.get(i-1).p_data_distance) 
-					--rank;
-			
-			swappingCandidates.get(i).distance_rank = rank*(1 - Global.idt_priority); // Prioritise balance (1-alpha)	
-		}
-
 		// Testing
-//		System.out.println("--> List of potential swapping candidates (sorted based on distance): ");
-//		for(Element e : swappingCandidates) {
-//			System.out.println("\t\t"+e.toString());
-//		}
+		/*System.out.println("--> List of potential swapping candidates: ");
+		for(SwappingCandidate s : swappingCandidates) {
+			System.out.println("\t\t"+s.toString());
+		}*/		
 		
-		// Assign combined rank		
-		for(Element e : swappingCandidates)
-			e.combined_rank = (e.gain_rank + e.distance_rank);		
-		
-		// Sort the array list by the value of combined rank (descending order)
-		Collections.sort(swappingCandidates, new Comparator<Element>(){
-			@Override
-			public int compare(Element e1, Element e2) {					
-				return (((double)e1.combined_rank > (double)e2.combined_rank) ? -1 : 
-        			((double)e1.combined_rank < (double)e2.combined_rank) ? 1 : 0);
-			}
-		});
-		
-		// Select the element with maximum combined rank value
-		if(swappingCandidates.size() != 0) {			
-			
-			Global.LOGGER.info("----------------------------------------------");
-			Global.LOGGER.info("Sorted list of potential swapping pairs:");
-			
-			for(Element p : swappingCandidates)
-				Global.LOGGER.info("--"+p.toString());
-						
-			Element selected = swappingCandidates.get(0);
-			
-			Global.LOGGER.info("----------------------------------------------");
-			Global.LOGGER.info("Selected swapping pair: "+selected.toString());
+		// Chose the best swapping candidate
+		if(swappingCandidates.size() != 0) {		
+			// Sorting
+			if(Global.idt_priority == 1.0) {
+				// Sort the array list by swapping gain in decending order
+				Collections.sort(swappingCandidates, new Comparator<SwappingCandidate>(){
+					@Override
+					public int compare(SwappingCandidate sc1, SwappingCandidate sc2) {					
+						return (((double)sc1.swapping_gain > (double)sc2.swapping_gain) ? -1 : 
+		        			((double)sc1.swapping_gain < (double)sc2.swapping_gain) ? 1 : 0);
+					}
+				});
+				
+			} else if((1 - Global.idt_priority) == 1.0) {
+				// Sort the array list by lb gain in ascending order
+				Collections.sort(swappingCandidates, new Comparator<SwappingCandidate>(){
+					@Override
+					public int compare(SwappingCandidate sc1, SwappingCandidate sc2) {					
+						return (((double)sc2.lb_gain > (int)sc1.lb_gain) ? -1 : 
+		        			((double)sc2.lb_gain < (int)sc2.lb_gain) ? 1 : 0);
+					}
+				});
 					
-			return (new IntPair(selected.p_pair.x, selected.p_pair.y));
+			} else {
+				// Sort the array list by the value of combined rank (descending order)
+				Collections.sort(swappingCandidates, new Comparator<SwappingCandidate>(){				
+					@Override
+					public int compare(SwappingCandidate sc1, SwappingCandidate sc2) {
+						int sg_rank1 = ((TreeSet) sgGainRank).headSet(sc1.swapping_gain).size();
+			            int sg_rank2 = ((TreeSet) sgGainRank).headSet(sc2.swapping_gain).size();
+			            
+			            int lb_rank1 = ((TreeSet) lbGainRank).tailSet(sc1.lb_gain).size();
+			            int lb_rank2 = ((TreeSet) lbGainRank).tailSet(sc2.lb_gain).size();
+			            
+			            sc1.combined_rank = sg_rank1*Global.idt_priority + lb_rank1*(1 - Global.idt_priority);
+			            sc2.combined_rank = sg_rank2*Global.idt_priority + lb_rank2*(1 - Global.idt_priority);
+			            
+						return (((double)sc1.combined_rank > (double)sc2.combined_rank) ? -1 : 
+							((double)sc1.combined_rank < (double)sc2.combined_rank) ? 1 : 0);				
+					}
+				});
+			}
+								
+
+			/*Global.LOGGER.info("----------------------------------------------");
+			Global.LOGGER.info("Sorted list of potential swapping pairs:");			
+			for(SwappingCandidate sc : swappingCandidates)
+				Global.LOGGER.info("--"+sc.toString());*/
+						
+			// Select the target swapping candidate
+			SwappingCandidate target_candidate = swappingCandidates.get(0);			
+			
+			//Global.LOGGER.info("----------------------------------------------");
+			//Global.LOGGER.info("Selected swapping pair: "+target_candidate.toString());
+					
+			return (new IntPair(target_candidate.p_pair.x, target_candidate.p_pair.y));
 		
 		} else {
 			return null;
 		}
 	}
 	
-	// Returns the swapping gain	
-	private static double getSwappingGain(Cluster cluster, Element e, Partition p_x, Partition p_y) {		
-		
-		double p_x_gain = getGain(cluster, p_x, p_y);
-		double p_y_gain = getGain(cluster, p_y, p_x);
-		
-		return (p_x_gain + p_y_gain);
-	}
-	
-	// Returns the actual gain for a migrating partition P_x into server S_y 
-	// x = source, y = target
-	private static double getGain(Cluster cluster, Partition p_i, Partition p_j) {
+	// Returns the actual gain for a swapping Pi/Si with Pj/Sj 
+	private static double getSwappingGain(Cluster cluster, Partition p_i, Partition p_j) {
 		
 		int p_i_id = p_i.getPartition_id();
+		int p_j_id = p_j.getPartition_id();
 		
 		Server s_i = cluster.getServer(p_i.getPartition_serverId());
 		Server s_j = cluster.getServer(p_j.getPartition_serverId());
 		
-		// Get the gain for Pi
-		double gain = 0.0d;
 		double value = 0.0d;
+		double gain = 0.0d;
+		double loss = 0.0d;
 		
+		// Get the gain for Pi-->Sj
 		for(int p_id : s_j.getServer_partitions()) {
-			
-			if(p_i_id > p_id)			
-				value = association.getMatrix()[p_i_id][p_id].getValue();
-			else
-				value = association.getMatrix()[p_id][p_i_id].getValue();
-			
-			gain += value;
+			if(p_i_id != p_id) {
+				if(p_i_id > p_id)			
+					value = association.getMatrix()[p_i_id][p_id].getValue();
+				else
+					value = association.getMatrix()[p_id][p_i_id].getValue();
+						
+				gain += value;
+			}
 		}
 		
-		// Get the loss for Pj
-		double loss = 0.0d;
+		// Get the gain for Pj-->Si
 		for(int p_id : s_i.getServer_partitions()) {
+			if(p_j_id != p_id) {
+				if(p_j_id > p_id)			
+					value = association.getMatrix()[p_j_id][p_id].getValue();
+				else
+					value = association.getMatrix()[p_id][p_j_id].getValue();
+						
+				gain += value;
+			}
+		}
+		
+		// Get the loss for Pi<--Si
+		for(int p_id : s_i.getServer_partitions()) {
+			if(p_i_id != p_id) {
+				if(p_i_id > p_id)		
+					value = association.getMatrix()[p_i_id][p_id].getValue();
+				else
+					value = association.getMatrix()[p_id][p_i_id].getValue();			
 			
-			if(p_i_id > p_id)		
-				value = association.getMatrix()[p_i_id][p_id].getValue();
-			else
-				value = association.getMatrix()[p_id][p_i_id].getValue();
-			
-			if(p_i_id != p_id)
 				loss += value;
+			}
+		}
+
+		// Get the loss for Pj<--Sj
+		for(int p_id : s_j.getServer_partitions()) {
+			if(p_j_id != p_id) {
+				if(p_j_id > p_id)		
+					value = association.getMatrix()[p_j_id][p_id].getValue();
+				else
+					value = association.getMatrix()[p_id][p_j_id].getValue();
+						
+				loss += value;
+			}
 		}
 				
 		// Returns the actual gain
@@ -290,33 +306,34 @@ public class RBPTA {
 	}
 	
 	// Returns the difference of data volume of two partitions as a distance
-	private static int getDataDistance(Element e) {		
-		return Math.abs(e.p_dataPair.x - e.p_dataPair.y);
+	private static double getLbGain(Cluster cluster, SwappingCandidate sc) {
+		
+		DescriptiveStatistics sc_partition_data = new DescriptiveStatistics();
+		
+		for(Partition p : cluster.getPartitions())
+			if(sc.p_pair.x == p.getPartition_id() || sc.p_pair.y == p.getPartition_id())
+				sc_partition_data.addValue(p.getPartition_dataSet().size());
+
+		return sc_partition_data.getVariance();
 	}	
 }
 
 // A specialised Element Class
-class Element {
+class SwappingCandidate {
 	int id;
 	IntPair p_pair;
 	IntPair s_pair;
-	IntPair p_dataPair;
 	double swapping_gain;
-	int p_data_distance;
-	double gain_rank;
-	double distance_rank;
+	double lb_gain;
 	double combined_rank;
 	
-	public Element(int id) {
+	public SwappingCandidate(int id) {
 		this.setId(id);
 		this.p_pair = new IntPair(-1, -1);
 		this.s_pair = new IntPair(-1, -1);
-		this.p_dataPair = new IntPair(-1, -1);
-		this.swapping_gain = Double.MIN_VALUE;
-		this.p_data_distance = Integer.MIN_VALUE;
-		this.gain_rank = -1;
-		this.distance_rank = -1;
-		this.combined_rank = -1;
+		this.swapping_gain = 0.0;
+		this.lb_gain = 0.0;
+		this.combined_rank = 0.0;
 	}
 
 	public int getId() {
@@ -347,7 +364,7 @@ class Element {
 	
 	@Override
 	public String toString() {		
-		return ("P"+this.p_pair+" | S"+this.s_pair+" | Pdata"+this.p_dataPair
-				+" [Swapping Gain = "+this.swapping_gain+"|"+" Data Distance = "+this.p_data_distance+"]");	
+		return ("P"+this.p_pair+"/S"+this.s_pair
+				+" [Swapping Gain("+this.swapping_gain+") | "+" Lb gain("+this.lb_gain+") | Combined rank("+this.combined_rank+"]");	
 	}
 }

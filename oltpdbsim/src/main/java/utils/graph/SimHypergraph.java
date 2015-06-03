@@ -48,7 +48,12 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
         vcMap = new HashMap<Integer, Integer>();
 	}
 
-//===================================================================================================	
+//===================================================================================================
+	// Returns the vertices of a given hyperedge
+	public Set<V> getVertices(H h) {
+		return edges.get(h.getId());
+	}
+	
 	// Adds a new Hyperedge in the Hypergraph
 	public boolean addHEdge(H h, Set<V> vSet) {        
 		

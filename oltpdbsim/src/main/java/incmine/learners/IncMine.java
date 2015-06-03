@@ -215,9 +215,11 @@ public class IncMine extends AbstractLearner implements Observer {
         }       
                 
         this.endUpdateTime = TimingUtils.getNanoCPUTimeOfCurrentThread();
-        //System.out.println("Update done in " + this.getUpdateTime()/1e6 + " ms.");
-        //System.out.println(fciTable.size() + " SemiFCIs actually stored\n");
-        //System.out.println(fciTable.toString());
+        
+        // Testing
+        /*System.out.println("Update done in " + this.getUpdateTime()/1e6 + " ms.");
+        System.out.println(fciTable.size() + " SemiFCIs actually stored\n");
+        System.out.println(fciTable.toString());*/
     }
 
     /**

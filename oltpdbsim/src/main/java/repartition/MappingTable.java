@@ -6,20 +6,29 @@ package main.java.repartition;
 
 import java.util.Set;
 import java.util.TreeSet;
+
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.workload.Transaction;
+import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.SimpleVertex;
+//import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
 public class MappingTable {
 	public MappingTable() {}
 	
 	public Matrix generateMappingTable(Cluster cluster, WorkloadBatch wb) {
-		int M = cluster.getPartitions().size()+1;
+		int M = 0;
+		
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			M = cluster.getServers().size()+1;
+		else
+			M = cluster.getPartitions().size()+1;
+		
 		int N = M; // Having a NxN matrix
 		
 		// Create a 2D Matrix to represent the Data movements due to partitioning decision
@@ -45,23 +54,37 @@ public class MappingTable {
 			}
 		}
 		
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			processMapping(cluster, wb, Global.dsm.hgr, mapping);
+		else
+			processMapping(cluster, wb, wb.hgr, mapping);		
+
+		// Create the Movement Matrix
+		return (new Matrix(mapping));
+	}
+	
+	private void processMapping(Cluster cluster, WorkloadBatch wb, 
+			SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, MatrixElement[][] mapping) {
+		
 		int partition_id = -1;
 		int cluster_id = -1;
-		MatrixElement me;
-				
+		MatrixElement me;				
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		for(SimpleHEdge h : wb.hgr.getEdges()) {
+		//for(SimpleHEdge h : hgr.getEdges()) {		
+			//Transaction tr = wb.getTransaction(h.getId());
 			
-			Transaction tr = wb.getTransaction(h.getId());
-			
-			for(Integer data_id : tr.getTr_dataSet()) {
-				Data data = cluster.getData(data_id);
+			//for(Integer data_id : tr.getTr_dataSet()) {
+			for(SimpleVertex v : hgr.getVertices()) {
+				Data data = cluster.getData(v.getId());
 				
 				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
 					dataSet.add(data.getData_id());
 					
-					partition_id = data.getData_partition_id();
+					if(Global.trClassificationStrategy.equals("fcimining"))
+						partition_id = data.getData_server_id();
+					else
+						partition_id = data.getData_partition_id();
 					
 					switch(Global.workloadRepresentation) {
 					
@@ -84,9 +107,6 @@ public class MappingTable {
 					me.setValue(me.getValue()+1);
 				}
 			} // end -- for()-Data
-		} // end -- for()
-
-		// Create the Movement Matrix
-		return (new Matrix(mapping));
+		//} // end -- for()
 	}
 }

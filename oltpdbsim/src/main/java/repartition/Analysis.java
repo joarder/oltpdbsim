@@ -32,7 +32,7 @@ public class Analysis {
 		
 		int groups = 0;		
 		int transactions = wb.hgr.getEdgeCount();
-		int processed = 0;
+		//int processed = 0;
 		int denial_of_service = 0;
 		int highest_span = Integer.MIN_VALUE;
 		int lowest_span = Integer.MAX_VALUE;
@@ -86,7 +86,7 @@ public class Analysis {
 		}*/		
 		
 		while(tMap.size() != 0) {	
-			int total_span_in_group = 0;
+			//int total_span_in_group = 0;
 			
 			if(tMap.containsKey(highest_span)) {				
 				++groups;
@@ -105,8 +105,8 @@ public class Analysis {
 				T_dummy t = null;
 				if(!tMap.get(highest_span).isEmpty()) {
 					t = tMap.get(highest_span).remove(0);
-					++processed;
-					total_span_in_group += highest_span;
+					//++processed;
+					//total_span_in_group += highest_span;
 					//System.out.println(t.toString());
 				}
 
@@ -126,9 +126,9 @@ public class Analysis {
 					if(tMap.containsKey(required)) {
 						
 						if(!tMap.get(required).isEmpty()) {
-							T_dummy t1 = tMap.get(required).remove(0);
-							++processed;
-							total_span_in_group += required;
+							tMap.get(required).remove(0); //T_dummy t1 = 
+							//++processed;
+							//total_span_in_group += required;
 							//System.out.println(t1.toString());
 						}
 
@@ -174,9 +174,9 @@ public class Analysis {
 								}
 						
 								if(!tMap.get(difference).isEmpty()) {
-									T_dummy t2 = tMap.get(difference).remove(0);
-									++processed;
-									total_span_in_group += difference;
+									tMap.get(difference).remove(0); //T_dummy t2 = 
+									//++processed;
+									//total_span_in_group += difference;
 									//System.out.println(t2.toString());
 								}
 								

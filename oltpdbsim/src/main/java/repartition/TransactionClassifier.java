@@ -23,7 +23,7 @@ import main.java.workload.WorkloadBatch;
 
 public class TransactionClassifier {	
 
-	private static IncMine learner;
+	private static IncMine incMine_learner;
 	private static ZakiFileStream stream;
 
 	private static int DT = 0;
@@ -67,15 +67,15 @@ public class TransactionClassifier {
 	
 	public static void init() {
 		
-		learner = new IncMine();
+		incMine_learner = new IncMine();
 		
 		// Configure the learner
-		learner.minSupportOption.setValue(0.05d);
-		learner.relaxationRateOption.setValue(0.5d);
-		learner.fixedSegmentLengthOption.setValue(1000); //1000		
-		learner.windowSizeOption.setValue(10);
-		learner.maxItemsetLengthOption.setValue(-1);
-		learner.resetLearning();
+		incMine_learner.minSupportOption.setValue(0.05d);
+		incMine_learner.relaxationRateOption.setValue(0.5d);
+		incMine_learner.fixedSegmentLengthOption.setValue(1000); //1000		
+		incMine_learner.windowSizeOption.setValue(10);
+		incMine_learner.maxItemsetLengthOption.setValue(-1);
+		incMine_learner.resetLearning();
 	}
 	
 	private static void mine(Cluster cluster, WorkloadBatch wb){
@@ -92,7 +92,7 @@ public class TransactionClassifier {
         
 		// Perform DSM
 		while(stream.hasMoreInstances()){
-        	learner.trainOnInstance(stream.nextInstance());            
+        	incMine_learner.trainOnInstance(stream.nextInstance());            
         }		
 	}
 	
@@ -103,17 +103,17 @@ public class TransactionClassifier {
 		
 		//Find the list of semi-FCI
 		mine(cluster, wb);		
-		//System.out.println(this.learner);
+		System.out.println(incMine_learner);
 	
 		//Find the list of distributed semi-FCI (Frequent Closed Itemsets)
 		ArrayList<List<Integer>> semiFCIList = new ArrayList<List<Integer>>();
 		ArrayList<List<Integer>> dSemiFCIList = new ArrayList<List<Integer>>();
 		
-		for(SemiFCI semiFCI : learner.getFCITable()){
-			//System.out.println("@ "+semiFCI.getItems());
+		for(SemiFCI semiFCI : incMine_learner.getFCITable()){
+			System.out.println("@ "+semiFCI.getItems());
 			
 			if(semiFCI.getItems().size() > 1){
-				//System.out.println("@ "+semiFCI.getItems());
+				System.out.println("@ "+semiFCI.getItems());
 				semiFCIList.add(semiFCI.getItems());
 				
 				if(isDistributedFCI(cluster, semiFCI.getItems()))
@@ -131,8 +131,7 @@ public class TransactionClassifier {
 			Transaction tr = wb.getTransaction(h.getId());
 			
 			// Following Figure 3 from BDC'2014 paper
-			if(tr.isDt()) { // DTs
-				
+			if(tr.isDt()) { // DTs				
 				++DT;
 				
 				if(isFrequent(tr, semiFCIList)) { // Frequent
@@ -188,16 +187,16 @@ public class TransactionClassifier {
 		
 		//Find the list of semi-FCI
 		mine(cluster, wb);		
-		//System.out.println(this.learner);
+		System.out.println(incMine_learner);
 	
 		//Find the list of semi-FCI
 		ArrayList<List<Integer>> semiFCIList = new ArrayList<List<Integer>>();
 		
-		for(SemiFCI semiFCI : learner.getFCITable()){
-			//System.out.println("@ "+fci.getItems());
+		for(SemiFCI semiFCI : incMine_learner.getFCITable()){
+			System.out.println("@ "+semiFCI.getItems());
 			
 			if(semiFCI.getItems().size() > 1){
-				//System.out.println("@ "+fci.getItems());
+				System.out.println("@ "+semiFCI.getItems());
 				semiFCIList.add(semiFCI.getItems());				
 			}
         }

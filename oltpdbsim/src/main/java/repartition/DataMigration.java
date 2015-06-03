@@ -19,22 +19,24 @@ import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
 import main.java.cluster.VirtualData;
+import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.utils.IntPair;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.Utility;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.workload.Transaction;
+import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
 
-public class DataMovement {
-	private static int intra_server_dmv = 0;
-	private static int inter_server_dmv = 0;	
+public class DataMigration {
+	private static int intra_server_dmgr = 0;
+	private static int inter_server_dmgr = 0;	
 
 	private static void setEnvironment(Cluster cluster) {
-		intra_server_dmv = 0;
-		inter_server_dmv = 0;		
+		intra_server_dmgr = 0;
+		inter_server_dmgr = 0;		
 				
 		for(Server server : cluster.getServers()) {
 			server.setServer_inflow(0);
@@ -47,7 +49,7 @@ public class DataMovement {
 		}
 	}
 	
-	public static void performDataMovement(Cluster cluster, WorkloadBatch wb) {
+	public static void performDataMigration(Cluster cluster, WorkloadBatch wb) {
 		
 		String partitioner = Global.workloadRepresentation;
 		
@@ -138,7 +140,10 @@ public class DataMovement {
 		}
 		
 		// Perform Actual Data Movement
-		move(cluster, wb, keyMap, partitioner);
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+		else
+			move(cluster, wb, wb.hgr, keyMap, partitioner);
 	}
 	
 	private static void strategyMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
@@ -160,7 +165,10 @@ public class DataMovement {
 		}
 		
 		// Perform Actual Data Movement
-		move(cluster, wb, keyMap, partitioner);	
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+		else
+			move(cluster, wb, wb.hgr, keyMap, partitioner);	
 	}
 	
 	private static void strategyImprovedMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
@@ -182,10 +190,20 @@ public class DataMovement {
 			
 			// Sort the Partitions based on their size
 			Map<Integer, Integer> partitionSet = new HashMap<Integer, Integer>();
-			for(Entry<Integer, MatrixElement> entry : colMaxSet.entrySet()) {
-				Partition p = cluster.getPartition(entry.getKey());
-				int p_size = p.getPartition_dataSet().size();
-				partitionSet.put(p.getPartition_id(), p_size);
+			
+			if(Global.trClassificationStrategy.equals("fcimining")) {
+				for(Entry<Integer, MatrixElement> entry : colMaxSet.entrySet()) {
+					Server s = cluster.getServer(entry.getKey());
+					int s_size = s.getServer_total_data();
+					partitionSet.put(s.getServer_id(), s_size);
+				}
+				
+			} else {
+				for(Entry<Integer, MatrixElement> entry : colMaxSet.entrySet()) {
+					Partition p = cluster.getPartition(entry.getKey());
+					int p_size = p.getPartition_dataSet().size();
+					partitionSet.put(p.getPartition_id(), p_size);
+				}
 			}
 			
 			// Sort by value in ascending order
@@ -200,7 +218,10 @@ public class DataMovement {
 		}
 		
 		// Perform Actual Data Movement
-		move(cluster, wb, keyMap, partitioner);	
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+		else
+			move(cluster, wb, wb.hgr, keyMap, partitioner);	
 	}
 	
 	private static void strategyMSM(Cluster cluster, WorkloadBatch wb, String partitioner) {	
@@ -241,8 +262,11 @@ public class DataMovement {
 			//System.out.println("-#-Row("+row+" [ACT] C"+(int)mapping.getMatrix()[0][row].getCounts()+"|P"+(int)mapping.getMatrix()[row][0].getCounts());
 		}
 	
-		// Perform Actual Data Movement	
-		move(cluster, wb, keyMap, partitioner);
+		// Perform Actual Data Movement
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+		else
+			move(cluster, wb, wb.hgr, keyMap, partitioner);
 	}
 	
 	// RBSTA - incremental repartitioning	
@@ -262,11 +286,32 @@ public class DataMovement {
 				t.processed = true;			
 		}		
 		
-		wb.set_intra_dmv(intra_server_dmv);
-		wb.set_inter_dmv(inter_server_dmv);
+		wb.set_intra_dmv(intra_server_dmgr);
+		wb.set_inter_dmv(inter_server_dmgr);
+	}
+		
+	// FCIMining and ARHC - incremental repartitioning	
+	public static void strategyARHC(Cluster cluster, WorkloadBatch wb) {	
+		setEnvironment(cluster);		
+		DataStreamMining.populatePQ(cluster, wb);
+
+		while(!DataStreamMining.pq.isEmpty()) {			
+			// Get a transaction from the priority queue
+			AssociativeTr t = DataStreamMining.pq.poll();
+			MigrationPlan m = t.migrationPlanList.get(0);
+			
+			// Check whether processing this transaction may increase the impact of any other already processed transactions
+			if(!DataStreamMining.isAffected(wb, t, m))
+				DataStreamMining.processTransaction(cluster, wb, t, m);
+			else
+				t.isProcessed = true;			
+		}		
+		
+		wb.set_intra_dmv(intra_server_dmgr);
+		wb.set_inter_dmv(inter_server_dmgr);
 	}
 	
-	// RBSTA specific
+	// RBSTA and FCIMining specific
 	public static void migration(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
 		
 		Partition dst_partition = cluster.getPartition(dst_partition_id);
@@ -359,13 +404,13 @@ public class DataMovement {
 		// Change server id in data objects
 		for(Entry<Integer, Data> entry : P_a.getPartition_dataSet().entrySet()) {
 			entry.getValue().setData_server_id(Sb);
-			++inter_server_dmv;
+			++inter_server_dmgr;
 			updateServerFlowCounts(cluster, Sa, Sb);
 		}
 		
 		for(Entry<Integer, Data> entry : P_b.getPartition_dataSet().entrySet()) {
 			entry.getValue().setData_server_id(Sa);
-			++inter_server_dmv;
+			++inter_server_dmgr;
 			updateServerFlowCounts(cluster, Sb, Sa);
 		}		
 		
@@ -373,8 +418,8 @@ public class DataMovement {
 		cluster.updateLoad();
 		cluster.show();
 		
-		wb.set_intra_dmv(intra_server_dmv);
-		wb.set_inter_dmv(inter_server_dmv);	
+		wb.set_intra_dmv(intra_server_dmgr);
+		wb.set_inter_dmv(inter_server_dmgr);	
 	}
 	
 	private static void updateData(Cluster cluster, Data data, 
@@ -452,12 +497,12 @@ public class DataMovement {
 		cluster.getPartition(current_partition_id).incPartition_outflow();
 		
 		if(dst_server_id != src_server_id) {
-			++inter_server_dmv;
+			++inter_server_dmgr;
 			
 			updateServerFlowCounts(cluster, src_server_id, dst_server_id);
 			
 		} else
-			++intra_server_dmv;		
+			++intra_server_dmgr;		
 	}		
 	
 	private static void updateServerFlowCounts(Cluster cluster, int src, int dst) {
@@ -469,8 +514,8 @@ public class DataMovement {
 	}
 	
 	// Perform Actual Data Movement
-	private static void move(Cluster cluster, WorkloadBatch wb, Map<Integer, Integer> keyMap, 
-			String type) {
+	private static void move(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
+			Map<Integer, Integer> keyMap, String type) {
 		
 		Partition home_partition = null;
 		Partition current_partition = null;
@@ -484,13 +529,14 @@ public class DataMovement {
 		
 		Set<Integer> dataSet = new TreeSet<Integer>();			
 						
-		for(SimpleHEdge h : wb.hgr.getEdges()) {
+		//for(SimpleHEdge h : wb.hgr.getEdges()) {
 			
-			Transaction tr = wb.getTransaction(h.getId());
+			//Transaction tr = wb.getTransaction(h.getId());
 		
-			for(Integer d : tr.getTr_dataSet()) {
+			//for(Integer d : tr.getTr_dataSet()) {
+			for(SimpleVertex v : hgr.getVertices()) {
 				//System.out.println("--> "+d);
-				Data data = cluster.getData(d);
+				Data data = cluster.getData(v.getId());
 				
 				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
 					dataSet.add(data.getData_id());
@@ -522,8 +568,24 @@ public class DataMovement {
 					}
 					
 					//System.out.println("@debug >> P"+dst_partition_id);
-					dst_partition = cluster.getPartition(dst_partition_id);
-					dst_server_id = dst_partition.getPartition_serverId();												
+					
+					if(Global.trClassificationStrategy.equals("fcimining")) {
+						dst_server_id = dst_partition_id;
+						dst_partition_id = selectPartitionId(cluster, dst_server_id);
+						
+						if(DataStreamMining.fci_clusters.containsKey(dst_server_id)) {
+							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
+						} else {						
+							DataStreamMining.fci_clusters.put(dst_server_id, new FCICluster());
+							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
+						}						
+						
+						dst_partition = cluster.getPartition(selectPartitionId(cluster, dst_server_id));
+						
+					} else {
+						dst_partition = cluster.getPartition(dst_partition_id);
+						dst_server_id = dst_partition.getPartition_serverId();
+					}
 					
 					if(dst_partition_id != current_partition_id) { // Data needs to be moved					
 						if(data.isData_isRoaming()) { // Data is already Roaming
@@ -563,9 +625,25 @@ public class DataMovement {
 			//if(tr.isDt() && Global.compressionBeforeSetup)
 				//wb.sword.hCut.add(h);
 			
-		} // end -- for()		
+		//} // end -- for()		
 		
-		wb.set_intra_dmv(intra_server_dmv);
-		wb.set_inter_dmv(inter_server_dmv);	
+		wb.set_intra_dmv(intra_server_dmgr);
+		wb.set_inter_dmv(inter_server_dmgr);	
+	}
+		
+	private static int selectPartitionId(Cluster cluster, int server_id) {
+		// Sort the Partitions based on their size	
+		Map<Integer, Integer> partitionSet = new HashMap<Integer, Integer>();
+		Server s = cluster.getServer(server_id);
+		
+		for(int p_id : s.getServer_partitions()) {
+			Partition p = cluster.getPartition(p_id);
+			int p_size = p.getPartition_dataSet().size();
+			partitionSet.put(p.getPartition_id(), p_size);
+		}
+		
+		// Sort by value in ascending order
+		List<Entry<Integer, Integer>> sortedPartitionSet = Utility.sortedByValuesAsc(partitionSet);
+		return sortedPartitionSet.get(0).getKey();
 	}
 }

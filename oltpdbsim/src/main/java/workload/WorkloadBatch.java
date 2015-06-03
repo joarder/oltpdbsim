@@ -394,12 +394,26 @@ public class WorkloadBatch {
 	}
 	
 	// Converts a set of transactional data set into a set of vertices
-	private Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {		
+	public Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {		
 		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
 		
 		for(Integer d : trDataSet) {
 			Data data = cluster.getData(d);
 			trSet.add(new SimpleVertex(d, 1,  // 1 = Vertex Weight
+					data.getData_partition_id(), data.getData_server_id()));
+		}
+		
+		return trSet;		
+	}
+	
+	// Converts a set of transactional data set into a set of vertices
+	public Set<SimpleVertex> getVertices(Cluster cluster, Map<Integer, Integer> trDataMap) {		
+		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
+		
+		for(Entry<Integer, Integer> d : trDataMap.entrySet()) {
+			Data data = cluster.getData(d.getKey());
+			
+			trSet.add(new SimpleVertex(d.getKey(), d.getValue(),  // Calculated Vertex Weight
 					data.getData_partition_id(), data.getData_server_id()));
 		}
 		

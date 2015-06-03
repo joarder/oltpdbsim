@@ -15,6 +15,7 @@ public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	H getHEdge(int id);
 	H getHEdge(Set<V> vSet);
 	V getVertex(int id);
+	Set<V> getVertices(H h);
 	boolean addCHEdge(H h);
 	boolean removeCHEdge(H h);
 	boolean addCVertex(V v);
