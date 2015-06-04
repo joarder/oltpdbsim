@@ -29,10 +29,11 @@ import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
+import main.java.workload.WorkloadExecutor;
 
 public class DataMigration {
-	private static int intra_server_dmgr = 0;
-	private static int inter_server_dmgr = 0;	
+	public static int intra_server_dmgr = 0;
+	public static int inter_server_dmgr = 0;	
 
 	private static void setEnvironment(Cluster cluster) {
 		intra_server_dmgr = 0;
@@ -292,7 +293,9 @@ public class DataMigration {
 		
 	// FCIMining and ARHC - incremental repartitioning	
 	public static void strategyARHC(Cluster cluster, WorkloadBatch wb) {	
-		setEnvironment(cluster);		
+		if(!WorkloadExecutor.isAdaptive)
+			setEnvironment(cluster);		
+		
 		DataStreamMining.populatePQ(cluster, wb);
 
 		while(!DataStreamMining.pq.isEmpty()) {			
@@ -307,8 +310,10 @@ public class DataMigration {
 				t.isProcessed = true;			
 		}		
 		
-		wb.set_intra_dmv(intra_server_dmgr);
-		wb.set_inter_dmv(inter_server_dmgr);
+		if(!Global.adaptive) {
+			wb.set_intra_dmv(intra_server_dmgr);
+			wb.set_inter_dmv(inter_server_dmgr);
+		}
 	}
 	
 	// RBSTA and FCIMining specific
@@ -501,8 +506,9 @@ public class DataMigration {
 			
 			updateServerFlowCounts(cluster, src_server_id, dst_server_id);
 			
-		} else
-			++intra_server_dmgr;		
+		} else {
+			++intra_server_dmgr;
+		}
 	}		
 	
 	private static void updateServerFlowCounts(Cluster cluster, int src, int dst) {
@@ -570,18 +576,27 @@ public class DataMigration {
 					//System.out.println("@debug >> P"+dst_partition_id);
 					
 					if(Global.trClassificationStrategy.equals("fcimining")) {
+						// Decide destination server
 						dst_server_id = dst_partition_id;
-						dst_partition_id = selectPartitionId(cluster, dst_server_id);
+
+						// Decide destination partition if data needs to be migrated						
+						if(dst_server_id != current_server_id) {
+							dst_partition_id = selectPartitionId(cluster, dst_server_id);
+							dst_partition = cluster.getPartition(dst_partition_id);
+							
+						} else {
+							// Target data tuple is already in the destination server, no data migration is needed
+							dst_partition_id = current_partition_id;
+						}
 						
+						// Populate FCI clusters
 						if(DataStreamMining.fci_clusters.containsKey(dst_server_id)) {
 							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
 						} else {						
 							DataStreamMining.fci_clusters.put(dst_server_id, new FCICluster());
 							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
-						}						
-						
-						dst_partition = cluster.getPartition(selectPartitionId(cluster, dst_server_id));
-						
+						}
+
 					} else {
 						dst_partition = cluster.getPartition(dst_partition_id);
 						dst_server_id = dst_partition.getPartition_serverId();
@@ -616,6 +631,9 @@ public class DataMigration {
 							dst_partition.incPartition_foreign_data();								
 							home_partition.incPartition_roaming_data();
 						}
+					} else {
+						// This is just for testing purpose to make sure the total number of data in the cluster is correct
+						++intra_server_dmgr;
 					}
 					
 					data.setData_inUse(false);

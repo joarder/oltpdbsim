@@ -37,9 +37,11 @@ import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.Analysis;
-import main.java.repartition.RBPTA;
+import main.java.repartition.AssociativeTr;
 import main.java.repartition.DataMigration;
+import main.java.repartition.DataStreamMining;
 import main.java.repartition.MinCut;
+import main.java.repartition.RBPTA;
 import main.java.repartition.TransactionClassifier;
 import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.ValueComparator;
@@ -72,6 +74,7 @@ public class WorkloadExecutor {
     static boolean changeDetected = false;
     static boolean noChangeIsRequired = false;
     static boolean repartitioningCoolingOff = false;
+    public static boolean isAdaptive = false;
     
 	static int uniqueMax;	
 	static double nextStatCollection = Global.observationWindow;
@@ -297,6 +300,17 @@ public class WorkloadExecutor {
 				if(currentIDt < Global.userDefinedIDtThreshold) {
 					Global.LOGGER.info("Repartitioning is not required at this moment.");
 					Global.LOGGER.info("Continuing transaction processing ...");
+					
+					// Adaptive ARHC
+					if(Global.adaptive) {
+						WorkloadExecutor.isAdaptive = false;
+						
+						wb.set_intra_dmv(DataMigration.intra_server_dmgr);
+						wb.set_inter_dmv(DataMigration.inter_server_dmgr);
+						
+						Global.LOGGER.info("-----------------------------------------------------------------------------");												
+						WorkloadExecutor.collectStatistics(cluster, wb);
+					}					
 				}
 			}
 			
@@ -509,9 +523,6 @@ public class WorkloadExecutor {
 				DataMigration.performDataMigration(cluster, wb);
 			}
 		}
-
-		Global.LOGGER.info("-----------------------------------------------------------------------------");												
-		WorkloadExecutor.collectStatistics(cluster, wb);
 	}
 	
 	static boolean beginning = true;
@@ -712,7 +723,29 @@ class Arrival extends Event {
 						}
 						
 						// Repartition the database in an incremental manner
-						WorkloadExecutor.startRepartitioning(cluster, wb);
+						if(Global.adaptive) {
+							wb.set_intra_dmv(DataMigration.intra_server_dmgr);
+							wb.set_inter_dmv(DataMigration.inter_server_dmgr);
+							
+							Global.LOGGER.info("-----------------------------------------------------------------------------");												
+							WorkloadExecutor.collectStatistics(cluster, wb);
+							
+							Global.LOGGER.info("-----------------------------------------------------------------------------");
+							Global.LOGGER.info("Starting adaptive data stream mining ...");
+							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+							
+							Global.dsm.performDSM(cluster, wb);
+							
+							WorkloadExecutor.isAdaptive = true;
+							
+						} else {
+							WorkloadExecutor.startRepartitioning(cluster, wb);
+						}
+						
+						if(!Global.adaptive) {
+							Global.LOGGER.info("-----------------------------------------------------------------------------");												
+							WorkloadExecutor.collectStatistics(cluster, wb);
+						}
 						
 						if(Global.repartThreshold) {
 							WorkloadExecutor.repartitioningCoolingOff = true;
@@ -721,8 +754,10 @@ class Arrival extends Event {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
-						}	
-						
+							
+							if(Global.adaptive)
+								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
+						}						
 					}					
 					
 				} else { // 2. Static Repartitioning
@@ -738,17 +773,26 @@ class Arrival extends Event {
 						
 						Global.singleRun = false;
 						
-					} else { 
+					} else { 						
 						// Hourly statistic collection
 						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 					}
 				}
 				
 			} else { // 1. Baseline
-				
 				// Hourly statistic collection				
 				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 			}						
+			
+			// Adaptive ARHC
+			if(Global.adaptive && WorkloadExecutor.isAdaptive) {
+				// Redistribute transactional tuples in an adaptive manner using DSM/ARHC
+				AssociativeTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
+				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
+				
+				if(t.isAssociated)
+					DataStreamMining.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
+			}
 		}
 		
 		if(Global.dataMigrationStrategy.equals("rbpta"))

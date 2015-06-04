@@ -133,8 +133,10 @@ public class ReadConfig {
 				Global.streamCollection = Boolean.parseBoolean((String) config_param.getProperty("stream.collection"));								
 				Global.streamCollectorSizeFactor = Integer.parseInt((String) config_param.getProperty("stream.collector.size.factor"));
 				
-				if(Global.streamCollection)
-					Global.dsm = new DataStreamMining();				
+				if(Global.streamCollection) {
+					Global.dsm = new DataStreamMining();
+					Global.adaptive = Boolean.parseBoolean((String) config_param.getProperty("adaptive"));
+				}
 				
 				Global.enableTrClassification = Boolean.parseBoolean((String) config_param.getProperty("transaction.classification"));
 				Global.trClassificationStrategy = (String) config_param.getProperty("transaction.classification.strategy");
