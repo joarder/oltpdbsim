@@ -1,4 +1,4 @@
-simulation.name=C-T-RBSTA-LB-0.9
+simulation.name=C-T-RBSTA-IDT-0.6
 
 setup=consistenthash
 
@@ -47,5 +47,5 @@ unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
 span.reduction=1
-idt.priority=0.1
+idt.priority=0.6
 idt.threshold=0.5
