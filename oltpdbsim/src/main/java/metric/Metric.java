@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
 
@@ -15,7 +16,12 @@ import main.java.utils.Utility;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.paukov.combinatorics.Factory;
+import org.paukov.combinatorics.Generator;
+import org.paukov.combinatorics.ICombinatoricsVector;
 
 import umontreal.iro.lecuyer.simevents.Sim;
 
@@ -45,6 +51,11 @@ public class Metric implements java.io.Serializable {
 	
 	public static ArrayList<Integer> inter_server_dmv;
 	public static ArrayList<Integer> intra_server_dmv;
+		
+	// New -- server-level pair-wise data migration counts
+	public static HashMap<Pair<Integer, Integer>, Integer> mutually_exclusive_serverSets;
+	public static ArrayList<Double> mean_pairwise_inter_server_dmv;
+	public static ArrayList<Double> sd_pairwise_inter_server_dmv;	
 	
 	public static ArrayList<Integer> current_tr;
 	public static ArrayList<Integer> current_dt;
@@ -59,7 +70,7 @@ public class Metric implements java.io.Serializable {
 		
 	public static int metricCollectionCycle = 0;
 	
-	public static void init() {
+	public static void init(Cluster cluster) {
 		time = new ArrayList<Double>();
 		
 		mean_throughput = new ArrayList<Double>();
@@ -81,7 +92,12 @@ public class Metric implements java.io.Serializable {
 		sd_partition_data = new ArrayList<Double>();
 		
 		inter_server_dmv = new ArrayList<Integer>();
-		intra_server_dmv = new ArrayList<Integer>();
+		intra_server_dmv = new ArrayList<Integer>();		
+				
+		// new -- mutually exclusive server sets
+		mutually_exclusive_serverSets = new HashMap<Pair<Integer, Integer>, Integer>();
+		mean_pairwise_inter_server_dmv = new ArrayList<Double>();
+		sd_pairwise_inter_server_dmv = new ArrayList<Double>();
 		
 		current_tr = new ArrayList<Integer>();
 		current_dt = new ArrayList<Integer>();
@@ -100,6 +116,32 @@ public class Metric implements java.io.Serializable {
 			file.createNewFile();
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
+		}		
+	}
+	
+	public static void initServerSet(Cluster cluster) {		
+		ICombinatoricsVector<Integer> initialVector = Factory.createVector(cluster.getServerSet());		
+		Generator<Integer> gen = Factory.createSimpleCombinationGenerator(initialVector, 2);
+		
+		for (ICombinatoricsVector<Integer> combination : gen) {			
+		
+			int s_a_id = combination.getValue(0);
+			int s_b_id = combination.getValue(1);
+			
+			Pair<Integer, Integer> pair1 = new ImmutablePair<Integer, Integer>(s_a_id, s_b_id);
+			Pair<Integer, Integer> pair2 = new ImmutablePair<Integer, Integer>(s_b_id, s_a_id);
+			
+			mutually_exclusive_serverSets.put(pair1, 0);			
+			mutually_exclusive_serverSets.put(pair2, 0);
+		}
+		
+		// Testing
+		//System.out.println(mutually_exclusive_serverSets);
+	}
+	
+	public static void reInitServerSet() {
+		for(Entry<Pair<Integer, Integer>, Integer> entry : mutually_exclusive_serverSets.entrySet()) {
+			mutually_exclusive_serverSets.put(entry.getKey(), 0);
 		}
 	}
 	
@@ -176,19 +218,27 @@ public class Metric implements java.io.Serializable {
 		DescriptiveStatistics _data = new DescriptiveStatistics();
 		DescriptiveStatistics _inflow = new DescriptiveStatistics();
 		DescriptiveStatistics _outflow = new DescriptiveStatistics();
+		DescriptiveStatistics _meDMV = new DescriptiveStatistics();
 		
-		for(Server server : cluster.getServers()) {
-			
+		for(Server server : cluster.getServers()) {			
 			_data.addValue(server.getServer_total_data());
 			_inflow.addValue(server.getServer_inflow());
 			_outflow.addValue(server.getServer_outflow());				
 		}
+
+		// New - mutually exclusive server sets
+		for(Entry<Pair<Integer, Integer>, Integer> entry : mutually_exclusive_serverSets.entrySet()) {
+			_meDMV.addValue(entry.getValue());
+		}		
 		
-		mean_server_inflow.add(Math.round((_inflow.getMean() * 100.0)) / 100.0);
-		mean_server_outflow.add(Math.round((_outflow.getMean() * 100.0)) / 100.0);
-		mean_server_data.add(Math.round((_data.getMean() * 100.0)) / 100.0);
-		sd_server_data.add(Math.round((_data.getStandardDeviation() * 100.0)) / 100.0);
+		mean_server_inflow.add(_inflow.getMean());
+		mean_server_outflow.add(_outflow.getMean());
+		mean_server_data.add(_data.getMean());
+		sd_server_data.add(_data.getStandardDeviation());
 		total_data.add((long) Global.global_dataCount);
+		
+		mean_pairwise_inter_server_dmv.add(_meDMV.getMean());
+		sd_pairwise_inter_server_dmv.add(_meDMV.getStandardDeviation());
 	}
 	
 	public static void getPartitionStatistic(Cluster cluster) {		
@@ -203,10 +253,10 @@ public class Metric implements java.io.Serializable {
 			_outflow.addValue(partition.getPartition_outflow());			
 		}
 		
-		mean_partition_inflow.add(Math.round((_inflow.getMean() * 100.0)) / 100.0);
-		mean_partition_outflow.add(Math.round((_outflow.getMean() * 100.0)) / 100.0);
-		mean_partition_data.add(Math.round((_data.getMean() * 100.0)) / 100.0);
-		sd_partition_data.add(Math.round((_data.getStandardDeviation() * 100.0)) / 100.0);		
+		mean_partition_inflow.add(_inflow.getMean());
+		mean_partition_outflow.add(_outflow.getMean());
+		mean_partition_data.add(_data.getMean());
+		sd_partition_data.add(_data.getStandardDeviation());		
 	}
 	
 	public static void report() {
@@ -253,8 +303,23 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
 		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
 		Global.LOGGER.info("Total data count: "+total_data);
-		//Global.LOGGER.info("*****************************************************************************");
+		//Global.LOGGER.info("*****************************************************************************");		
+	}
+
+	/*public static int getMESValue(int left, int right) {
+		for(Entry<Pair<Integer, Integer>, Integer> entry : mutually_exclusive_serverSets.entrySet()) {
+			if(entry.getKey().getLeft() == left && entry.getKey().getRight() == right)
+				return entry.getValue();
+		}
 		
+		return 0;
+	}*/
+	
+	public static void updateMESValue(int left, int right) {
+		Pair<Integer, Integer> key = new ImmutablePair<Integer, Integer>(left, right);	
+		/*System.out.println(mutually_exclusive_serverSets);
+		System.out.println(mutually_exclusive_serverSets.get(key));*/
+		mutually_exclusive_serverSets.put(key, mutually_exclusive_serverSets.get(key) + 1);
 	}
 	
 	public static void write() {
@@ -269,7 +334,9 @@ public class Metric implements java.io.Serializable {
 			prWriter.append(mean_server_data.get(index)+" ");
 			prWriter.append(sd_server_data.get(index)+" ");			
 			prWriter.append(inter_server_dmv.get(index)+" ");		
-			prWriter.append(total_data.get(index)+"\n");
+			prWriter.append(total_data.get(index)+" ");
+			prWriter.append(mean_pairwise_inter_server_dmv.get(index)+" ");
+			prWriter.append(sd_pairwise_inter_server_dmv.get(index)+"\n");
 			
 			/*prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");

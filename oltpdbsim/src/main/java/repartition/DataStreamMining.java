@@ -36,7 +36,7 @@ public class DataStreamMining {
 	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
 	public static HashMap<Integer, FCICluster> fci_clusters;
 	Queue<String> dsm_queue;
-	private IncMine dsm_learner;
+	public IncMine dsm_learner;
 	private ZakiFileStream dsm_stream;
 	private PrintWriter dsm_PrintWriter;	
 	private String dsm_dumpfilename;
@@ -125,7 +125,8 @@ public class DataStreamMining {
 		//System.out.println(this.dsm_learner);		
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
-		this.performARHP(cluster, wb);
+		if(Global.trClassificationStrategy.equals("fcimining"))
+			this.performARHP(cluster, wb);
 	} 
 	
 	// Association Rule Hypergraph Partitioning (ARHP)

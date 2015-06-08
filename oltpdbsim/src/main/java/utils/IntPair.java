@@ -10,7 +10,9 @@ public class IntPair {
     
     @Override
     public int hashCode() {
-        return x + y;
+    	 int result = x;
+         result = 31 * result + y;
+         return result;
     }
  
     @Override

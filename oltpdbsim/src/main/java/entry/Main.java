@@ -41,7 +41,7 @@ public class Main {
 					TpccWorkload tpcc = new TpccWorkload("/tpcc.cnf");
 					Cluster dbCluster = new Cluster();
 					WorkloadExecutor wrlExecutor = new WorkloadExecutor();
-					Metric.init();
+					Metric.init(dbCluster);
 					
 					// Read TPCC configurations
 					tpcc.readConfig();

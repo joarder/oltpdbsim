@@ -321,7 +321,8 @@ public class WorkloadExecutor {
 		wb.addHGraphEdge(cluster, tr);
 		
 		// Collect transaction stream if data stream mining is enabled
-		Global.dsm.collectStream(cluster, tr);
+		if(Global.streamCollection)
+			Global.dsm.collectStream(cluster, tr);
 		
 		return tr;
 	}

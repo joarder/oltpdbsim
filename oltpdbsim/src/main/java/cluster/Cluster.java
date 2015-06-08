@@ -15,6 +15,7 @@ import main.java.db.Database;
 import main.java.db.Table;
 import main.java.db.Tuple;
 import main.java.entry.Global;
+import main.java.metric.Metric;
 import main.java.repartition.DataMigration;
 import main.java.repartition.MinCut;
 import main.java.repartition.WorkloadBatchProcessor;
@@ -28,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 public class Cluster {	
 	private SortedSet<Server> servers;
 	private SortedSet<Partition> partitions;
+	private Set<Integer> serverSet;
 	
 	private Map<Integer, ArrayList<Integer>> partition_map;
 	private Map<Integer, HashSet<Integer>> data_map;
@@ -64,7 +66,8 @@ public class Cluster {
 		}
 		
 	    this.setPartitions(new TreeSet<Partition>());
-		this.setServers(new TreeSet<Server>());		
+		this.setServers(new TreeSet<Server>());	
+		this.serverSet = new HashSet<Integer>();
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		
 		if(Global.compressionBeforeSetup) {
@@ -88,6 +91,14 @@ public class Cluster {
 
 	public void setPartitions(SortedSet<Partition> partitions) {
 		this.partitions = partitions;
+	}
+
+	public Set<Integer> getServerSet() {
+		return serverSet;
+	}
+
+	public void setServerSet(Set<Integer> serverSet) {
+		this.serverSet = serverSet;
 	}
 
 	public Map<Integer, VirtualData> getVdataSet() {
@@ -204,7 +215,10 @@ public class Cluster {
 		
 		for(int i = 1; i <= Global.servers; i++)
 			this.addServer(new Server(i), true);			
-			
+		
+		// New - mutually exclusive pairwise server sets
+		Metric.initServerSet(this);
+		
 		// Assign Partitions into Servers
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Assigning logical Partitions into physical Servers ...");
@@ -282,7 +296,10 @@ public class Cluster {
 		
 		for(int i = 1; i <= Global.servers; i++)
 			this.addServer(new Server(i), true);			
-			
+
+		// New - mutually exclusive pairwise server sets
+		Metric.initServerSet(this);			
+		
 		// Assign Partitions into Servers
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Assigning logical Partitions into physical Servers ...");
@@ -924,6 +941,7 @@ public class Cluster {
 	// Currently only supports initial add
 	public void addServer(Server s, boolean init) {		
 		this.getServers().add(s);
+		this.getServerSet().add(s.getServer_id());
 		
 		if(!init) {
 			++Global.servers;

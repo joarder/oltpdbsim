@@ -21,6 +21,7 @@ import main.java.cluster.Server;
 import main.java.cluster.VirtualData;
 import main.java.dsm.FCICluster;
 import main.java.entry.Global;
+import main.java.metric.Metric;
 import main.java.utils.IntPair;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
@@ -37,7 +38,9 @@ public class DataMigration {
 
 	private static void setEnvironment(Cluster cluster) {
 		intra_server_dmgr = 0;
-		inter_server_dmgr = 0;		
+		inter_server_dmgr = 0;
+		
+		Metric.reInitServerSet();		
 				
 		for(Server server : cluster.getServers()) {
 			server.setServer_inflow(0);
@@ -505,11 +508,17 @@ public class DataMigration {
 			++inter_server_dmgr;
 			
 			updateServerFlowCounts(cluster, src_server_id, dst_server_id);
+			updateMutuallyExclusiveServerSets(src_server_id, dst_server_id);
 			
 		} else {
 			++intra_server_dmgr;
 		}
 	}		
+	
+	private static void updateMutuallyExclusiveServerSets(int src, int dst) {		
+		//int old_value = Metric.getMESValue(src, dst);
+		Metric.updateMESValue(src, dst);
+	}
 	
 	private static void updateServerFlowCounts(Cluster cluster, int src, int dst) {
 		cluster.getServer(dst).incServer_totalData();
