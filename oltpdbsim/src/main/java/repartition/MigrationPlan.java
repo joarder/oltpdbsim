@@ -6,29 +6,26 @@ import java.util.HashSet;
 public class MigrationPlan {
 	public HashSet<Integer> fromSet;	// From Server's Ids (for 1, 2, 3,  ..., (N-1) span reductions)
 	public int to;		// To Server Id
-	public int req_dmgr;
-	public double idt_gain_per_dmgr;
-	public double association_gain_per_dmgr;
-	public double lb_gain_per_dmgr;
+	public int req_data_mgr;
+	public double idt_gain_per_data_mgr;
+	public double association_gain_per_data_mgr;
+	public double lb_gain_per_data_mgr;
 	public HashMap<Integer, HashSet<Integer>> dataMap;	
-	public double combined_rank;
-	public double idt_rank;
-	public double lb_rank;
+	public double combined_weight;
 	
-	public MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_dmv) {
+	public MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_data_mgr) {
 		this.fromSet = new HashSet<Integer>(fromSet);
 		this.to = to;
-		this.req_dmgr = req_dmv;
-		this.idt_gain_per_dmgr = 0.0;
-		this.lb_gain_per_dmgr = 0.0;
+		this.req_data_mgr = req_data_mgr;
+		this.idt_gain_per_data_mgr = 0.0;
+		this.association_gain_per_data_mgr = 0.0;
+		this.lb_gain_per_data_mgr = 0.0;
 		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);
-		this.combined_rank = 0.0;
-		this.idt_rank = 0.0;
-		this.lb_rank = 0.0;
+		this.combined_weight = 0.0;
 	}	
 	
 	@Override
 	public String toString() {
-		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.req_dmgr+") | Idt improvement("+this.idt_gain_per_dmgr+") | Lb improvement ("+this.lb_gain_per_dmgr+") | Combined Rank ("+this.combined_rank+")");
+		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.req_data_mgr+") | Idt improvement("+this.idt_gain_per_data_mgr+") | Lb improvement ("+this.lb_gain_per_data_mgr+") | Combined Weight ("+this.combined_weight+")");
 	}
 }

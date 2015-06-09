@@ -149,14 +149,17 @@ public class ReadConfig {
 				if(Global.incrementalRepartitioning) {
 					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));					
 					Global.span_reduction = Integer.parseInt((String) config_param.getProperty("span.reduction"));
+					
 					Global.idt_priority = Double.parseDouble((String) config_param.getProperty("idt.priority"));
+					Global.lb_priority = Double.parseDouble((String) config_param.getProperty("lb.priority"));
 						
 					if(Global.idt_priority < 0 || Global.idt_priority > 1) {
 						Global.LOGGER.error("Wrong value set for the Idt priority !!");
 						Global.idt_priority = 0.5;
-					}
-					
-					Global.lb_priority = 1 - Global.idt_priority;
+					} else if(Global.lb_priority < 0 || Global.lb_priority > 1) {
+						Global.LOGGER.error("Wrong value set for the Lb priority !!");
+						Global.lb_priority = 0.5;
+					} 								
 				}
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");

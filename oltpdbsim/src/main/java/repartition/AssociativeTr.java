@@ -100,17 +100,17 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			this.migrationPlanList.add(m); // From Source Server
 			
 			if(Global.idt_priority == 1.0)
-				m.association_gain_per_dmgr = getAssociationGain(fci_clusters, entry, req_dmgr);
+				m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr);
 			else if(Global.lb_priority == 1.0) {
-				m.association_gain_per_dmgr = getAssociationGain(fci_clusters, entry, req_dmgr); // Only to find the associative transactions
-				m.lb_gain_per_dmgr = getLbGain(cluster, this, m);
+				m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr); // Only to find the associative transactions
+				m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);
 			} else {
-				m.association_gain_per_dmgr = getAssociationGain(fci_clusters, entry, req_dmgr);						
-				m.lb_gain_per_dmgr = getLbGain(cluster, this, m);						
+				m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr);						
+				m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);						
 			}
 			
-			associationRank.add(m.association_gain_per_dmgr);
-			lbRank.add(m.lb_gain_per_dmgr);			
+			associationRank.add(m.association_gain_per_data_mgr);
+			lbRank.add(m.lb_gain_per_data_mgr);			
 		} //end-for()
 		
 		// Setting the maximum Association and Lb gains for this transaction
@@ -126,12 +126,12 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {				
-					return (((double)m1.association_gain_per_dmgr > (double)m2.association_gain_per_dmgr) ? -1 : 
-						((double)m1.association_gain_per_dmgr < (double)m2.association_gain_per_dmgr) ? 1 : 0);				
+					return (((double)m1.association_gain_per_data_mgr > (double)m2.association_gain_per_data_mgr) ? -1 : 
+						((double)m1.association_gain_per_data_mgr < (double)m2.association_gain_per_data_mgr) ? 1 : 0);				
 				}
 			});
 			
-			this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_dmgr;			
+			this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_data_mgr;			
 						
 			// Testing
 			// After sorting
@@ -147,12 +147,12 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {				
-					return (((double)m2.lb_gain_per_dmgr > (double)m1.lb_gain_per_dmgr) ? -1 : 
-						((double)m2.lb_gain_per_dmgr < (double)m1.lb_gain_per_dmgr) ? 1 : 0);				
+					return (((double)m2.lb_gain_per_data_mgr > (double)m1.lb_gain_per_data_mgr) ? -1 : 
+						((double)m2.lb_gain_per_data_mgr < (double)m1.lb_gain_per_data_mgr) ? 1 : 0);				
 				}
 			});
 			
-			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_dmgr;
+			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
 			
 			// Testing
 			// After sorting
@@ -168,22 +168,22 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					int association_rank1 = ((TreeSet) associationRank).headSet(m1.association_gain_per_dmgr).size()+1;
-		            int association_rank2 = ((TreeSet) associationRank).headSet(m2.association_gain_per_dmgr).size()+1;
+					int association_rank1 = ((TreeSet) associationRank).headSet(m1.association_gain_per_data_mgr).size()+1;
+		            int association_rank2 = ((TreeSet) associationRank).headSet(m2.association_gain_per_data_mgr).size()+1;
 		            
-		            int lb_rank1 = ((TreeSet) lbRank).tailSet(m1.lb_gain_per_dmgr).size();
-		            int lb_rank2 = ((TreeSet) lbRank).tailSet(m2.lb_gain_per_dmgr).size();
+		            int lb_rank1 = ((TreeSet) lbRank).tailSet(m1.lb_gain_per_data_mgr).size();
+		            int lb_rank2 = ((TreeSet) lbRank).tailSet(m2.lb_gain_per_data_mgr).size();
 		            
-		            m1.combined_rank = association_rank1 * Global.idt_priority + lb_rank1 * Global.lb_priority;
-		            m2.combined_rank = association_rank2 * Global.idt_priority + lb_rank2 * Global.lb_priority;
+		            m1.combined_weight = association_rank1 * Global.idt_priority + lb_rank1 * Global.lb_priority;
+		            m2.combined_weight = association_rank2 * Global.idt_priority + lb_rank2 * Global.lb_priority;
 		            
-					return (((double)m1.combined_rank > (double)m2.combined_rank) ? -1 : 
-						((double)m1.combined_rank < (double)m2.combined_rank) ? 1 : 0);				
+					return (((double)m1.combined_weight > (double)m2.combined_weight) ? -1 : 
+						((double)m1.combined_weight < (double)m2.combined_weight) ? 1 : 0);				
 				}
 			});
 			
-			this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_dmgr;
-			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_dmgr;
+			this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_data_mgr;
+			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
 			
 			// Testing
 			/*System.out.println("-------------------------------------------------------------------------");
@@ -194,7 +194,7 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			}*/
 		}
 		
-		this.min_dmgr = this.migrationPlanList.get(0).req_dmgr;
+		this.min_dmgr = this.migrationPlanList.get(0).req_data_mgr;
 	}
 	
 	// Returns the association gain
@@ -232,7 +232,7 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			}
 		}
 
-		return (new_server_data.getVariance()/m.req_dmgr);
+		return (new_server_data.getVariance()/m.req_data_mgr);
 	}
 	
 	// Descending order
