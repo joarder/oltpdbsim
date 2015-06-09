@@ -101,7 +101,7 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			
 			if(Global.idt_priority == 1.0)
 				m.association_gain_per_dmgr = getAssociationGain(fci_clusters, entry, req_dmgr);
-			else if((1 - Global.idt_priority) == 1.0) {
+			else if(Global.lb_priority == 1.0) {
 				m.association_gain_per_dmgr = getAssociationGain(fci_clusters, entry, req_dmgr); // Only to find the associative transactions
 				m.lb_gain_per_dmgr = getLbGain(cluster, this, m);
 			} else {
@@ -142,7 +142,7 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 				System.out.println("\t"+m.toString());
 			}*/
 
-		} else if((1 - Global.idt_priority) == 1.0) {
+		} else if(Global.lb_priority == 1.0) {
 			// Sorting in ascending order by Lb
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
@@ -168,14 +168,14 @@ public class AssociativeTr implements Comparable<AssociativeTr> {
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					int association_rank1 = ((TreeSet) associationRank).headSet(m1.association_gain_per_dmgr).size();
-		            int association_rank2 = ((TreeSet) associationRank).headSet(m2.association_gain_per_dmgr).size();
+					int association_rank1 = ((TreeSet) associationRank).headSet(m1.association_gain_per_dmgr).size()+1;
+		            int association_rank2 = ((TreeSet) associationRank).headSet(m2.association_gain_per_dmgr).size()+1;
 		            
 		            int lb_rank1 = ((TreeSet) lbRank).tailSet(m1.lb_gain_per_dmgr).size();
 		            int lb_rank2 = ((TreeSet) lbRank).tailSet(m2.lb_gain_per_dmgr).size();
 		            
-		            m1.combined_rank = association_rank1*Global.idt_priority + lb_rank1*(1 - Global.idt_priority);
-		            m2.combined_rank = association_rank2*Global.idt_priority + lb_rank2*(1 - Global.idt_priority);
+		            m1.combined_rank = association_rank1 * Global.idt_priority + lb_rank1 * Global.lb_priority;
+		            m2.combined_rank = association_rank2 * Global.idt_priority + lb_rank2 * Global.lb_priority;
 		            
 					return (((double)m1.combined_rank > (double)m2.combined_rank) ? -1 : 
 						((double)m1.combined_rank < (double)m2.combined_rank) ? 1 : 0);				

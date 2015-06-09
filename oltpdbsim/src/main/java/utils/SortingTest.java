@@ -89,13 +89,22 @@ public class SortingTest {
 			@SuppressWarnings("rawtypes")
 			@Override
 			public int compare(Person p1, Person p2) {
-								
+				System.out.println("======================================================Comparing");				
 				int ageRank1 = ((TreeSet) ageRank).tailSet(p1.age).size();
 	            int ageRank2 = ((TreeSet) ageRank).tailSet(p2.age).size();
-	            int incomeRank1 = ((TreeSet) incomeRank).headSet(p1.income).size();
-	            int incomeRank2 = ((TreeSet) incomeRank).headSet(p2.income).size();				
+	            
+	            System.out.println("Age tailset: ");
+	            System.out.println(((TreeSet) ageRank).tailSet(p1.age));
+	            System.out.println(((TreeSet) ageRank).tailSet(p2.age));
+	            
+	            int incomeRank1 = ((TreeSet) incomeRank).headSet(p1.income).size()+1;
+	            int incomeRank2 = ((TreeSet) incomeRank).headSet(p2.income).size()+1;
+	            
+	            System.out.println("Income headset: ");
+	            System.out.println(((TreeSet) incomeRank).headSet(p1.income));
+	            System.out.println(((TreeSet) incomeRank).headSet(p2.income));
 				
-	            System.out.println("----------------");
+	            System.out.println("------------------------------------------------");
 	            p1.combined_rank = ageRank1*age_preference + incomeRank1*income_preference;
 	            System.out.println(p1.toString());
 	            System.out.println("P1: combined_rank = "+p1.combined_rank+" | ageRank = "+ageRank1+" | incomeRank = "+incomeRank1);

@@ -42,7 +42,7 @@ public class RBSTA {
 		else if((1 - Global.idt_priority) == 1.0)
 			pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_LB_IMPROVEMENT());
 		else {
-			if(Global.idt_priority > (1 - Global.idt_priority))
+			if(Global.idt_priority > Global.lb_priority)
 				pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
 			else
 				pq = new PriorityQueue<Tr>(wb.hgr.getEdges().size(), Tr.by_MAX_LB_IMPROVEMENT());
@@ -279,7 +279,7 @@ class Tr implements Comparable<Tr> {
 					
 					if(Global.idt_priority == 1.0)
 						m.idt_gain_per_dmgr = getIdtGain(wb, this, m);
-					else if((1 - Global.idt_priority) == 1.0)
+					else if(Global.lb_priority == 1.0)
 						m.lb_gain_per_dmgr = getLbGain(cluster, this, m);
 					else {
 						m.idt_gain_per_dmgr = getIdtGain(wb, this, m);						
@@ -321,7 +321,7 @@ class Tr implements Comparable<Tr> {
 				System.out.println("\t"+m.toString());
 			}*/
 
-		} else if((1 - Global.idt_priority) == 1.0) {
+		} else if(Global.lb_priority == 1.0) {
 			// Sorting in ascending order by Lb
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
 				@Override
@@ -343,23 +343,104 @@ class Tr implements Comparable<Tr> {
 			}*/
 			
 		} else {
-			// Sort the array list by the value of combined rank (descending order)
+		// Backup code -- less efficient	
+		// Sorting in descending order by the Idt
+			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
+				@Override
+				public int compare(MigrationPlan m1, MigrationPlan m2) {				
+					return (((double)m1.idt_gain_per_dmgr > (double)m2.idt_gain_per_dmgr) ? -1 : 
+						((double)m1.idt_gain_per_dmgr < (double)m2.idt_gain_per_dmgr) ? 1 : 0);				
+				}
+			});
+			
+			this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_dmgr;
+			
+			// Rank based on IDt priority (descending order)
+			int idt_rank = this.migrationPlanList.size();
+			for(int i = 0; i < this.migrationPlanList.size(); i++) {
+				if(i != 0)
+					if(this.migrationPlanList.get(i).idt_gain_per_dmgr != this.migrationPlanList.get(i-1).idt_gain_per_dmgr)
+						--idt_rank;
+				
+				this.migrationPlanList.get(i).idt_rank = idt_rank * Global.idt_priority;
+			}
+			
+		// Sorting in ascending order by Lb
+			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){
+				@Override
+				public int compare(MigrationPlan m1, MigrationPlan m2) {				
+					return (((double)m2.lb_gain_per_dmgr > (double)m1.lb_gain_per_dmgr) ? -1 : 
+						((double)m2.lb_gain_per_dmgr < (double)m1.lb_gain_per_dmgr) ? 1 : 0);				
+				}
+			});
+			
+			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_dmgr;
+			
+			// Rank based on Lb priority (ascending order)
+			int lb_rank = this.migrationPlanList.size();
+			for(int i = 0; i < this.migrationPlanList.size(); i++) {
+				if(i != 0)
+					if(this.migrationPlanList.get(i).lb_gain_per_dmgr != this.migrationPlanList.get(i-1).lb_gain_per_dmgr)
+						--lb_rank;
+				
+				this.migrationPlanList.get(i).lb_rank = lb_rank * Global.lb_priority;
+			}
+			
+		// Sort the array list by the value of combined rank (descending order)
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					int idt_rank1 = ((TreeSet) idtRank).headSet(m1.idt_gain_per_dmgr).size();
-		            int idt_rank2 = ((TreeSet) idtRank).headSet(m2.idt_gain_per_dmgr).size();
+					m1.combined_rank = m1.idt_rank + m1.lb_rank;
+					m2.combined_rank = m2.idt_rank + m2.lb_rank;
+					
+					return (((double)m1.combined_rank > (double)m2.combined_rank) ? -1 : 
+						((double)m1.combined_rank < (double)m2.combined_rank) ? 1 : 0);
+				}
+			});
+			
+			
+			/*Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
+				@Override
+				public int compare(MigrationPlan m1, MigrationPlan m2) {
+					
+					int idt_rank1 = ((TreeSet) idtRank).headSet(m1.idt_gain_per_dmgr).size()+1;
+		            int idt_rank2 = ((TreeSet) idtRank).headSet(m2.idt_gain_per_dmgr).size()+1;
 		            
 		            int lb_rank1 = ((TreeSet) lbRank).tailSet(m1.lb_gain_per_dmgr).size();
 		            int lb_rank2 = ((TreeSet) lbRank).tailSet(m2.lb_gain_per_dmgr).size();
+					
+		            // New -- rank weight adjustment
+					int rank_adjustment = 0;
+					if(idtRank.size() != lbRank.size()) {
+						System.out.println("@debug :: Rank sets are not in equal size !!!");
+						System.out.println("--> idtRank size = "+idtRank.size());
+						System.out.println("--> lbRank size = "+lbRank.size());
+						
+						if(idtRank.size() > lbRank.size()) {
+							rank_adjustment = idtRank.size() - lbRank.size();							
+							lb_rank1 += rank_adjustment;
+							lb_rank2 += rank_adjustment;
+							
+						} else {
+							rank_adjustment = lbRank.size() - idtRank.size();
+							idt_rank1 += rank_adjustment;
+							idt_rank2 += rank_adjustment;
+						}
+						
+						System.out.println("--> rank adjustment = "+rank_adjustment);
+						System.out.println("--> idt1 = "+idt_rank1);
+						System.out.println("--> idt2 = "+idt_rank2);
+						System.out.println("--> lb1 = "+lb_rank1);
+						System.out.println("--> lb2 = "+lb_rank2);
+					}											
 		            
-		            m1.combined_rank = idt_rank1*Global.idt_priority + lb_rank1*(1 - Global.idt_priority);
-		            m2.combined_rank = idt_rank2*Global.idt_priority + lb_rank2*(1 - Global.idt_priority);
+		            m1.combined_rank = idt_rank1 * Global.idt_priority + lb_rank1 * Global.lb_priority;
+		            m2.combined_rank = idt_rank2 * Global.idt_priority + lb_rank2 * Global.lb_priority;
 		            
 					return (((double)m1.combined_rank > (double)m2.combined_rank) ? -1 : 
 						((double)m1.combined_rank < (double)m2.combined_rank) ? 1 : 0);				
 				}
-			});
+			});*/
 			
 			this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_dmgr;
 			this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_dmgr;

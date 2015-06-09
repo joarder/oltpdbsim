@@ -12,6 +12,8 @@ public class MigrationPlan {
 	public double lb_gain_per_dmgr;
 	public HashMap<Integer, HashSet<Integer>> dataMap;	
 	public double combined_rank;
+	public double idt_rank;
+	public double lb_rank;
 	
 	public MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_dmv) {
 		this.fromSet = new HashSet<Integer>(fromSet);
@@ -21,6 +23,8 @@ public class MigrationPlan {
 		this.lb_gain_per_dmgr = 0.0;
 		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);
 		this.combined_rank = 0.0;
+		this.idt_rank = 0.0;
+		this.lb_rank = 0.0;
 	}	
 	
 	@Override

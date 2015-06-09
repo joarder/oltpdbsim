@@ -191,7 +191,7 @@ public class RBPTA {
 					}
 				});
 				
-			} else if((1 - Global.idt_priority) == 1.0) {
+			} else if(Global.lb_priority == 1.0) {
 				// Sort the array list by lb gain in ascending order
 				Collections.sort(swappingCandidates, new Comparator<SwappingCandidate>(){
 					@Override
@@ -212,8 +212,8 @@ public class RBPTA {
 			            int lb_rank1 = ((TreeSet) lbGainRank).tailSet(sc1.lb_gain).size();
 			            int lb_rank2 = ((TreeSet) lbGainRank).tailSet(sc2.lb_gain).size();
 			            
-			            sc1.combined_rank = sg_rank1*Global.idt_priority + lb_rank1*(1 - Global.idt_priority);
-			            sc2.combined_rank = sg_rank2*Global.idt_priority + lb_rank2*(1 - Global.idt_priority);
+			            sc1.combined_rank = sg_rank1 * Global.idt_priority + lb_rank1 * Global.lb_priority;
+			            sc2.combined_rank = sg_rank2 * Global.idt_priority + lb_rank2 * Global.lb_priority;
 			            
 						return (((double)sc1.combined_rank > (double)sc2.combined_rank) ? -1 : 
 							((double)sc1.combined_rank < (double)sc2.combined_rank) ? 1 : 0);				

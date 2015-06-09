@@ -227,10 +227,10 @@ public class DataStreamMining {
 		
 		if(Global.idt_priority == 1.0)		
 			pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_ASSOCIATION_IMPROVEMENT());
-		else if((1 - Global.idt_priority) == 1.0)
+		else if(Global.lb_priority == 1.0)
 			pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_LB_IMPROVEMENT());
 		else {
-			if(Global.idt_priority > (1 - Global.idt_priority))
+			if(Global.idt_priority > Global.lb_priority)
 				pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_ASSOCIATION_IMPROVEMENT());
 			else
 				pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_LB_IMPROVEMENT());

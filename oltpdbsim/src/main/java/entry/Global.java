@@ -120,6 +120,7 @@ public final class Global implements java.io.Serializable {
 
 	public static int span_reduction;
 	public static double idt_priority;
+	public static double lb_priority;
 
 	// For Sword
 	public static boolean sword_cluster_setup;

@@ -155,6 +155,8 @@ public class ReadConfig {
 						Global.LOGGER.error("Wrong value set for the Idt priority !!");
 						Global.idt_priority = 0.5;
 					}
+					
+					Global.lb_priority = 1 - Global.idt_priority;
 				}
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
