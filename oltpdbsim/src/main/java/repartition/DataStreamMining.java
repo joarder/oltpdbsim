@@ -219,27 +219,27 @@ public class DataStreamMining {
 			DataMigration.strategyARHC(cluster, wb);
 	}
 	
-	public static PriorityQueue<AssociativeTr> pq;
-	public static HashMap<Integer, AssociativeTr> tMap;
+	public static PriorityQueue<SimpleTr> pq;
+	public static HashMap<Integer, SimpleTr> tMap;
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
 		
 		if(Global.idt_priority == 1.0)		
-			pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_ASSOCIATION_IMPROVEMENT());
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_IMPROVEMENT());
 		else if(Global.lb_priority == 1.0)
-			pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_LB_IMPROVEMENT());
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
 		else {
 			if(Global.idt_priority > Global.lb_priority)
-				pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_ASSOCIATION_IMPROVEMENT());
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_IMPROVEMENT());
 			else
-				pq = new PriorityQueue<AssociativeTr>(wb.hgr.getEdges().size(), AssociativeTr.by_MAX_LB_IMPROVEMENT());
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
 		}
 		
-		tMap = new HashMap<Integer, AssociativeTr>();
+		tMap = new HashMap<Integer, SimpleTr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
-			AssociativeTr t = prepare(cluster, wb, h);
+			SimpleTr t = prepare(cluster, wb, h);
 			tMap.put(t.id, t);
 			
 			if(!t.isProcessed && t.isAssociated)
@@ -248,9 +248,9 @@ public class DataStreamMining {
 	}		
 	
 	// Prepares current transaction for processing
-	public static AssociativeTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
+	public static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
 		Transaction tr = wb.getTransaction(h.getId());			
-		AssociativeTr t = new AssociativeTr(tr.getTr_id(), tr.getTr_period());
+		SimpleTr t = new SimpleTr(tr.getTr_id(), tr.getTr_period());
 
 		t.populateServerSet(cluster, tr);
 				
@@ -258,7 +258,7 @@ public class DataStreamMining {
 			t.populateAssociationList(cluster, wb, fci_clusters);
 			//System.out.println("-->"+t.associationMap);
 		} else {					// non-DTs
-			t.min_dmgr = 0;
+			t.min_data_mgr = 0;
 			t.max_association_gain = 0.0;
 			t.isProcessed = true;
 		}
@@ -266,7 +266,7 @@ public class DataStreamMining {
 		return t;
 	}
 	
-	private static boolean isContainsAll(AssociativeTr incidentT, MigrationPlan m) {
+	private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {
 		
 		boolean contains = false;
 		
@@ -283,14 +283,14 @@ public class DataStreamMining {
 	}	
 	
 	// Checks whether processing current transaction affect any other transaction adversely
-	public static boolean isAffected(WorkloadBatch wb, AssociativeTr t, MigrationPlan m) {			
+	public static boolean isAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
 		// Search the incident transactions for the targeted data rows to be moved
 		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
 			for(int d : entry.getValue()) {
 				SimpleVertex v = wb.hgr.getVertex(d);
 				
 				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-					AssociativeTr incidentT = tMap.get(h.getId());				
+					SimpleTr incidentT = tMap.get(h.getId());				
 					
 					if(!incidentT.equals(t) && incidentT.isProcessed) {					
 						if(incidentT.dataMap.containsKey(m.to)) { // Either no change or potential reduction in the impact  
@@ -309,7 +309,7 @@ public class DataStreamMining {
 		return false;		
 	}
 	
-	public static void processTransaction(Cluster cluster, WorkloadBatch wb, AssociativeTr t, MigrationPlan m) {
+	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
 		
 		// Data migrations
 		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.dataMap);			
@@ -330,14 +330,14 @@ public class DataStreamMining {
 					SimpleVertex v = wb.hgr.getVertex(d);
 					
 					for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-						AssociativeTr incidentT = tMap.get(h.getId());
+						SimpleTr incidentT = tMap.get(h.getId());
 						//System.out.println("\t\t--> "+incidentT.toString());
 						
 						if(!incidentT.equals(t) && !incidentT.isProcessed) {				
 							pq.remove(incidentT);
 							tMap.remove(h.getId());
 							
-							AssociativeTr new_incidentT = prepare(cluster, wb, h);
+							SimpleTr new_incidentT = prepare(cluster, wb, h);
 							tMap.put(new_incidentT.id, new_incidentT);				
 							
 							 // Only DTs will be added back after recalculations

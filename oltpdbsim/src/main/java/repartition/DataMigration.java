@@ -280,14 +280,14 @@ public class DataMigration {
 
 		while(RBSTA.pq.size() != 0) {			
 			// Get a transaction from the priority queue
-			Tr t = RBSTA.pq.poll();
+			SimpleTr t = RBSTA.pq.poll();
 			MigrationPlan m = t.migrationPlanList.get(0);
 			
 			// Check whether processing this transaction may increase the impact of any other already processed transactions
 			if(!RBSTA.isAffected(wb, t, m))
 				RBSTA.processTransaction(cluster, wb, t, m);
 			else
-				t.processed = true;			
+				t.isProcessed = true;			
 		}		
 		
 		wb.set_intra_dmv(intra_server_dmgr);
@@ -303,7 +303,7 @@ public class DataMigration {
 
 		while(!DataStreamMining.pq.isEmpty()) {			
 			// Get a transaction from the priority queue
-			AssociativeTr t = DataStreamMining.pq.poll();
+			SimpleTr t = DataStreamMining.pq.poll();
 			MigrationPlan m = t.migrationPlanList.get(0);
 			
 			// Check whether processing this transaction may increase the impact of any other already processed transactions

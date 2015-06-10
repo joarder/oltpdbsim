@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
@@ -49,13 +50,14 @@ public class Metric implements java.io.Serializable {
 	public static ArrayList<Double> mean_partition_data;
 	public static ArrayList<Double> sd_partition_data;
 	
-	public static ArrayList<Integer> inter_server_dmv;
-	public static ArrayList<Integer> intra_server_dmv;
+	public static ArrayList<Integer> inter_server_data_mgr;
+	public static ArrayList<Integer> intra_server_data_mgr;
 		
 	// New -- server-level pair-wise data migration counts
 	public static HashMap<Pair<Integer, Integer>, Integer> mutually_exclusive_serverSets;
-	public static ArrayList<Double> mean_pairwise_inter_server_dmv;
-	public static ArrayList<Double> sd_pairwise_inter_server_dmv;	
+	public static ArrayList<Double> mean_pairwise_inter_server_data_mgr;
+	public static ArrayList<Double> sd_pairwise_inter_server_data_mgr;
+	public static ArrayList<Integer> estimated_data_mgr;
 	
 	public static ArrayList<Integer> current_tr;
 	public static ArrayList<Integer> current_dt;
@@ -91,13 +93,14 @@ public class Metric implements java.io.Serializable {
 		mean_partition_data = new ArrayList<Double>();
 		sd_partition_data = new ArrayList<Double>();
 		
-		inter_server_dmv = new ArrayList<Integer>();
-		intra_server_dmv = new ArrayList<Integer>();		
+		inter_server_data_mgr = new ArrayList<Integer>();
+		intra_server_data_mgr = new ArrayList<Integer>();		
 				
 		// new -- mutually exclusive server sets
 		mutually_exclusive_serverSets = new HashMap<Pair<Integer, Integer>, Integer>();
-		mean_pairwise_inter_server_dmv = new ArrayList<Double>();
-		sd_pairwise_inter_server_dmv = new ArrayList<Double>();
+		mean_pairwise_inter_server_data_mgr = new ArrayList<Double>();
+		sd_pairwise_inter_server_data_mgr = new ArrayList<Double>();
+		estimated_data_mgr = new ArrayList<Integer>();
 		
 		current_tr = new ArrayList<Integer>();
 		current_dt = new ArrayList<Integer>();
@@ -155,8 +158,8 @@ public class Metric implements java.io.Serializable {
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
 		
-		intra_server_dmv.add(wb.get_intra_dmv());
-		inter_server_dmv.add(wb.get_inter_dmv());
+		intra_server_data_mgr.add(wb.get_intra_dmv());
+		inter_server_data_mgr.add(wb.get_inter_dmv());
 
 		current_tr.add(wb.get_tr_nums());
 		current_dt.add(wb.get_dt_nums());
@@ -227,18 +230,33 @@ public class Metric implements java.io.Serializable {
 		}
 
 		// New - mutually exclusive server sets
+		ArrayList<Integer> estimated_dmgr = new ArrayList<Integer>();
 		for(Entry<Pair<Integer, Integer>, Integer> entry : mutually_exclusive_serverSets.entrySet()) {
 			_meDMV.addValue(entry.getValue());
-		}		
+			estimated_dmgr.add(entry.getValue());
+		}
 		
+		// Sort the list containing data migration counts within individual server pairs
+		Collections.sort(estimated_dmgr);
+		
+		// Sum up every floor(S/2) index values to get the estimated data migration time
+		int estimated_mgr = 0;
+		int j = 0;
+		for(int i = 0; i < estimated_dmgr.size(); ++i) {
+			j = (int) (i+Math.floor(Global.servers/2));
+			estimated_mgr += estimated_dmgr.get(i);
+			i = j;
+		}
+						
 		mean_server_inflow.add(_inflow.getMean());
 		mean_server_outflow.add(_outflow.getMean());
 		mean_server_data.add(_data.getMean());
 		sd_server_data.add(_data.getStandardDeviation());
 		total_data.add((long) Global.global_dataCount);
 		
-		mean_pairwise_inter_server_dmv.add(_meDMV.getMean());
-		sd_pairwise_inter_server_dmv.add(_meDMV.getStandardDeviation());
+		mean_pairwise_inter_server_data_mgr.add(_meDMV.getMean());
+		sd_pairwise_inter_server_data_mgr.add(_meDMV.getStandardDeviation());
+		estimated_data_mgr.add(estimated_mgr);
 	}
 	
 	public static void getPartitionStatistic(Cluster cluster) {		
@@ -300,8 +318,8 @@ public class Metric implements java.io.Serializable {
 		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
 		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
 		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Intra-server data movements: "+intra_server_dmv);
-		Global.LOGGER.info("Inter-server data movements: "+inter_server_dmv);
+		Global.LOGGER.info("Intra-server data movements: "+intra_server_data_mgr);
+		Global.LOGGER.info("Inter-server data movements: "+inter_server_data_mgr);
 		Global.LOGGER.info("Total data count: "+total_data);
 		//Global.LOGGER.info("*****************************************************************************");		
 	}
@@ -333,10 +351,11 @@ public class Metric implements java.io.Serializable {
 			prWriter.append(mean_server_inflow.get(index)+" ");			
 			prWriter.append(mean_server_data.get(index)+" ");
 			prWriter.append(sd_server_data.get(index)+" ");			
-			prWriter.append(inter_server_dmv.get(index)+" ");		
+			prWriter.append(inter_server_data_mgr.get(index)+" ");		
 			prWriter.append(total_data.get(index)+" ");
-			prWriter.append(mean_pairwise_inter_server_dmv.get(index)+" ");
-			prWriter.append(sd_pairwise_inter_server_dmv.get(index)+"\n");
+			prWriter.append(mean_pairwise_inter_server_data_mgr.get(index)+" ");
+			prWriter.append(sd_pairwise_inter_server_data_mgr.get(index)+" ");
+			prWriter.append(estimated_data_mgr.get(index)+"\n");
 			
 			/*prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");

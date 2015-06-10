@@ -37,11 +37,11 @@ import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.Analysis;
-import main.java.repartition.AssociativeTr;
 import main.java.repartition.DataMigration;
 import main.java.repartition.DataStreamMining;
 import main.java.repartition.MinCut;
 import main.java.repartition.RBPTA;
+import main.java.repartition.SimpleTr;
 import main.java.repartition.TransactionClassifier;
 import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.ValueComparator;
@@ -788,7 +788,7 @@ class Arrival extends Event {
 			// Adaptive ARHC
 			if(Global.adaptive && WorkloadExecutor.isAdaptive) {
 				// Redistribute transactional tuples in an adaptive manner using DSM/ARHC
-				AssociativeTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
+				SimpleTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
 				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
 				
 				if(t.isAssociated)
