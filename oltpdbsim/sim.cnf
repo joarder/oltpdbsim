@@ -1,4 +1,4 @@
-simulation.name=C-T-RBSTA-COM-0.5
+simulation.name=C-T-RBSTA-IDT-0.6
 
 setup=consistenthash
 
@@ -18,6 +18,7 @@ workload.representation=hgr
 stream.collection=false
 stream.collector.size.factor=3
 
+associative=false
 adaptive=false
 
 transaction.classification=false
@@ -47,6 +48,7 @@ unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
 span.reduction=1
-idt.priority=0.5
-lb.priority=0.5
+idt.priority=0.6
+lb.priority=0.4
+
 idt.threshold=0.5

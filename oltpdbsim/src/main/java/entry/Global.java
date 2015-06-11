@@ -88,7 +88,9 @@ public final class Global implements java.io.Serializable {
     public static boolean streamCollection;
     public static int streamCollectorSizeFactor = 1;
     
-    public static boolean adaptive;
+    // ARHC and A-ARHC specific
+    public static boolean adaptive;	// A-ARHC
+    public static boolean associative; // ARHC
     
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)

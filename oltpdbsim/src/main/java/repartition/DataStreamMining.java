@@ -126,11 +126,11 @@ public class DataStreamMining {
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
 		if(Global.trClassificationStrategy.equals("fcimining"))
-			this.performARHP(cluster, wb);
+			this.performARHC(cluster, wb);
 	} 
 	
-	// Association Rule Hypergraph Partitioning (ARHP)
-	private void performARHP(Cluster cluster, WorkloadBatch wb) {
+	// Association Rule Hypergraph Clustering (ARHP)
+	private void performARHC(Cluster cluster, WorkloadBatch wb) {
 		// Create a hypergraph from the FCI list
 		Global.LOGGER.info("Creating association rule hypergraph ...");
 		
@@ -224,17 +224,10 @@ public class DataStreamMining {
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		
-		if(Global.idt_priority == 1.0)		
+		if(Global.idt_priority >= Global.lb_priority)
 			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_IMPROVEMENT());
-		else if(Global.lb_priority == 1.0)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
-		else {
-			if(Global.idt_priority > Global.lb_priority)
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_IMPROVEMENT());
-			else
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
-		}
+		else
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());		
 		
 		tMap = new HashMap<Integer, SimpleTr>();
 				

@@ -81,7 +81,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	static TreeSet associationRank;
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	void populateMovementList(Cluster cluster, WorkloadBatch wb) {
+	void populateMigrationList(Cluster cluster, WorkloadBatch wb) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
 		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.dataMap.keySet());
@@ -309,7 +309,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	
 	// Sorting migration lists
 	private void sortMigrationList() {
-		if(Global.idt_priority >= Global.lb_priority) {
+		if(Global.idt_priority > Global.lb_priority) {
 			// Always take the one with maximum difference
 			// Sort in descending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
@@ -319,7 +319,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					double m1_left = 0.0;
 					double m2_left = 0.0;
 					
-					if(Global.streamCollection) {
+					if(Global.associative) {
 						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
 						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
 					} else {
@@ -327,32 +327,40 @@ public class SimpleTr implements Comparable<SimpleTr> {
 						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
 					}
 					
-					m1.combined_weight = Math.abs(m1_left
-							- (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);
-					m2.combined_weight = Math.abs(m2_left
-							- (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);					
+					m1.combined_weight = Math.abs(m1_left - (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);
+					m2.combined_weight = Math.abs(m2_left - (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);					
 		            
 					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
 						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
 				}
 			});			
 		} else {
-			/*
-			 * If all are negative then take the largest one (sort in descending order)
-			 * If all are positive then take the smallest one (sort in ascending order)
-			 * If there is a mix of positives and negatives then take the one closest to zero
-			 */			
+			
+			/*If all are negative then take the largest one (sort in descending order)
+			If all are positive then take the smallest one (sort in ascending order)
+			If there is a mix of positives and negatives then take the one closest to zero*/
+			 			
 			// Sort in ascending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					m1.combined_weight = Math.abs((m1.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority
-							- (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);
-					m2.combined_weight = Math.abs((m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority
-							- (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);
 					
-					return ((m2.combined_weight > m1.combined_weight) ? -1 : 
-						(m2.combined_weight < m1.combined_weight) ? 1 : 0);
+					double m1_left = 0.0;
+					double m2_left = 0.0;
+					
+					if(Global.associative) {
+						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+					} else {
+						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+					}
+					
+					m1.combined_weight = m1_left - (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority;
+					m2.combined_weight = m2_left - (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority;
+					
+					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
+						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
 				}
 			});
 		}	

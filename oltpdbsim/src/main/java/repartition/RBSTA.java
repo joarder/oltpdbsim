@@ -28,17 +28,10 @@ public class RBSTA {
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		
-		if(Global.idt_priority == 1.0)		
+		if(Global.idt_priority >= Global.lb_priority)
 			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
-		else if((1 - Global.idt_priority) == 1.0)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
-		else {
-			if(Global.idt_priority > Global.lb_priority)
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
-			else
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
-		}
+		else
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());		
 		
 		tMap = new HashMap<Integer, SimpleTr>();
 				
@@ -59,7 +52,7 @@ public class RBSTA {
 		t.populateServerSet(cluster, tr);
 				
 		if(t.dataMap.size() > 1)	 // DTs
-			t.populateMovementList(cluster, wb);			
+			t.populateMigrationList(cluster, wb);			
 		else {						 // Movable non-DTs
 			t.min_data_mgr = 0;
 			t.max_idt_gain = 0.0;

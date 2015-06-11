@@ -135,6 +135,7 @@ public class ReadConfig {
 				
 				if(Global.streamCollection) {
 					Global.dsm = new DataStreamMining();
+					Global.associative = Boolean.parseBoolean((String) config_param.getProperty("associative"));
 					Global.adaptive = Boolean.parseBoolean((String) config_param.getProperty("adaptive"));
 				}
 				
