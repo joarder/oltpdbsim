@@ -125,11 +125,11 @@ public class DataStreamMining {
 		//System.out.println(this.dsm_learner);		
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			this.performARHC(cluster, wb);
 	} 
 	
-	// Association Rule Hypergraph Clustering (ARHP)
+	// Association Rule Hypergraph Clustering (ARHC) for both adaptive and non-adaptive algorithms
 	private void performARHC(Cluster cluster, WorkloadBatch wb) {
 		// Create a hypergraph from the FCI list
 		Global.LOGGER.info("Creating association rule hypergraph ...");
@@ -374,7 +374,7 @@ public class DataStreamMining {
 					dst_partition_id = dst_partitionList.get(0).getPartition_id();
 				}
 				
-				DataMigration.migration(cluster, dst_server_id, dst_partition_id, data);		
+				DataMigration.migrate(cluster, dst_server_id, dst_partition_id, data);		
 			}
 		}
 	}

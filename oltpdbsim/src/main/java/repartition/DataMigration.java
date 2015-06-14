@@ -145,9 +145,9 @@ public class DataMigration {
 		
 		// Perform Actual Data Movement
 		if(Global.trClassificationStrategy.equals("fcimining"))
-			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
-			move(cluster, wb, wb.hgr, keyMap, partitioner);
+			migrate(cluster, wb, wb.hgr, keyMap, partitioner);
 	}
 	
 	private static void strategyMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
@@ -170,9 +170,9 @@ public class DataMigration {
 		
 		// Perform Actual Data Movement
 		if(Global.trClassificationStrategy.equals("fcimining"))
-			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
-			move(cluster, wb, wb.hgr, keyMap, partitioner);	
+			migrate(cluster, wb, wb.hgr, keyMap, partitioner);	
 	}
 	
 	private static void strategyImprovedMC(Cluster cluster, WorkloadBatch wb, String partitioner) {
@@ -223,9 +223,9 @@ public class DataMigration {
 		
 		// Perform Actual Data Movement
 		if(Global.trClassificationStrategy.equals("fcimining"))
-			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
-			move(cluster, wb, wb.hgr, keyMap, partitioner);	
+			migrate(cluster, wb, wb.hgr, keyMap, partitioner);	
 	}
 	
 	private static void strategyMSM(Cluster cluster, WorkloadBatch wb, String partitioner) {	
@@ -268,9 +268,9 @@ public class DataMigration {
 	
 		// Perform Actual Data Movement
 		if(Global.trClassificationStrategy.equals("fcimining"))
-			move(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
+			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
-			move(cluster, wb, wb.hgr, keyMap, partitioner);
+			migrate(cluster, wb, wb.hgr, keyMap, partitioner);
 	}
 	
 	// RBSTA - incremental repartitioning	
@@ -320,7 +320,7 @@ public class DataMigration {
 	}
 	
 	// RBSTA and FCIMining specific
-	public static void migration(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
+	public static void migrate(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
 		
 		Partition dst_partition = cluster.getPartition(dst_partition_id);
 		Partition current_partition = cluster.getPartition(data.getData_partition_id());
@@ -528,8 +528,8 @@ public class DataMigration {
 		cluster.getServer(src).incServer_outflow();
 	}
 	
-	// Perform Actual Data Movement
-	private static void move(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
+	// Perform Actual Data Migration
+	private static void migrate(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
 			Map<Integer, Integer> keyMap, String type) {
 		
 		Partition home_partition = null;
@@ -584,7 +584,7 @@ public class DataMigration {
 					
 					//System.out.println("@debug >> P"+dst_partition_id);
 					
-					if(Global.trClassificationStrategy.equals("fcimining")) {
+					if(Global.associative) {
 						// Decide destination server
 						dst_server_id = dst_partition_id;
 

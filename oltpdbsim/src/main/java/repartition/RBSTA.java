@@ -175,7 +175,7 @@ public class RBSTA {
 					dst_partition_id = dst_partitionList.get(0).getPartition_id();
 				}
 				
-				DataMigration.migration(cluster, dst_server_id, dst_partition_id, data);		
+				DataMigration.migrate(cluster, dst_server_id, dst_partition_id, data);		
 			}
 		}
 	}

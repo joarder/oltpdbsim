@@ -153,54 +153,65 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}
 	
 	// Calculate the similarity/association of each transaction and the derived clusters
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		public void populateAssociationList(Cluster cluster, WorkloadBatch wb, 
-				HashMap<Integer, FCICluster> fci_clusters) {
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public void populateAssociationList(Cluster cluster, WorkloadBatch wb, 
+			HashMap<Integer, FCICluster> fci_clusters) {
+		
+		// Sets for preserving the ranks
+		associationRank = new TreeSet();
+		lbRank = new TreeSet();
+		
+		for(Entry<Integer, HashSet<Integer>> entry : this.dataMap.entrySet()) {
+			HashMap<Integer, HashSet<Integer>> dataMap;
+			HashSet<Integer> fromSet = new HashSet<Integer>();			
+			int to = entry.getKey();
+			int req_dmgr = 0;
 			
-			// Sets for preserving the ranks
-			associationRank = new TreeSet();
-			lbRank = new TreeSet();
+			// Get the 'from' server set 
+			for(int from : this.dataMap.keySet()) {
+				if(from !=  to)
+					fromSet.add(from);
+			}
 			
-			for(Entry<Integer, HashSet<Integer>> entry : this.dataMap.entrySet()) {
-				HashMap<Integer, HashSet<Integer>> dataMap;
-				HashSet<Integer> fromSet = new HashSet<Integer>();			
-				int to = entry.getKey();
-				int req_dmgr = 0;
-				
-				// Get the 'from' server set 
-				for(int from : this.dataMap.keySet()) {
-					if(from !=  to)
-						fromSet.add(from);
-				}
-				
-				dataMap = new HashMap<Integer, HashSet<Integer>>();
-				// Get the tuple id from the 'from' server set
-				for(int from : fromSet) {						
-					req_dmgr += this.dataMap.get(from).size();
-					dataMap.put(from, this.dataMap.get(from));
-				}
-				
-				MigrationPlan m = new MigrationPlan(fromSet,to, dataMap, req_dmgr);
-				this.migrationPlanList.add(m); // From Source Server
-				
-				m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr);						
-				m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);						
-				
-				
-				associationRank.add(m.association_gain_per_data_mgr);
-				lbRank.add(m.lb_gain_per_data_mgr);			
-			} //end-for()
+			dataMap = new HashMap<Integer, HashSet<Integer>>();
+			// Get the tuple id from the 'from' server set
+			for(int from : fromSet) {						
+				req_dmgr += this.dataMap.get(from).size();
+				dataMap.put(from, this.dataMap.get(from));
+			}
 			
-			// Get the maximum Association and Lb gains for this transaction for normalization purpose
-			max_association_improvement = (double) associationRank.last();
-			max_lb_improvement = (double) lbRank.last();
+			MigrationPlan m = new MigrationPlan(fromSet,to, dataMap, req_dmgr);
+			this.migrationPlanList.add(m); // From Source Server
 			
-			if(this.max_association_gain > 0)
-				this.isAssociated = true;
-			
-			// Sort the migration list based on the given weight
-			sortMigrationList();
-		}
+			m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr);						
+			m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);						
+						
+			associationRank.add(m.association_gain_per_data_mgr);
+			lbRank.add(m.lb_gain_per_data_mgr);			
+		} //end-for()
+		
+		// Get the maximum Association and Lb gains for this transaction for normalization purpose
+		max_association_improvement = (double) associationRank.last();
+		max_lb_improvement = (double) lbRank.last();
+		
+		// Sort the migration list based on the given weight
+		sortMigrationList();
+				
+		this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_data_mgr;
+		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
+		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
+				
+		if(this.max_association_gain > 0)
+			this.isAssociated = true;
+		
+		// Testing
+		/*System.out.println("-------------------------------------------------------------------------");
+		System.out.println("Sorting based on combined ranking ...");
+		System.out.println("--> "+this.toString());
+		for(MigrationPlan m : this.migrationPlanList) {
+			System.out.println("\t"+m.toString());
+		}*/
+	}	
 
 	// Returns the Idt gain per data movement 
 	static double getIdtGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {

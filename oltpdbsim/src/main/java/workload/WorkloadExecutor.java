@@ -495,24 +495,24 @@ public class WorkloadExecutor {
 						TransactionClassifier.classifyMovableNonDTs(cluster, wb);
 						break;
 						
-					case "fcimining":	
-						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
-						Global.dsm.performDSM(cluster, wb);
-						break;
-						
 					case "fd":
 						Global.LOGGER.info("Discarding transactions which are not frequent ...");						
-						TransactionClassifier.classifyFrequentDT(cluster, wb);
+						TransactionClassifier.classifyFD(cluster, wb);
 						break;
 						
 					case "fdfnd":
 						Global.LOGGER.info("Discarding transactions which are not frequent ...");
-						TransactionClassifier.classifyMovableFDFND(cluster, wb);
-						break;						
+						TransactionClassifier.classifyFDFND(cluster, wb);
+						break;
+						
+					case "fcimining":	
+						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
+						Global.dsm.performDSM(cluster, wb);
+						break;
 				}
 			}
 			
-			if(!Global.trClassificationStrategy.equals("fcimining")) {
+			if(!Global.associative) {
 				Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
 						+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -724,7 +724,7 @@ class Arrival extends Event {
 						}
 						
 						// Repartition the database in an incremental manner
-						if(Global.adaptive) {
+						if(Global.associative && Global.adaptive) {
 							wb.set_intra_dmv(DataMigration.intra_server_dmgr);
 							wb.set_inter_dmv(DataMigration.inter_server_dmgr);
 							
@@ -786,7 +786,7 @@ class Arrival extends Event {
 			}						
 			
 			// Adaptive ARHC
-			if(Global.adaptive && WorkloadExecutor.isAdaptive) {
+			if(Global.associative && Global.adaptive && WorkloadExecutor.isAdaptive) {
 				// Redistribute transactional tuples in an adaptive manner using DSM/ARHC
 				SimpleTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
 				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);

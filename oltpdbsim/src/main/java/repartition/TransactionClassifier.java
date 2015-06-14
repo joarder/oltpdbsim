@@ -97,7 +97,7 @@ public class TransactionClassifier {
 	}*/
 	
 	// DSM (FD) - Transactions containing frequent distributed tuple pairs only
-	public static void classifyFrequentDT(Cluster cluster, WorkloadBatch wb) {				
+	public static void classifyFD(Cluster cluster, WorkloadBatch wb) {				
 		// Initialisation
 		//init();
 		
@@ -180,7 +180,7 @@ public class TransactionClassifier {
 	}
 	
 	// DSM - (FD+FND)
-	public static void classifyMovableFDFND(Cluster cluster, WorkloadBatch wb) {
+	public static void classifyFDFND(Cluster cluster, WorkloadBatch wb) {
 		
 		toBeRemoved = new TreeSet<Integer>();
 		
