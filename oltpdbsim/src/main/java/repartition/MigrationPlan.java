@@ -26,6 +26,6 @@ public class MigrationPlan {
 	
 	@Override
 	public String toString() {
-		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.req_data_mgr+") | Idt improvement("+this.idt_gain_per_data_mgr+") | Lb improvement ("+this.lb_gain_per_data_mgr+") | Combined Weight ("+this.combined_weight+")");
+		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.req_data_mgr+") | Idt gain("+this.idt_gain_per_data_mgr+") | Association gain("+this.association_gain_per_data_mgr+") | Lb gain("+this.lb_gain_per_data_mgr+") | Combined Weight ("+this.combined_weight+")");
 	}
 }

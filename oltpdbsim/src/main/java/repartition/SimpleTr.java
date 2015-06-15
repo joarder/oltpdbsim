@@ -34,7 +34,6 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	double max_lb_gain; // Lower is better
 	double max_association_gain; // Higher is better
 	HashMap<Integer, HashSet<Integer>> dataMap;
-	HashMap<Integer, Double> associationMap;
 	public List<MigrationPlan> migrationPlanList;
 	public boolean isAssociated;
 	boolean isProcessed;
@@ -51,7 +50,6 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.max_lb_gain = Integer.MAX_VALUE;
 		this.dataMap = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
-		this.associationMap = new HashMap<Integer, Double>();
 		this.isAssociated = false;
 		this.isProcessed = false;
 	}
@@ -311,10 +309,9 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			double C_i = fci_clusters.get(entry.getKey()).fci.size();
 			double T_C_i = Sets.intersection(fci_clusters.get(entry.getKey()).fci, entry.getValue()).size();		
 			association = (double) (fci_clusters.get(entry.getKey()).weight * (T_C_i/C_i));
-			association /= req_dmgr; 
-			this.associationMap.put(entry.getKey(), association);
+			association /= req_dmgr;
 		}
-		
+			
 		return association;
 	}
 	
@@ -360,8 +357,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					double m2_left = 0.0;
 					
 					if(Global.associative) {
-						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+						m1_left = (m1.association_gain_per_data_mgr/max_association_improvement)*Global.idt_priority;
+						m2_left = (m2.association_gain_per_data_mgr/max_association_improvement)*Global.idt_priority;
 					} else {
 						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
 						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
@@ -431,8 +428,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	public String toString() {
 		return (">> T"+this.id+": Min required data migrations ("+this.min_data_mgr+") "
 				+ "| Max Idt gain ("+this.max_idt_gain+") "
-				+ "| Max Lb gain ("+this.max_lb_gain+") "
 				+ "| Max Association gain ("+this.max_association_gain+") "
+				+ "| Max Lb gain ("+this.max_lb_gain+") "
 						+ "| "+this.dataMap);
 	}
 }
