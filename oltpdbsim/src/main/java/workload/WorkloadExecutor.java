@@ -358,9 +358,10 @@ public class WorkloadExecutor {
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
 				
-		wb = new WorkloadBatch(Global.repeated_runs);
+		//if(!Global.compressionBeforeSetup)
+			wb = new WorkloadBatch(Global.repeated_runs);
 		
-		// RBPTA specific
+		// RBPTA specific -- will be removed
 		if(Global.dataMigrationStrategy.equals("rbpta"))
 			RBPTA.init(cluster);
 		
@@ -431,7 +432,7 @@ public class WorkloadExecutor {
 		// Generate workload file
 		boolean empty = false;
 		
-		if(!Global.trClassificationStrategy.equals("fcimining")) {
+		if(!Global.associative) {
 			try {
 				empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
 			} catch (IOException e) {

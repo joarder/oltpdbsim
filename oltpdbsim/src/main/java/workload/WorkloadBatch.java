@@ -18,7 +18,7 @@ import main.java.entry.Global;
 import main.java.repartition.Sword;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import umontreal.iro.lecuyer.simevents.Sim;
 
@@ -29,7 +29,7 @@ public class WorkloadBatch {
 	private SortedMap<Integer, Map<Integer, Transaction>> trMap;	
 	
 	// Hypergraph	
-	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
+	public ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
 	
 	// Sword specific
 	public Sword sword;
@@ -98,7 +98,7 @@ public class WorkloadBatch {
 				if(Global.compressionEnabled) {
 					this.cHEdge_id_map = new TreeMap<Integer, Integer>();
 					
-					if(Global.compressionBeforeSetup && !Global.sword_cluster_setup)
+					if(Global.compressionBeforeSetup)// && !Global.sword_cluster_setup)
 						this.sword = new Sword();
 				}
 				
@@ -380,14 +380,15 @@ public class WorkloadBatch {
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
 		int tr_frequency = 0;
 		
-		if(Global.compressionBeforeSetup)
-			tr_frequency = 1;
+		if(Global.compressionBeforeSetup && Global.sword_cluster_setup)
+			tr_frequency = 1; // Warming up with Sword initial workload
 		else
 			tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
 				
-		if(h != null)
-			h.setWeight(tr_frequency);			
-		else {
+		if(h != null) {
+			this.hgr.updateHEdgeWeight(h, tr_frequency);
+			
+		} else {
 			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr_frequency), 
 					this.getVertices(cluster, tr.getTr_dataSet()));
 		}

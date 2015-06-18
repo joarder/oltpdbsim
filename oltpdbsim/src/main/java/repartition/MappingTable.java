@@ -13,7 +13,7 @@ import main.java.entry.Global;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 //import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
@@ -64,7 +64,7 @@ public class MappingTable {
 	}
 	
 	private void processMapping(Cluster cluster, WorkloadBatch wb, 
-			SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, MatrixElement[][] mapping) {
+			ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, MatrixElement[][] mapping) {
 		
 		int partition_id = -1;
 		int cluster_id = -1;

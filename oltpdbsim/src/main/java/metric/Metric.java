@@ -116,6 +116,10 @@ public class Metric implements java.io.Serializable {
 		
 		try {			
 			file.getParentFile().mkdirs();
+			
+			if(file.exists())
+				file.delete();
+			
 			file.createNewFile();
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);

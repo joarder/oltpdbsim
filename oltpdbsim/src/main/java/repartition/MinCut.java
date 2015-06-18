@@ -77,41 +77,15 @@ public class MinCut {
 		startTime = System.currentTimeMillis();
 		Global.LOGGER.info("Clustering workload file ...");
 		
-		//Console output
-		//final PrintStream _ps_console = System.out;
-		
 		// Get corresponding argument list
 		ArrayList<String> arg_list = getArgList(wb, partitions);
 		
 		// Create a process builder
 		String[] arg = arg_list.toArray(new String[arg_list.size()]);					
 		ProcessBuilder pb = new ProcessBuilder(arg);
-		//final Process p = null;
-		
-		//System.setOut(_ps_console);
-        					
+
 		try {
-			final Process p = pb.start();
-			//p.waitFor();
-			
-//			new Thread(new Runnable(){
-//				public void run(){
-//		        	Scanner stdin = new Scanner(p.getInputStream());
-//		        	Scanner stderr = new Scanner(p.getErrorStream());
-//		        	
-//		            while(stdin.hasNextLine()){
-//		            	Global.LOGGER.info(stdin.nextLine());
-//		            }
-//		            
-//		            while(stderr.hasNextLine()){
-//		            	Global.LOGGER.info(stderr.nextLine());
-//		            }
-//		            
-//		            stdin.close();
-//		            stderr.close();
-//				}
-//		    }).start();
-			
+			final Process p = pb.start();			
 			
 			if (waitForResponse) {
 				 
@@ -125,8 +99,7 @@ public class MinCut {
 				response = convertStreamToStr(shellIn);
 				 
 				shellIn.close();
-			}
-			
+			}			
 		} catch (IOException | InterruptedException e) {						
 			e.printStackTrace();
 		}

@@ -58,12 +58,22 @@ public class PerfMetric {
 			if(Global.analysis)
 				file3.getParentFile().mkdirs();
 			
+			if(file1.exists())
+				file1.delete();
+			
 			file1.createNewFile();
+			
+			if(file2.exists())
+				file2.delete();
+			
 			file2.createNewFile();
 			
-			if(Global.analysis)
+			if(Global.analysis) {
+				if(file3.exists())
+					file3.delete();
+				
 				file3.createNewFile();
-			
+			}			
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
 		}

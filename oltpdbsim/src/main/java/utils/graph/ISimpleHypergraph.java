@@ -7,7 +7,7 @@ import main.java.cluster.Cluster;
 import main.java.workload.WorkloadBatch;
 import edu.uci.ics.jung.graph.Hypergraph;
 
-public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
+public interface ISimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
 	extends Hypergraph<V, H> {
 		
 	boolean addHEdge(H h, Set<V> vSet);
@@ -29,4 +29,5 @@ public interface SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);
 	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
 	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);
+	void updateHEdgeWeight(H h, int weight);
 }

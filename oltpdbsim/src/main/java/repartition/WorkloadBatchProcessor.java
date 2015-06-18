@@ -24,7 +24,7 @@ import main.java.entry.Global;
 import main.java.utils.graph.CompressedHEdge;
 import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
 
@@ -66,7 +66,7 @@ public class WorkloadBatchProcessor {
 	private static Map<Integer, Integer> vvertex_id_map;
 	
 	// Generates Workload File for Hypergraph partitioning
-	public static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
+	public static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb, ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
 		
 		vertex_id_map = new TreeMap<Integer, Integer>();
 		int vertex_id = 0;
@@ -92,6 +92,10 @@ public class WorkloadBatchProcessor {
 		} else {		
 			try {
 				wb.getWrl_file().getParentFile().mkdirs();
+				
+				if(wb.getWrl_file().exists())
+					wb.getWrl_file().delete();
+				
 				wb.getWrl_file().createNewFile();
 				
 				Writer writer = null;
@@ -198,6 +202,10 @@ public class WorkloadBatchProcessor {
 		}else{		
 			try {
 				wb.getWrl_file().getParentFile().mkdirs();
+				
+				if(wb.getWrl_file().exists())
+					wb.getWrl_file().delete();
+				
 				wb.getWrl_file().createNewFile();
 				
 				Writer writer = null;
@@ -300,6 +308,10 @@ public class WorkloadBatchProcessor {
 		} else {		
 			try {
 				wb.getWrl_file().getParentFile().mkdirs();
+				
+				if(wb.getWrl_file().exists())
+					wb.getWrl_file().delete();
+				
 				wb.getWrl_file().createNewFile();
 				
 				Writer writer = null;
@@ -353,14 +365,14 @@ public class WorkloadBatchProcessor {
 			scanner.close();
 		}					
 		
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			WorkloadBatchProcessor.processClusterElements(cluster, wb, Global.dsm.hgr, keyMap);
 		else
 			WorkloadBatchProcessor.processClusterElements(cluster, wb, wb.hgr, keyMap);
 	}
 	
 	private static void processClusterElements(Cluster cluster, WorkloadBatch wb, 
-			SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, Map<Integer, Integer> keyMap) {
+			ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, Map<Integer, Integer> keyMap) {
 		
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		

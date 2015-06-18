@@ -494,7 +494,7 @@ public class Cluster {
 //====================================================================================================
 	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {	
 		Global.sword_cluster_setup = true;
-		WorkloadBatch wb = new WorkloadBatch(0);
+		WorkloadBatch wb = new WorkloadBatch(Global.repeated_runs);
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Initiating SWORD based virtual node distribution ...");

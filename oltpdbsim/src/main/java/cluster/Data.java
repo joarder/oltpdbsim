@@ -221,7 +221,7 @@ public class Data implements Comparable<Data> {
 
 	@Override
 	public String toString() {		
-		return (this.data_label);
+		return (this.data_label+"|P"+this.data_partion_id+"|S"+this.data_server_id);
 	}
 		
 	@Override

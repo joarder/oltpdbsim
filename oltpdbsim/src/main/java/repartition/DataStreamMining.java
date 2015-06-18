@@ -23,7 +23,7 @@ import main.java.incmine.streams.ZakiFileStream;
 import main.java.utils.Utility;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
@@ -33,7 +33,7 @@ import com.google.common.collect.EvictingQueue;
 
 public class DataStreamMining {
 
-	public SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
+	public ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
 	public static HashMap<Integer, FCICluster> fci_clusters;
 	Queue<String> dsm_queue;
 	public IncMine dsm_learner;
@@ -97,7 +97,9 @@ public class DataStreamMining {
 	private void prepareDSMDumpFile() {
 		++this.dsm_dump_serial;
 		
-		this.dsm_dumpfilename = Global.mining_dir+Global.simulation+"-dump-"+this.dsm_dump_serial+".txt";
+		this.dsm_dumpfilename = Global.mining_dir+"run"+Global.repeated_runs+"/"
+									+Global.simulation+"-dump-"+this.dsm_dump_serial+".txt";
+		
 		this.dsm_dumpfile = new File(this.dsm_dumpfilename);
 		this.dsm_PrintWriter = Utility.getPrintWriter(Global.mining_dir, this.dsm_dumpfile);
 		

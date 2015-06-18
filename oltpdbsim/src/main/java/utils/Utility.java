@@ -280,6 +280,10 @@ public class Utility {
 		
 		try {
 			file.getParentFile().mkdirs();
+			
+			if(file.exists())
+				file.delete();
+			
 			file.createNewFile();
 			
 			try {

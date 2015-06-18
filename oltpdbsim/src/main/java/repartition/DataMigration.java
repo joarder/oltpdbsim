@@ -27,7 +27,7 @@ import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.Utility;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.SimpleHypergraph;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
 import main.java.workload.WorkloadExecutor;
@@ -365,6 +365,8 @@ public class DataMigration {
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
 		setEnvironment(cluster);		
 		Sword.populatePQ(cluster, wb);
+		
+		
 	}
 	
 	// RBPTA - Swapping partitions
@@ -529,7 +531,7 @@ public class DataMigration {
 	}
 	
 	// Perform Actual Data Migration
-	private static void migrate(Cluster cluster, WorkloadBatch wb, SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
+	private static void migrate(Cluster cluster, WorkloadBatch wb, ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
 			Map<Integer, Integer> keyMap, String type) {
 		
 		Partition home_partition = null;

@@ -6,7 +6,7 @@ import java.util.Set;
 public class GraphTest {
 
 	public static void main(String[] args) {
-		SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();
+		ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();
 		
 		SimpleVertex v1 = new SimpleVertex(1, 1, 1, 1);
 		hgr.addVertex(v1);
@@ -83,7 +83,7 @@ public class GraphTest {
 		show(hgr);
 	}
 
-	private static void show(SimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
+	private static void show(ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
 		int edges = 0;		
 		int vertices = hgr.getVertexCount();
 		

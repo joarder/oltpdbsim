@@ -18,7 +18,7 @@ import main.java.workload.WorkloadBatch;
 @SuppressWarnings("serial")
 public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge> 
 	extends SetHypergraph<V, H> 
-	implements SimpleHypergraph<V, H>, Serializable {
+	implements ISimpleHypergraph<V, H>, Serializable {
 	
     protected Map<Integer, V> vMap;
     protected Map<Integer, H> hMap;
@@ -66,6 +66,16 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
         for (V v : vSet) {
             // add v if it's not already in the graph
         	addVertex(v);
+        	
+        	// Setting/Updating vertex weight
+        	int weight = 0;
+        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
+        		weight += h1.getWeight();
+        	}
+        	v.setWeight(weight);
+        	
+        	//v.setWeight(this.getIncidentEdges(v).size());
+        	
             vMap.put(v.getId(), v);
             
             // associate v with hyperedge
@@ -87,6 +97,15 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		Set<V> toBeRemoved = new HashSet<V>();
         for (V v : edges.get(h)) {
             vertices.get(v).remove(h);
+            
+            // Setting/Updating vertex weight
+        	int weight = 0;
+        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
+        		weight += h1.getWeight();
+        	}
+        	v.setWeight(weight);
+            
+            //v.setWeight(this.getIncidentEdges(v).size());
             
             if(getNeighborCount(v) == 0 && getIncidentEdges(v).size() == 0) {
             	vMap.remove(v.getId());
@@ -131,6 +150,30 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	public V getVertex(int key) {
 		return vMap.get(key);
 	}
+	
+	// Updating hyperedge and compressed hyperedge
+	public void updateHEdgeWeight(H h, int weight) {
+		h.setWeight(weight);
+				
+		for(V v : edges.get(h)) {            
+            // Updating vertex weight
+        	int v_weight = 0;
+        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
+        		v_weight += h1.getWeight();
+        	}
+        	v.setWeight(v_weight);
+		}
+		
+		if(Global.compressionEnabled) {
+			// Updating Compressed Hyperedge Weight
+			CompressedHEdge ch = this.getCHEdge(h);
+			ch.updateWeight();
+			
+			// Updating Compressed Vertex Weight
+			for(CompressedVertex cv : getIncidentCVertices(ch))
+				cv.updateWeight();							
+		}
+	}
 
 //===================================================================================================
 	// Adds a new Compressed Hyperedge in the Compressed Hypergraph if necessary
@@ -151,7 +194,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 		if(ch != null) {			
 			//ch.incWeight(h.getWeight());
-			ch.getHESet().put(h.getId(), h);
+			ch.getHESet().put(h.getId(), h);			
 			ch.updateWeight();
 			
 			// Add incident Compressed Vertices
@@ -216,8 +259,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		int cv_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);		
 		CompressedVertex cv = this.getCVertex(cv_id);
 		
-		if(cv != null) {
-			
+		if(cv != null) {			
 			if(!cv.getVSet().containsKey(v.getId())) {
 				cv.getVSet().put(v.getId(), v);
 				//cv.incWeight(v.getWeight());
@@ -228,7 +270,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			return false;
 			
 		} else {			
-			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight(), v.getPid(), v.getSid());	        	
+			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight(), v.getPartition_id(), v.getServer_id());	        	
 	        new_cv.getVSet().put(v.getId(), v);	        
         	cVertices.put(new_cv, new HashSet<CompressedHEdge>());
         	cVMap.put(new_cv.getId(), new_cv);
@@ -325,7 +367,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		Set<Integer> serverSet = new TreeSet<Integer>();
 		
 		for(CompressedVertex cv : wb.hgr.getcHEdges().get(ch)) {
-			serverSet.add(cv.getSid());
+			serverSet.add(cv.getServer_id());
 //			for(Entry<Integer, SimpleVertex> v : cv.getVSet().entrySet()) {
 //				Data data = cluster.getData(v.getValue().getId());
 //				serverSet.add(data.getData_server_id());
