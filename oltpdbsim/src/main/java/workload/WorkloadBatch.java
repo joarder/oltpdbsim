@@ -399,11 +399,16 @@ public class WorkloadBatch {
 		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
 		
 		for(Integer d : trDataSet) {
-			Data data = cluster.getData(d);
-			trSet.add(new SimpleVertex(d, 1,  // 1 = Vertex Weight
-					data.getData_partition_id(), data.getData_server_id()));
+			Data data = cluster.getData(d);			
+			SimpleVertex v = this.hgr.getVertex(data.getData_id());
+			
+			if(v == null)
+				v = new SimpleVertex(d, 1,  // 1 : Initial Vertex weight
+					data.getData_partition_id(), data.getData_server_id());
+			
+			trSet.add(v);			
 		}
-		
+				
 		return trSet;		
 	}
 	
@@ -449,6 +454,7 @@ public class WorkloadBatch {
 		this.getTrMap().get(tr.getTr_type()).remove(tr.getTr_id());
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
+		//System.out.println(">> Removing "+h.toString()+"|"+this.hgr.getIncidentVertices(h));
 		this.hgr.removeHEdge(h);		
 	}	
 	

@@ -24,7 +24,7 @@ public class MappingTable {
 	public Matrix generateMappingTable(Cluster cluster, WorkloadBatch wb) {
 		int M = 0;
 		
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			M = cluster.getServers().size()+1;
 		else
 			M = cluster.getPartitions().size()+1;
@@ -54,7 +54,7 @@ public class MappingTable {
 			}
 		}
 		
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			processMapping(cluster, wb, Global.dsm.hgr, mapping);
 		else
 			processMapping(cluster, wb, wb.hgr, mapping);		
@@ -71,42 +71,37 @@ public class MappingTable {
 		MatrixElement me;				
 		Set<Integer> dataSet = new TreeSet<Integer>();
 		
-		//for(SimpleHEdge h : hgr.getEdges()) {		
-			//Transaction tr = wb.getTransaction(h.getId());
+		for(SimpleVertex v : hgr.getVertices()) {
+			Data data = cluster.getData(v.getId());
 			
-			//for(Integer data_id : tr.getTr_dataSet()) {
-			for(SimpleVertex v : hgr.getVertices()) {
-				Data data = cluster.getData(v.getId());
+			if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
+				dataSet.add(data.getData_id());
 				
-				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
-					dataSet.add(data.getData_id());
-					
-					if(Global.trClassificationStrategy.equals("fcimining"))
-						partition_id = data.getData_server_id();
-					else
-						partition_id = data.getData_partition_id();
-					
-					switch(Global.workloadRepresentation) {
-					
-						case "hgr":
-							if(Global.compressionEnabled)
-								cluster_id = data.getData_chmetisClusterId();
-							else
-								cluster_id = data.getData_hmetisClusterId();
-							
-							break;
+				if(Global.associative)
+					partition_id = data.getData_server_id();
+				else
+					partition_id = data.getData_partition_id();
+				
+				switch(Global.workloadRepresentation) {
+				
+					case "hgr":
+						if(Global.compressionEnabled)
+							cluster_id = data.getData_chmetisClusterId();
+						else
+							cluster_id = data.getData_hmetisClusterId();
 						
-						case "gr":
-							cluster_id = data.getData_metisClusterId();
-							break;
-					}					
-															
-					//System.out.println("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										
-					me = mapping[partition_id][cluster_id];
-					//System.out.println("@debug >> Row = "+me.getRow_pos()+"| Col ="+me.getCol_pos());
-					me.setValue(me.getValue()+1);
-				}
-			} // end -- for()-Data
-		//} // end -- for()
+						break;
+					
+					case "gr":
+						cluster_id = data.getData_metisClusterId();
+						break;
+				}					
+														
+				//Global.LOGGER.debug("@debug >> "+data.toString()+" | P"+partition_id+" | C"+cluster_id);										
+				me = mapping[partition_id][cluster_id];
+				//Global.LOGGER.debug("@debug >> Row = "+me.getRow_pos()+"| Col ="+me.getCol_pos());
+				me.setValue(me.getValue()+1);
+			}
+		} // end -- for()-Data		
 	}
 }

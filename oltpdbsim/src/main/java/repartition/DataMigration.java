@@ -144,7 +144,7 @@ public class DataMigration {
 		}
 		
 		// Perform Actual Data Movement
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
 			migrate(cluster, wb, wb.hgr, keyMap, partitioner);
@@ -169,7 +169,7 @@ public class DataMigration {
 		}
 		
 		// Perform Actual Data Movement
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
 			migrate(cluster, wb, wb.hgr, keyMap, partitioner);	
@@ -195,7 +195,7 @@ public class DataMigration {
 			// Sort the Partitions based on their size
 			Map<Integer, Integer> partitionSet = new HashMap<Integer, Integer>();
 			
-			if(Global.trClassificationStrategy.equals("fcimining")) {
+			if(Global.associative) {
 				for(Entry<Integer, MatrixElement> entry : colMaxSet.entrySet()) {
 					Server s = cluster.getServer(entry.getKey());
 					int s_size = s.getServer_total_data();
@@ -222,7 +222,7 @@ public class DataMigration {
 		}
 		
 		// Perform Actual Data Movement
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
 			migrate(cluster, wb, wb.hgr, keyMap, partitioner);	
@@ -267,7 +267,7 @@ public class DataMigration {
 		}
 	
 		// Perform Actual Data Movement
-		if(Global.trClassificationStrategy.equals("fcimining"))
+		if(Global.associative)
 			migrate(cluster, wb, Global.dsm.hgr, keyMap, partitioner);
 		else
 			migrate(cluster, wb, wb.hgr, keyMap, partitioner);
@@ -363,10 +363,19 @@ public class DataMigration {
 		
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
-		setEnvironment(cluster);		
-		Sword.populatePQ(cluster, wb);
+		if(Global.sword_cluster_setup) {
+			swordInitialRepartitioning(cluster, wb);
+			
+		} else {
+			setEnvironment(cluster);		
+			Sword.populatePQ(cluster, wb);
 		
-		
+		}
+	}
+	
+	// Sword - initial repartitioning
+	private static void swordInitialRepartitioning(Cluster cluster, WorkloadBatch wb) {
+		baseRandom(cluster, wb, Global.workloadRepresentation);
 	}
 	
 	// RBPTA - Swapping partitions

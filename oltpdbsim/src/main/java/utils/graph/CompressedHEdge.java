@@ -56,11 +56,6 @@ public class CompressedHEdge extends SimpleHEdge {
 	
 	@Override
 	public String toString() {
-		return ("CE"+this.getId()+"|"+this.getHESet());
-	}
-	
-//	@Override
-//	public String toString() {
-//		return ("CE ["+this.getId()+" | "+c_e+" | "+ndt_e+" | "+nh_i+"]");
-//	}
+		return ("CHE"+this.getId()+"("+this.getWeight()+") | "+this.getHESet());
+	}	
 }

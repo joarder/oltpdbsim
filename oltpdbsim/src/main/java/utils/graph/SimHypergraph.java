@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -26,26 +25,19 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
     protected Map<CompressedHEdge, Set<CompressedVertex>> cHEdges;
     protected Map<CompressedVertex, Set<CompressedHEdge>> cVertices;
     
-    protected Map<Integer, CompressedVertex> cVMap;
     protected Map<Integer, CompressedHEdge> cHEMap;
-    
-    // Map for HEdge -- CHEdge || Vertex -- CVertex
-    protected Map<Integer, Integer> hcMap;
-    protected Map<Integer, Integer> vcMap;
+    protected Map<Integer, CompressedVertex> cVMap; 
 	
 	public SimHypergraph() {
 		        
-        vMap = new HashMap<Integer, V>();
-        hMap = new HashMap<Integer, H>();
+		this.vMap = new HashMap<Integer, V>();
+		this.hMap = new HashMap<Integer, H>();
 		
-		cHEdges = new HashMap<CompressedHEdge, Set<CompressedVertex>>();
-		cVertices = new HashMap<CompressedVertex, Set<CompressedHEdge>>();
-		
-		cVMap = new HashMap<Integer, CompressedVertex>();
-        cHEMap = new HashMap<Integer, CompressedHEdge>();
-        
-        hcMap = new HashMap<Integer, Integer>();
-        vcMap = new HashMap<Integer, Integer>();
+		this.cHEdges = new HashMap<CompressedHEdge, Set<CompressedVertex>>();
+		this.cVertices = new HashMap<CompressedVertex, Set<CompressedHEdge>>();
+				
+		this.cHEMap = new HashMap<Integer, CompressedHEdge>();
+		this.cVMap = new HashMap<Integer, CompressedVertex>();
 	}
 
 //===================================================================================================
@@ -60,67 +52,53 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		if (edges.containsKey(h))
 			return false;
 		
-		edges.put(h, vSet);
-		hMap.put(h.getId(), h);
+		this.edges.put(h, vSet);
+		this.hMap.put(h.getId(), h);
 		
         for (V v : vSet) {
             // add v if it's not already in the graph
-        	addVertex(v);
+        	this.addVertex(v);
         	
-        	// Setting/Updating vertex weight
-        	int weight = 0;
-        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
-        		weight += h1.getWeight();
-        	}
-        	v.setWeight(weight);
-        	
-        	//v.setWeight(this.getIncidentEdges(v).size());
-        	
-            vMap.put(v.getId(), v);
+            this.vMap.put(v.getId(), v);
             
             // associate v with hyperedge
             vertices.get(v).add(h);
+            this.updateVertexWeight(v);
         }
         
         if(Global.compressionEnabled)
-        	addCHEdge(h);
+        	this.addCHEdge(h);
         
         return true;
     }
 	
-	// Removes a hyperedge from the Hypergraph
+	// Removes a hyperedge from the Hypergraph	
 	public boolean removeHEdge(H h) {
 		
-		if (!containsEdge(h))
+		if (!this.containsEdge(h))
             return false;
 		
 		Set<V> toBeRemoved = new HashSet<V>();
         for (V v : edges.get(h)) {
-            vertices.get(v).remove(h);
+            this.vertices.get(v).remove(h);            
             
-            // Setting/Updating vertex weight
-        	int weight = 0;
-        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
-        		weight += h1.getWeight();
-        	}
-        	v.setWeight(weight);
-            
-            //v.setWeight(this.getIncidentEdges(v).size());
-            
-            if(getNeighborCount(v) == 0 && getIncidentEdges(v).size() == 0) {
-            	vMap.remove(v.getId());
+            if(this.getNeighborCount(v) == 0 && this.getIncidentEdges(v).isEmpty()) {
+            	this.vMap.remove(v.getId());
             	toBeRemoved.add(v);
+            	
+            } else {
+            	this.updateVertexWeight(v);
             }
         }
 	
-        hMap.remove(h.getId());
-        edges.remove(h);        
+        this.hMap.remove(h.getId());
+        this.edges.remove(h);        
 
         for(V _v : toBeRemoved) {
-        	removeVertex(_v);
+        	this.removeVertex(_v);
         	
         	if(Global.compressionEnabled)
-        		removeCVertex(_v);
+        		this.removeCVertex(_v);
         }
         	
         //System.out.println("--> Removing "+h.getId());
@@ -132,7 +110,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 	// Returns a Hyperedge based on the given id
 	public H getHEdge(int key) {
-		return hMap.get(key);
+		return this.hMap.get(key);
 	}
 
 	// Returns a Hyperedge based on the given set of Vertices
@@ -148,21 +126,16 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 
 	// Returns a Vertex based on the given id
 	public V getVertex(int key) {
-		return vMap.get(key);
+		return this.vMap.get(key);
 	}
 	
-	// Updating hyperedge and compressed hyperedge
+	// Updating hyperedge and compressed hyperedge weights
 	public void updateHEdgeWeight(H h, int weight) {
 		h.setWeight(weight);
 				
-		for(V v : edges.get(h)) {            
-            // Updating vertex weight
-        	int v_weight = 0;
-        	for(SimpleHEdge h1 : this.getIncidentEdges(v)) {
-        		v_weight += h1.getWeight();
-        	}
-        	v.setWeight(v_weight);
-		}
+        // Updating vertex weight
+		for(V v : edges.get(h))
+        	this.updateVertexWeight(v);
 		
 		if(Global.compressionEnabled) {
 			// Updating Compressed Hyperedge Weight
@@ -174,6 +147,16 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 				cv.updateWeight();							
 		}
 	}
+	
+	// Updating Vertex weight
+	public void updateVertexWeight(V v) {
+		int weight = 0;
+		
+		for(SimpleHEdge h : this.getIncidentEdges(v))
+			weight += h.getWeight();		
+			
+		v.setWeight(weight);	
+	}
 
 //===================================================================================================
 	// Adds a new Compressed Hyperedge in the Compressed Hypergraph if necessary
@@ -183,7 +166,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 		for(V v : getIncidentVertices(h)) {
             // Add v into a Compressed Vertex, creates a new one if necessary
-			addCVertex(v);
+			this.addCVertex(v);
 			cvSet.add(getCVertex(v));
 		}
 		
@@ -198,11 +181,11 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			ch.updateWeight();
 			
 			// Add incident Compressed Vertices
-			cHEdges.get(ch).addAll(cvSet);
+			this.cHEdges.get(ch).addAll(cvSet);
 			
 			// Add incident Compressed Hyperedge
 			for(CompressedVertex cv : cvSet)
-				cVertices.get(cv).add(ch);
+				this.cVertices.get(cv).add(ch);
 			
 			//System.out.println(ch);
 			return false;
@@ -212,13 +195,12 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			new_ch.getHESet().put(h.getId(), h);
 
 			// Add incident Compressed Vertices
-			cHEdges.put(new_ch, new HashSet<CompressedVertex>(cvSet));
-			cHEMap.put(new_ch.getId(), new_ch);
-			hcMap.put(h.getId(), new_ch.getId());
+			this.cHEdges.put(new_ch, new HashSet<CompressedVertex>(cvSet));
+			this.cHEMap.put(new_ch.getId(), new_ch);
 						
 			// Add incident Compressed Hyperedge
 			for(CompressedVertex cv : cvSet)
-				cVertices.get(cv).add(new_ch);
+				this.cVertices.get(cv).add(new_ch);
 			
 			//System.out.println(new_ch);
 			return true;
@@ -228,14 +210,21 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	// Removes a Compressed Hyperedge in the Compressed Hypergraph if necessary
 	public boolean removeCHEdge(H h) {		
 		CompressedHEdge ch = getCHEdge(h);
-		//System.out.println("--> Removing "+ch.toString()+"|"+ch.getWeight());
+		//System.out.println("\t--> Removing "+ch.toString());
 		ch.getHESet().remove(h.getId());
 		
-		if(ch.getHESet().size() == 0) {
-			//System.out.println("--> Removing "+ch.toString());
-			cHEdges.remove(ch);
-			cHEMap.remove(ch.getId());
-			hcMap.remove(h.getId());
+		if(ch.getHESet().isEmpty()) {
+			//System.out.println("\t\t--> Removing empty "+ch.toString());
+			//System.out.println("\t\t--> Incident CVertices: "+this.cHEdges.get(ch));
+			
+			// Removing from incident compressed hyperedges
+			for(CompressedVertex cv : this.getIncidentCVertices(ch)){
+				//System.out.println("\t\t\t--> HSet["+cv.toString()+"] :: "+this.cVertices.get(cv));
+				this.cVertices.get(cv).remove(ch);
+			}
+			
+			this.cHEdges.remove(ch);
+			this.cHEMap.remove(ch.getId());			
 			
 			return true;
 			
@@ -262,7 +251,6 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		if(cv != null) {			
 			if(!cv.getVSet().containsKey(v.getId())) {
 				cv.getVSet().put(v.getId(), v);
-				//cv.incWeight(v.getWeight());
 				cv.updateWeight();
 			}
 
@@ -271,10 +259,10 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			
 		} else {			
 			CompressedVertex new_cv = new CompressedVertex(cv_id, v.getWeight(), v.getPartition_id(), v.getServer_id());	        	
-	        new_cv.getVSet().put(v.getId(), v);	        
-        	cVertices.put(new_cv, new HashSet<CompressedHEdge>());
-        	cVMap.put(new_cv.getId(), new_cv);
-        	vcMap.put(v.getId(), new_cv.getId());
+	        new_cv.getVSet().put(v.getId(), v);	    
+	        
+        	this.cVertices.put(new_cv, new HashSet<CompressedHEdge>());
+        	this.cVMap.put(new_cv.getId(), new_cv);
         	
         	//System.out.println(new_cv);
         	return true;
@@ -282,16 +270,23 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// 
-	public boolean removeCVertex(V v) {
+	public boolean removeCVertex(V v) {		
 		CompressedVertex cv = getCVertex(v);
-		//System.out.println("--> "+cv.toString()+"|"+cv.getWeight());
+		//System.out.println("\t--> Removing "+v.toString()+" from "+cv.toString()+"|"+cv.getWeight());
 		cv.getVSet().remove(v.getId());
 
-		if(cv.getVSet().size() == 0) {
-			//System.out.println("--> Removing "+cv.toString());
-			cVertices.remove(cv);
-			cVMap.remove(cv.getId());
-			vcMap.remove(cv.getId());
+		if(cv.getVSet().isEmpty()) {
+			//System.out.println("\t\t--> Removing empty "+cv.toString());
+			//System.out.println("\t\t--> Incident CHEdges: "+this.cVertices.get(cv));
+			
+			// Removing from incident compressed hyperedges
+			for(CompressedHEdge ch : this.getIncidentCHEdges(cv)){
+				//System.out.println("\t\t\t--> VSet["+ch.toString()+"] :: "+this.cHEdges.get(ch));
+				this.cHEdges.get(ch).remove(cv);
+			}
+			
+			this.cVertices.remove(cv);
+			this.cVMap.remove(cv.getId());
 			
 			return true;
 			
@@ -304,14 +299,14 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// Returns a Compressed Vertex based on the given id
-	public CompressedVertex getCVertex(int key) {
-		return cVMap.get(key);
+	public CompressedVertex getCVertex(int cv_id) {
+		return this.cVMap.get(cv_id);
 	}	
 
 	// Returns a Compressed Vertex based on the given Vertex
 	public CompressedVertex getCVertex(V v) {
 		
-		for(Entry<CompressedVertex, Set<CompressedHEdge>> entry : cVertices.entrySet())
+		for(Entry<CompressedVertex, Set<CompressedHEdge>> entry : this.cVertices.entrySet())
 			if(entry.getKey().getVSet().containsKey(v.getId()))
 				return entry.getKey();
 		
@@ -319,14 +314,14 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// Returns a Compressed Hyperedge based on the given id
-	public CompressedHEdge getCHEdge(int key) {
-		return cHEMap.get(key);
+	public CompressedHEdge getCHEdge(int ch_id) {
+		return this.cHEMap.get(ch_id);
 	}	
 	
 	// Returns a Compressed Hyperedge based on the given Hyperedge
 	public CompressedHEdge getCHEdge(H h) {
 		
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHEdges.entrySet())
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : this.cHEdges.entrySet())
 			if(entry.getKey().getHESet().containsKey(h.getId()))
 				return entry.getKey();
 		
@@ -336,7 +331,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	// Returns a Compressed Hyperedge if it contains a given set of Compressed vertices
 	public CompressedHEdge getCHEdge(Set<CompressedVertex> cvSet) {
 		
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHEdges.entrySet()) {
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : this.cHEdges.entrySet()) {
 			if(entry.getValue().containsAll(cvSet))
 				return entry.getKey();
 		}
@@ -344,45 +339,24 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		return null;
 	}
 
-	// 
+	// Returns all compressed hyeredges
 	public Map<CompressedHEdge, Set<CompressedVertex>> getcHEdges() {
-		return cHEdges;
+		return this.cHEdges;
 	}
 	
-	// 
+	// Returns all compressed vertices 
 	public Map<CompressedVertex, Set<CompressedHEdge>> getcVertices() {
-		return cVertices;
+		return this.cVertices;
 	}
 	
-	public boolean isSpans2Server(Cluster cluster, WorkloadBatch wb, CompressedHEdge ch) {
-		
-//		for(Entry<Integer, SimpleHEdge> h : ch.getHESet().entrySet()) {
-//			Transaction tr = wb.getTransaction(h.getValue().getId());
-//			tr.calculateSpans(cluster);
-//			
-//			if(tr.getTr_serverSet().size() == 2)
-//				return true;
-//		}
-		
-		Set<Integer> serverSet = new TreeSet<Integer>();
-		
-		for(CompressedVertex cv : wb.hgr.getcHEdges().get(ch)) {
-			serverSet.add(cv.getServer_id());
-//			for(Entry<Integer, SimpleVertex> v : cv.getVSet().entrySet()) {
-//				Data data = cluster.getData(v.getValue().getId());
-//				serverSet.add(data.getData_server_id());
-//			}
-		}
-		
-		if(serverSet.size() == 2)
-			return true;
-		
-		return false;
-	}	
+	// Returns the set of compressed hyperedges covered by the given compressed vertex cv
+	public Set<CompressedHEdge> getIncidentCHEdges(CompressedVertex cv) {
+		return this.cVertices.get(cv);
+	}
 	
-	// Returns the set of Virtual Nodes (Compressed Vertices) covered by the given Hyperedge h
+	// Returns the set of compressed vertices covered by the given compressed hyperedge ch
 	public Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch) {
-		return cHEdges.get(ch);
+		return this.cHEdges.get(ch);
 	}
 	
 	// Returns the set of Partitions covered by the given Hyperedge h

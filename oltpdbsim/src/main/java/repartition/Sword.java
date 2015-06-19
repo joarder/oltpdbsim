@@ -10,6 +10,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import main.java.cluster.Cluster;
+import main.java.entry.Global;
 import main.java.utils.graph.CompressedHEdge;
 import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.SimpleVertex;
@@ -46,7 +47,7 @@ public class Sword {
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		pq = new PriorityQueue<SwordCHEdge>(wb.hgr.getEdges().size(), SwordCHEdge.by_MIN_C_e());		
+		pq = new PriorityQueue<SwordCHEdge>(wb.hgr.getEdges().size(), SwordCHEdge.by_MAX_C_e());		
 				
 		double sum_ndt_e = 0.0;
 		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getcHEdges().entrySet()) {
@@ -83,9 +84,14 @@ public class Sword {
 		}
 		
 		// Testing
-		System.out.println("@ Graph size = "+wb.hgr.getcHEdges().size());
+		System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
+		System.out.println("@ Vertices = "+wb.hgr.getVertexCount());
+		System.out.println("@ Total Data = "+Global.global_dataCount);
+		System.out.println("@ CHEdges = "+wb.hgr.getcHEdges().size());
+		System.out.println("@ CVertices = "+wb.hgr.getcVertices().size());
 		System.out.println("@ hCut size = "+hCut.size());
 		System.out.println("@ vCut size = "+vCut.size());
+		System.out.println("@ VS size = "+VS.size());
 		System.out.println("@ pCut size = "+pCut.size());
 		System.out.println("@ sCut size = "+sCut.size());
 		System.out.println("@ PQ size = "+pq.size());
@@ -230,7 +236,7 @@ public class Sword {
 	}*/
 }
 
-class SwordCHEdge {
+class SwordCHEdge  implements Comparable<SwordCHEdge> {
 	int id;
 	int ndt_e; // Weight of the hyperedge e in the Cut
 	double C_e; // Contribution in DT
@@ -242,7 +248,7 @@ class SwordCHEdge {
 	}
 	
 	// Descending order
-	static Comparator<SwordCHEdge> by_MIN_C_e() {
+	static Comparator<SwordCHEdge> by_MAX_C_e() {
 		return new Comparator<SwordCHEdge>() {
 			@Override
 			public int compare(SwordCHEdge ch1, SwordCHEdge ch2) {
@@ -252,12 +258,39 @@ class SwordCHEdge {
 	}
 	
 	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + id;
+		return result;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SwordCHEdge other = (SwordCHEdge) obj;
+		if (id != other.id)
+			return false;
+		return true;
+	}
+	
+	@Override
+	public int compareTo(SwordCHEdge sCHE) {					
+		return ((this.id > sCHE.id) ? -1 : (this.id < sCHE.id) ? 1 : 0);
+	}
+	
+	@Override
 	public String toString() {
 		return (">> CH("+this.id+") | ndt_e("+this.ndt_e+") | C_e("+this.C_e+")");
 	}
 }
 
-class SwordCVertex {
+class SwordCVertex implements Comparable<SwordCVertex> {
 	int id;
 	int nh_ij; //nh_i_j be the sum of the weights of hyperedges incident on node v_i in partition p_j
 	int partition_id;
@@ -273,6 +306,33 @@ class SwordCVertex {
 		this.vertexSet = new HashSet<Integer>();
 		for(SimpleVertex v : vSet)
 			vertexSet.add(v.getId());				
+	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + id;
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SwordCVertex other = (SwordCVertex) obj;
+		if (id != other.id)
+			return false;
+		return true;
+	}
+	
+	@Override
+	public int compareTo(SwordCVertex sCV) {					
+		return ((this.id > sCV.id) ? -1 : (this.id < sCV.id) ? 1 : 0);
 	}
 	
 	@Override

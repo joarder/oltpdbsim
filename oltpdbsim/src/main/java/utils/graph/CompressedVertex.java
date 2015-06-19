@@ -40,11 +40,6 @@ public class CompressedVertex extends SimpleVertex {
 		
 		this.setWeight(weight);
 	}
-	
-	@Override
-	public String toString() {		
-		return ("CV"+this.getId()+"|"+this.getVSet());
-	}
 		
 	@Override
 	public boolean equals(Object object) {
@@ -68,5 +63,11 @@ public class CompressedVertex extends SimpleVertex {
 	public int compareTo(CompressedVertex cv) {		
 		return (((int)this.getId() < (int)cv.getId()) ? -1 : 
 			((int)this.getId() > (int)cv.getId()) ? 0 : 1);		
+	}
+	
+	
+	@Override
+	public String toString() {
+		return ("CV"+this.getId()+"("+this.getWeight()+") | "+this.getVSet());
 	}
 }

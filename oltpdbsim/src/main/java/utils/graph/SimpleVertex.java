@@ -1,5 +1,6 @@
 package main.java.utils.graph;
 
+
 public class SimpleVertex implements Comparable<SimpleVertex> {
 	
 	private int id;

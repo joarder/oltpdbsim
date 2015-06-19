@@ -127,7 +127,7 @@ public class Workload implements java.io.Serializable {
 							Server s = cluster.getServer(s_id);
 							int p_id = cluster.getRangePartition(s, tbl_id);
 							
-							_id = cluster.insertDataRangePartitioning(tpl_id, s_id, p_id);
+							_id = cluster.insertData_RangePartitioning(tpl_id, s_id, p_id);
 							
 							++s_id;
 							if(s_id > Global.servers)
@@ -136,7 +136,7 @@ public class Workload implements java.io.Serializable {
 							break;
 						
 						case "consistenthash":
-							_id = cluster.insertDataConsistentHash(tpl_id);
+							_id = cluster.insertData_ConsistentHash(tpl_id);
 							break;
 							
 						default:
@@ -148,7 +148,8 @@ public class Workload implements java.io.Serializable {
 					
 				} else if (tpl.getTuple_action().equals("delete")) {
 					
-					if(!Cluster._setup) {
+					//if(!Cluster._setup) {
+					if(Global.sword_cluster_setup) {
 					
 						 // Remove from Cluster
 						switch(Global.setup) {

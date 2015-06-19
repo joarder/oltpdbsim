@@ -44,7 +44,7 @@ public class Cluster {
 	private Map<Integer, Integer> vdata_pid_map;
 	private Map<Integer, String> vdata_uid_map;
 
-	public static boolean _setup;
+	//public static boolean _setup;
 	
 	public Cluster() {
 		
@@ -407,12 +407,12 @@ public class Cluster {
 							Server s = this.getServer(s_id);
 							int p_id = this.getRangePartition(s, tbl_id);			
 							
-							this.insertDataRangePartitioning(tpl.getValue().getTuple_id(), s_id, p_id);
+							this.insertData_RangePartitioning(tpl.getValue().getTuple_id(), s_id, p_id);
 							
 							break;
 						
 						case "consistenthash":
-							this.insertDataConsistentHash(tpl.getValue().getTuple_id());
+							this.insertData_ConsistentHash(tpl.getValue().getTuple_id());
 							break;
 							
 						default:
@@ -430,23 +430,17 @@ public class Cluster {
 //====================================================================================================
 	// Physical Data distribution for SWORD (Compression before setup)
 	private WorkloadBatch vdataDistribution(Database db, Cluster cluster, Workload wrl) {
-		_setup = true;
-		
-		Global.LOGGER.info("-----------------------------------------------------------------------------");		
-		Global.LOGGER.info("Creating "+Global.virtualDataNodes+" compressed vertices from "
-									  +db.getDb_tuple_counts()+" tuples ...");
-		
-		// Initial Data distribution
-		//this.physicalDataDistribution(db);
+		//_setup = true;
+		Global.sword_cluster_setup = true;
 
 		// Stream a new Workload Batch
 		Global.global_trSeq = 0;
 		WorkloadBatch wb = this.warmupSword(db, this, wrl);
 		
 		Global.LOGGER.info("Total "+Global.global_trSeq+" transactions containing "
-								   +wb.getWrl_totalDataObjects()+" data rows have streamed and processed.");
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		
+								   +wb.getWrl_totalDataObjects()+" data rows have streamed and processed.");				
+		Global.LOGGER.info("-----------------------------------------------------------------------------");		
+
 		// A single compressed hypergraph partitioning using k-way min-cut		
 		// Generate workload file
 		boolean empty = false;
@@ -471,10 +465,10 @@ public class Cluster {
 				WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
 			} catch (IOException e) {
 				Global.LOGGER.error("Error in processing part file !!!", e);
-			}					
+			}		
 			
-			// Perform data movement			
-			DataMigration.performDataMigration(cluster, wb);					
+			// Perform Data migrations
+			DataMigration.performDataMigration(cluster, wb);
 			
 			// Update server-level load statistic and show
 			cluster.updateLoad();
@@ -483,17 +477,15 @@ public class Cluster {
 			Global.LOGGER.info("=======================================================================================================================");
 		}
 		
-		// Initialize Sword's incremental repartitioning algorithm		
-		//wb.sword.init(cluster, wb);
-		
-		_setup = false;
+		Global.sword_cluster_setup = false;
+		//_setup = false;
 		
 		return wb;
 	}
 
 //====================================================================================================
 	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {	
-		Global.sword_cluster_setup = true;
+		//Global.sword_cluster_setup = true;
 		WorkloadBatch wb = new WorkloadBatch(Global.repeated_runs);
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -527,7 +519,7 @@ public class Cluster {
 		wb.setWrl_totalDataObjects(Global.global_dataCount);
 		wb.setDb_tuple_counts(db.getDb_tuple_counts());
 		
-		Global.sword_cluster_setup = false;
+		//Global.sword_cluster_setup = false;
 		return wb;
 	}
 	
@@ -556,7 +548,7 @@ public class Cluster {
 	}
 	
 //====================================================================================================
-	public int insertDataRangePartitioning(int _id, int s_id, int p_id) {
+	public int insertData_RangePartitioning(int _id, int s_id, int p_id) {
 		++Global.global_dataCount;
 		
 		int[] replicas = new int[Global.replicas];
@@ -686,7 +678,7 @@ public class Cluster {
 	
 //====================================================================================================	
 	// Insert a new Data and its replicas in the Cluster
-	public int insertDataConsistentHash(int _id) {
+	public int insertData_ConsistentHash(int _id) {
 		
 		++Global.global_dataCount;
 		

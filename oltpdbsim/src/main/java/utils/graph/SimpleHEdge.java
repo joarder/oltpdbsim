@@ -25,11 +25,6 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 	public void setWeight(int tr_frequency) {
 		this.weight = tr_frequency;
 	}
-	
-	@Override
-	public String toString() {		
-		return ("HE"+this.getId());
-	}
 		
 	@Override
 	public boolean equals(Object object) {
@@ -52,5 +47,10 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 	public int compareTo(SimpleHEdge e) {		
 		return (((int)this.getId() < (int)e.getId()) ? -1 : 
 			((int)this.getId() > (int)e.getId()) ? 1 : 0);		
+	}
+	
+	@Override
+	public String toString() {		
+		return ("HE"+this.getId()+"("+this.weight+")");
 	}
 }
