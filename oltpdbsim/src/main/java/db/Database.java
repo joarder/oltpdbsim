@@ -5,8 +5,10 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
 import main.java.entry.Global;
 import main.java.utils.Utility;
+import main.java.workload.Workload;
 
 public class Database implements java.io.Serializable {	
 
@@ -170,7 +172,30 @@ public class Database implements java.io.Serializable {
 			Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into "+tbl.getTbl_name()+" table.");
 		} //--end for()--table
 		
-		this.updateTupleCounts();
-		Global.LOGGER.info("After initial population, total tuples: "+this.getDb_tuple_counts());		
+		this.updateTupleCounts();		
+	}
+	
+	public void setupDbCache(Database db, Workload wrl) {
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Setting up database cache ...");		
+
+		wrl.warmingup = true;
+		
+		// i -- Transaction types
+		for(int i = 1; i <= wrl.tr_types; i++) {
+			// Calculate the number of transactions to be created for a specific type
+			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
+			//Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
+
+			// j -- number of Transactions for a specific Transaction type
+			for(int j = 1; j <= tr_nums; j++) {		
+				wrl.getTrTupleSet(db, i);
+			}			
+		}
+		
+		wrl.warmingup = false;
+		db.updateTupleCounts();
+		
+		Global.LOGGER.info("After initial population and cache setup, total db tuples are "+this.getDb_tuple_counts()+".");
 	}
 }

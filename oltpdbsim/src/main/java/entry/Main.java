@@ -46,14 +46,12 @@ public class Main {
 					// Read TPCC configurations
 					tpcc.readConfig();
 					
-					// Estimate initial Table sizes
-					tpccDatabase.estimateTableSize(tpcc);
-					
-					// Populate initial Database
-					tpccDatabase.populate();
-					
-					// Warm up					
-					dbCluster.warmup(tpccDatabase, tpcc);
+					// Estimate initial table sizes
+					// Populate initial database
+					// Populate initial database cache
+					tpccDatabase.estimateTableSize(tpcc);					
+					tpccDatabase.populate();									
+					tpccDatabase.setupDbCache(tpccDatabase, tpcc);
 					
 					// Create a database cluster consisted of a set of physical servers and a consistent hash ring to store the physical data tuples
 					WorkloadBatch wb = dbCluster.setup(tpccDatabase, tpcc);

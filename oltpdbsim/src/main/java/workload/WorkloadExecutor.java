@@ -100,6 +100,9 @@ public class WorkloadExecutor {
 	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
 	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
 	
+	// Sword specific
+	public static boolean sword_initial;
+	
     public WorkloadExecutor() {
         
         MRG32k3a rand = new MRG32k3a();                
@@ -111,7 +114,7 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 		
-		uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);				
+		uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
@@ -358,8 +361,7 @@ public class WorkloadExecutor {
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
 		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
 				
-		//if(!Global.compressionBeforeSetup)
-			wb = new WorkloadBatch(Global.repeated_runs);
+		wb = new WorkloadBatch(Global.repeated_runs);
 		
 		// RBPTA specific -- will be removed
 		if(Global.dataMigrationStrategy.equals("rbpta"))
@@ -444,14 +446,14 @@ public class WorkloadExecutor {
 			
 			int k_clusters = 0;
 			
-			if(Global.trClassificationStrategy.equals("fcimining"))
+			if(Global.associative)
 				k_clusters = Global.servers;
 			else
 				k_clusters = Global.partitions;
 			
 			Global.LOGGER.info("Starting partitioner to repartition the workload into "+k_clusters+" clusters ...");	
 			
-			// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
+			// Perform k-way graph/hypergraph/compressed hypergraph clustering			 
 			MinCut.runMinCut(wb, k_clusters, true);
 
 			// Mapping cluster id to partition id
@@ -486,7 +488,7 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting database repartitioning ...");
 		
-		if(!Global.dataMigrationStrategy.equals("rbpta") || !Global.dataMigrationStrategy.equals("sword")) {						
+		if(!Global.dataMigrationStrategy.equals("rbpta")) {						
 			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
 			if(Global.enableTrClassification) {
 				Global.LOGGER.info("Identifying most frequently occurred transactions ...");
@@ -515,7 +517,7 @@ public class WorkloadExecutor {
 			
 			if(!Global.associative) {
 				Global.LOGGER.info("Total "+wb.hgr.getEdgeCount()+" transactions containing "
-						+wb.hgr.getVertexCount()+" data objects have identified for repartitioning.");
+						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
 				if(Global.graphcutBasedRepartitioning)
@@ -706,7 +708,7 @@ class Arrival extends Event {
 			
 			if(Global.workloadAware) {
 				
-				if(Global.incrementalRepartitioning) { // 3. Incremental Repartitioning
+				if(Global.incrementalRepartitioning && !WorkloadExecutor.sword_initial) { // 3. Incremental Repartitioning
 					
 					if(isRepartRequired()) { // Checks for both Hourly and Threshold-based repartitioning						
 						++Global.repartitioningCycle;
@@ -764,7 +766,7 @@ class Arrival extends Event {
 					
 				} else { // 2. Static Repartitioning
 
-					if(Global.singleRun) {
+					if(Global.repartStatic) {
 						Global.LOGGER.info("-----------------------------------------------------------------------------");
 						Global.LOGGER.info("Current simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 						Global.LOGGER.info("<-- Static Repartioning -->");
@@ -773,7 +775,12 @@ class Arrival extends Event {
 						// Repartition the database for a single time
 						WorkloadExecutor.startRepartitioning(cluster, wb);
 						
-						Global.singleRun = false;
+						// Prevents future repartitioning
+						Global.repartStatic = false;
+						
+						// Sword single repartitioning is completed
+						if(Global.compressionBeforeSetup)
+							Global.sword_initial = false;
 						
 					} else { 						
 						// Hourly statistic collection

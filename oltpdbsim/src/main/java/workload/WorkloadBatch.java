@@ -4,21 +4,19 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
-import main.java.repartition.Sword;
+import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimHypergraph;
 import main.java.utils.graph.SimpleHEdge;
-import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import umontreal.iro.lecuyer.simevents.Sim;
 
@@ -26,13 +24,10 @@ public class WorkloadBatch {
 	
 	private int wrl_id;
 	
-	private SortedMap<Integer, Map<Integer, Transaction>> trMap;	
+	private Map<Integer, Map<Integer, Transaction>> trMap;	
 	
 	// Hypergraph	
 	public ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
-	
-	// Sword specific
-	public Sword sword;
 		
 	// To keep track of edge id and corresponding hyperedge/transaction id
 	public Map<Integer, Set<Integer>> edge_id_map;
@@ -42,8 +37,7 @@ public class WorkloadBatch {
 	private int db_tuple_counts;	
 	private int wrl_total_data;	
 	
-	private Map<Integer, Integer> wrl_dataId_clusterId_map;	
-	private Map<Integer, Integer> wrl_virtualDataId_clusterId_map;
+	private Map<Integer, Integer> wrl_dataId_clusterId_map;
 	
 	// Workload files for partitioning
 	private String wrl_file_name;
@@ -80,27 +74,22 @@ public class WorkloadBatch {
 		this.set_old_dt_nums(0);
 		this.set_old_ndt_nums(0);
 		
-		this.setTrMap(new TreeMap<Integer, Map<Integer, Transaction>>());
+		this.setTrMap(new HashMap<Integer, Map<Integer, Transaction>>());
 		
-		this.setWrl_dataId_clusterId_map(new TreeMap<Integer, Integer>());
-		this.setWrl_virtualDataId_clusterId_map(new TreeMap<Integer, Integer>());		
+		this.setWrl_dataId_clusterId_map(new HashMap<Integer, Integer>());		
 		
 		this.hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();		
 		
 		switch(Global.workloadRepresentation) {
 			case "gr":
 				if(Global.compressionEnabled)
-					this.cEdge_id_map = new TreeMap<Integer, Integer>();
+					this.cEdge_id_map = new HashMap<Integer, Integer>();
 					
 				break;
 				
 			case "hgr":
-				if(Global.compressionEnabled) {
-					this.cHEdge_id_map = new TreeMap<Integer, Integer>();
-					
-					if(Global.compressionBeforeSetup)// && !Global.sword_cluster_setup)
-						this.sword = new Sword();
-				}
+				if(Global.compressionEnabled)
+					this.cHEdge_id_map = new HashMap<Integer, Integer>();
 				
 				break;
 		}
@@ -114,11 +103,11 @@ public class WorkloadBatch {
 		this.wrl_id = wrl_id;
 	}
 
-	public SortedMap<Integer, Map<Integer, Transaction>> getTrMap() {
+	public Map<Integer, Map<Integer, Transaction>> getTrMap() {
 		return trMap;
 	}
 
-	public void setTrMap(SortedMap<Integer, Map<Integer, Transaction>> trMap) {
+	public void setTrMap(Map<Integer, Map<Integer, Transaction>> trMap) {
 		this.trMap = trMap;
 	}
 
@@ -303,15 +292,6 @@ public class WorkloadBatch {
 		this.wrl_dataId_clusterId_map = wrl_dataId_clusterId_map;
 	}
 
-	public Map<Integer, Integer> getWrl_virtualDataId_clusterId_map() {
-		return wrl_virtualDataId_clusterId_map;
-	}
-
-	public void setWrl_virtualDataId_clusterId_map(
-			Map<Integer, Integer> wrl_virtualDataId_clusterId_map) {
-		this.wrl_virtualDataId_clusterId_map = wrl_virtualDataId_clusterId_map;
-	}
-
 	public String getWrl_file_name() {
 		return wrl_file_name;
 	}
@@ -378,12 +358,7 @@ public class WorkloadBatch {
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		int tr_frequency = 0;
-		
-		if(Global.compressionBeforeSetup && Global.sword_cluster_setup)
-			tr_frequency = 1; // Warming up with Sword initial workload
-		else
-			tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
+		int tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
 				
 		if(h != null) {
 			this.hgr.updateHEdgeWeight(h, tr_frequency);
@@ -396,7 +371,7 @@ public class WorkloadBatch {
 	
 	// Converts a set of transactional data set into a set of vertices
 	public Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {		
-		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
+		Set<SimpleVertex> trSet = new HashSet<SimpleVertex>();
 		
 		for(Integer d : trDataSet) {
 			Data data = cluster.getData(d);			
@@ -492,7 +467,7 @@ public class WorkloadBatch {
 	// Remove a data id from the given list of transactions (Only at the time of new Transaction generation)
 	public void deleteDataFromTr(int data_id, ArrayList<Integer> trList) {
 		
-		for(Integer tr_id : trList) {
+		for(int tr_id : trList) {
 			//System.out.println("@ Removing "+data_id+" from T"+tr_id);
 			Transaction tr = this.getTransaction(tr_id);
 			tr.getTr_dataSet().remove(data_id);

@@ -9,7 +9,6 @@ public class Data implements Comparable<Data> {
 	private int data_weight;
 	
 	private int data_table_id;
-	private int data_vdata_id; // used for SWORD only
 	private int data_partion_id;
 	private int data_server_id;
 	private String data_label;
@@ -19,7 +18,7 @@ public class Data implements Comparable<Data> {
 	private int data_chmetis_cluster_id;
 	private int data_metis_cluster_id;
 	private int data_shadow_id;
-	private int data_virtual_node_id;
+	private int data_compressed_data_id;
 	private boolean data_hasShadowId;
 	private boolean data_inUse;
 	// 	
@@ -37,7 +36,6 @@ public class Data implements Comparable<Data> {
 		this.setData_weight(1);
 		
 		this.setData_table_id(t_id);
-		this.setData_vdata_id(v_id);
 		this.setData_partion_id(p_id);
 		this.setData_server_id(s_id);
 		this.setData_label("d"+this.getData_id());
@@ -46,7 +44,7 @@ public class Data implements Comparable<Data> {
 		this.setData_chmetisClusterId(-1);
 		this.setData_metisClusterId(-1);
 		this.setData_shadowId(-1);		
-		this.setData_virtual_data_id(-1);
+		this.setData_compressed_data_id(v_id);
 		this.setData_hasShadowId(false);
 		this.setData_inUse(false);
 		
@@ -99,14 +97,6 @@ public class Data implements Comparable<Data> {
 		this.data_table_id = data_table_id;
 	}
 
-	public int getData_vdata_id() {
-		return data_vdata_id;
-	}
-
-	public void setData_vdata_id(int data_vdata_id) {
-		this.data_vdata_id = data_vdata_id;
-	}
-
 	public int getData_partition_id() {
 		return data_partion_id;
 	}
@@ -155,12 +145,12 @@ public class Data implements Comparable<Data> {
 		this.data_shadow_id = data_shadow_id;
 	}
 
-	public int getData_virtual_data_id() {
-		return data_virtual_node_id;
+	public int getData_compressed_data_id() {
+		return data_compressed_data_id;
 	}
 
-	public void setData_virtual_data_id(int data_virtual_node_id) {
-		this.data_virtual_node_id = data_virtual_node_id;
+	public void setData_compressed_data_id(int data_virtual_node_id) {
+		this.data_compressed_data_id = data_virtual_node_id;
 	}
 
 	public boolean isData_hasShadowId() {

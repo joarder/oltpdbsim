@@ -336,15 +336,9 @@ public class TransactionClassifier {
 	
 	// Remove the non-movable non-DT edges from Graph and Hypergraph
 	private static void remove(Cluster cluster, WorkloadBatch wb) {		
-		
 		for(Integer i : toBeRemoved) {
-			
-			// Remove from Hypergraph
 			SimpleHEdge h = wb.hgr.getHEdge(i);
 			wb.hgr.removeHEdge(h);
-			
-			if(Global.compressionBeforeSetup && Sword.hCut.contains(h))
-				Sword.hCut.remove(h);
 		}				
 	}
 	

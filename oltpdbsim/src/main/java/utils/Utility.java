@@ -24,6 +24,18 @@ import main.java.entry.Global;
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
+
+	// Randomly shuffles a given Array
+	public static void shuffleArray(int[] array) {
+	    int index, temp;	    
+	    for (int i = array.length - 1; i > 1; i--)
+	    {
+	        index = Global.rand.nextInt(i-1) + 1;
+	        temp = array[index];
+	        array[index] = array[i];
+	        array[i] = temp;
+	    }
+	}
 	
 	// Collected from http://rosettacode.org/wiki/Remove_lines_from_a_file#Java
 	public static void deleteLinesFromFile(String filename, int startline, int numlines) {

@@ -1,6 +1,5 @@
 package main.java.cluster;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -8,7 +7,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.db.Database;
@@ -16,11 +14,7 @@ import main.java.db.Table;
 import main.java.db.Tuple;
 import main.java.entry.Global;
 import main.java.metric.Metric;
-import main.java.repartition.DataMigration;
-import main.java.repartition.MinCut;
-import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.Utility;
-import main.java.workload.Transaction;
 import main.java.workload.Workload;
 import main.java.workload.WorkloadBatch;
 
@@ -34,17 +28,15 @@ public class Cluster {
 	private Map<Integer, ArrayList<Integer>> partition_map;
 	private Map<Integer, HashSet<Integer>> data_map;
 	
-	private Map<Integer, VirtualData> vdataSet;
+	private Map<Integer, CompressedData> cDataSet;
 	
 	private ConsistentHashRing<Long> cluster_ring;
 	private Map<Long, Integer> ring_map;
 	private Map<Integer, ArrayList<Long>> partition_keyRange;
 	
 	private Map<Integer, String> data_uid_map;
-	private Map<Integer, Integer> vdata_pid_map;
-	private Map<Integer, String> vdata_uid_map;
-
-	//public static boolean _setup;
+	private Map<Integer, Integer> cData_pid_map;
+	private Map<Integer, String> cData_uid_map;
 	
 	public Cluster() {
 		
@@ -71,9 +63,9 @@ public class Cluster {
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		
 		if(Global.compressionBeforeSetup) {
-			this.setVdataSet(new HashMap<Integer, VirtualData>());
-			this.setVdata_pid_map(new HashMap<Integer, Integer>());
-			this.setVdata_uid_map(new HashMap<Integer, String>()); // For consistent hashing
+			this.setCDataSet(new HashMap<Integer, CompressedData>());
+			this.setCData_pid_map(new HashMap<Integer, Integer>());
+			this.setCData_uid_map(new HashMap<Integer, String>()); // For consistent hashing
 		}
 	}
 	
@@ -101,12 +93,12 @@ public class Cluster {
 		this.serverSet = serverSet;
 	}
 
-	public Map<Integer, VirtualData> getVdataSet() {
-		return vdataSet;
+	public Map<Integer, CompressedData> getCDataSet() {
+		return cDataSet;
 	}
 
-	public void setVdataSet(Map<Integer, VirtualData> vdataSet) {
-		this.vdataSet = vdataSet;
+	public void setCDataSet(Map<Integer, CompressedData> vdataSet) {
+		this.cDataSet = vdataSet;
 	}
 
 	public ConsistentHashRing<Long> getRing() {
@@ -157,20 +149,20 @@ public class Cluster {
 		this.data_uid_map = data_uid_map;
 	}
 
-	public Map<Integer, Integer> getVdata_pid_map() {
-		return vdata_pid_map;
+	public Map<Integer, Integer> getCData_pid_map() {
+		return cData_pid_map;
 	}
 
-	public void setVdata_pid_map(Map<Integer, Integer> vdata_pid_map) {
-		this.vdata_pid_map = vdata_pid_map;
+	public void setCData_pid_map(Map<Integer, Integer> cData_pid_map) {
+		this.cData_pid_map = cData_pid_map;
 	}
 
-	public Map<Integer, String> getVdata_uid_map() {
-		return vdata_uid_map;
+	public Map<Integer, String> getCData_uid_map() {
+		return cData_uid_map;
 	}
 
-	public void setVdata_uid_map(Map<Integer, String> vdata_uid_map) {
-		this.vdata_uid_map = vdata_uid_map;
+	public void setCData_uid_map(Map<Integer, String> cData_uid_map) {
+		this.cData_uid_map = cData_uid_map;
 	}
 
 //====================================================================================================
@@ -255,14 +247,10 @@ public class Cluster {
 				
 		// Determine the number of Virtual Data Nodes to be created
 		if(Global.compressionEnabled)
-			Global.virtualDataNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+			Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
 		// Physical Data Distribution
-		this.physicalDataDistribution(db);
-		
-		// Virtual Data Distribution for Sword
-		if(Global.compressionBeforeSetup)
-			wb = this.vdataDistribution(db, this, wrl);		
+		this.physicalDataDistribution(db);	
 		
 		// Update server-level load statistic and show
 		this.updateLoad();
@@ -346,16 +334,12 @@ public class Cluster {
 					+"End["+p.getPartition_end_key()+"]");			
 		}
 		
-		// Determine the number of Virtual Data Nodes to be created
-		if(Global.compressionEnabled)
-			Global.virtualDataNodes = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+		// Determine the number of compressed data nodes to be created
+		//if(Global.compressionEnabled)
+		Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
 		// Physical Data Distribution
 		this.physicalDataDistribution(db);
-		
-		// Virtual Data Distribution for Sword
-		if(Global.compressionBeforeSetup)
-			wb = this.vdataDistribution(db, this, wrl);		
 		
 		// Update server-level load statistic and show
 		this.updateLoad();
@@ -426,126 +410,6 @@ public class Cluster {
 			Global.LOGGER.info(""+tbl.toString());
 		}
 	}
-
-//====================================================================================================
-	// Physical Data distribution for SWORD (Compression before setup)
-	private WorkloadBatch vdataDistribution(Database db, Cluster cluster, Workload wrl) {
-		//_setup = true;
-		Global.sword_cluster_setup = true;
-
-		// Stream a new Workload Batch
-		Global.global_trSeq = 0;
-		WorkloadBatch wb = this.warmupSword(db, this, wrl);
-		
-		Global.LOGGER.info("Total "+Global.global_trSeq+" transactions containing "
-								   +wb.getWrl_totalDataObjects()+" data rows have streamed and processed.");				
-		Global.LOGGER.info("-----------------------------------------------------------------------------");		
-
-		// A single compressed hypergraph partitioning using k-way min-cut		
-		// Generate workload file
-		boolean empty = false;
-		try {
-			empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
-			
-		} catch (IOException e) {			
-			Global.LOGGER.error("Error in creating workload file !!!", e);
-		}
-		
-		if(!empty) {
-			int partitions = Global.partitions;
-			Global.LOGGER.info("Repartitioning the workload into "+partitions+" clusters ...");	
-			
-			// Perform hyper-graph/graph/compressed hyper-graph partitioning			 
-			MinCut.runMinCut(wb, partitions, true);
-
-			// Mapping cluster id to partition id
-			Global.LOGGER.info("Applying data movement strategies for database ("+db.getDb_name()+") ...");
-			
-			try {
-				WorkloadBatchProcessor.processPartFile(cluster, wb, partitions);
-			} catch (IOException e) {
-				Global.LOGGER.error("Error in processing part file !!!", e);
-			}		
-			
-			// Perform Data migrations
-			DataMigration.performDataMigration(cluster, wb);
-			
-			// Update server-level load statistic and show
-			cluster.updateLoad();
-			cluster.show();
-			
-			Global.LOGGER.info("=======================================================================================================================");
-		}
-		
-		Global.sword_cluster_setup = false;
-		//_setup = false;
-		
-		return wb;
-	}
-
-//====================================================================================================
-	private WorkloadBatch warmupSword(Database db, Cluster cluster, Workload wrl) {	
-		//Global.sword_cluster_setup = true;
-		WorkloadBatch wb = new WorkloadBatch(Global.repeated_runs);
-		
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Initiating SWORD based virtual node distribution ...");
-		Global.LOGGER.info("Targeting 1hr workload streaming ...");
-		
-		// i -- Transaction types
-		for(int i = 1; i <= wrl.tr_types; i++) {
-			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow/4); // 3600 transactions ~ 1hr workload			
-			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
-
-			// j -- number of Transactions for a specific Transaction type
-			for(int j = 1; j <= tr_nums; j++) {		
-				Set<Integer> trTupleSet = wrl.getTrTupleSet(db, i);
-				Set<Integer> trDataSet = Workload.getTrDataSet(db, cluster, wb, trTupleSet);
-				
-				if(!wb.getTrMap().containsKey(i))
-					wb.getTrMap().put(i, new TreeMap<Integer, Transaction>());	
-				
-				++Global.global_trSeq;
-				Transaction tr = new Transaction(Global.global_trSeq, i, trDataSet, -1);
-				
-				wb.getTrMap().get(i).put(tr.getTr_id(), tr);
-				
-				// Add a hyperedge to Workload Hypergraph
-				wb.addHGraphEdge(this, tr);
-			}			
-		}
-
-		wb.setWrl_totalDataObjects(Global.global_dataCount);
-		wb.setDb_tuple_counts(db.getDb_tuple_counts());
-		
-		//Global.sword_cluster_setup = false;
-		return wb;
-	}
-	
-//====================================================================================================	
-	public void warmup(Database db, Workload wrl) {
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Warming up the workload ...");
-		Global.LOGGER.info("Targeting "+1000+" transaction generation ...");		
-
-		wrl.warmingup = true;
-		
-		// i -- Transaction types
-		for(int i = 1; i <= wrl.tr_types; i++) {
-			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
-			Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
-
-			// j -- number of Transactions for a specific Transaction type
-			for(int j = 1; j <= tr_nums; j++) {		
-				wrl.getTrTupleSet(db, i);
-			}			
-		}
-		
-		wrl.warmingup = false;
-		db.updateTupleCounts();
-	}
 	
 //====================================================================================================
 	public int insertData_RangePartitioning(int _id, int s_id, int p_id) {
@@ -554,7 +418,7 @@ public class Cluster {
 		int[] replicas = new int[Global.replicas];
 		
 		Data d = null;
-		VirtualData v = null;
+		CompressedData c = null;
 
 		// Break up the Data id to extract the Tuple's primary key and Table id
 		String[] parts = this.breakDataId(_id);
@@ -565,43 +429,40 @@ public class Cluster {
 		Partition p = this.getPartition(p_id);
 		
 		// Create a new Data object and its replicas
-		for(int repl = 1; repl <= Global.replicas; repl++) {
-			
+		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
-						
+			int cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);	
+			
 			if(Global.compressionBeforeSetup) {
-				
-				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
-				
-				// Create a Virtual Data if required
-				if(!this.vdataSet.containsKey(v_id)) {					
-					v = new VirtualData(v_id, null);
-					this.vdataSet.put(v_id, v);
+				// Create a Compressed Data if required
+				if(!this.cDataSet.containsKey(cData_id)) {					
+					c = new CompressedData(cData_id, null);
+					this.cDataSet.put(cData_id, c);
 					
 				} else {
-					v = this.vdataSet.get(v_id);
+					c = this.cDataSet.get(cData_id);
 				}
 			
 				// Create an entry in the vData---Partition map
-				this.getVdata_pid_map().put(v_id, p_id);
+				this.getCData_pid_map().put(cData_id, p_id);
 				
 				// Create the new Data
-				d = new Data(Integer.parseInt(d_id), tbl_id, v_id, p.getPartition_id(), p.getPartition_serverId());
+				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
 				d.setData_uid(null);
 				
 				// Set Partition, and Server id for the Virtual Data Node
-				v.setVdata_partition_id(p.getPartition_id());
-				v.setVdata_server_id(p.getPartition_serverId());
+				c.setVdata_partition_id(p.getPartition_id());
+				c.setVdata_server_id(p.getPartition_serverId());
 				
 				// Add the corresponding Data id into the Virtual Data Node
-				v.getVdata_set().add(d.getData_id());
+				c.getVdata_set().add(d.getData_id());
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
 				
 			} else {
 				
-				d = new Data(Integer.parseInt(d_id), tbl_id, -1, p.getPartition_id(), p.getPartition_serverId());				
+				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());				
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -643,18 +504,17 @@ public class Cluster {
 		int tpl_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
-		for(int repl = 1; repl <= Global.replicas; repl++) {
-			
+		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {
-				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
-				int p_id = this.getVdata_pid_map().get(v_id);
+				int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+				int p_id = this.getCData_pid_map().get(v_id);
 
 				// Find the corresponding Partition from the Consistent Hash Ring
 				p = this.getPartition(p_id);
 				
-				VirtualData v = this.vdataSet.get(v_id);
+				CompressedData v = this.cDataSet.get(v_id);
 				v.getVdata_set().remove(Integer.parseInt(d_id));
 				
 			} else {				
@@ -685,7 +545,7 @@ public class Cluster {
 		int[] replicas = new int[Global.replicas];
 		
 		Data d = null;
-		VirtualData v = null;		
+		CompressedData c = null;		
 		Partition p = null;
 		Server s = null;
 
@@ -698,40 +558,38 @@ public class Cluster {
 		for(int repl = 1; repl <= Global.replicas; repl++) {
 			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
+			int cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
 						
-			if(Global.compressionBeforeSetup) {
-				
-				String v_uid = null;
-				
-				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
-				
-				// Create a Virtual Data if required
-				if(!this.vdataSet.containsKey(v_id)) {
+			if(Global.compressionBeforeSetup) {				
+				String c_uid = null;				
+
+				// Create a compressed data if required
+				if(!this.cDataSet.containsKey(cData_id)) {
 					
-					v_uid = Utility.getRandomAlphanumericString();						
-					vdata_uid_map.put(v_id, v_uid);
+					c_uid = Utility.getRandomAlphanumericString();						
+					cData_uid_map.put(cData_id, c_uid);
 					
-					v = new VirtualData(v_id, v_uid);
-					this.vdataSet.put(v_id, v);
+					c = new CompressedData(cData_id, c_uid);
+					this.cDataSet.put(cData_id, c);
 					
 				} else {
-					v = this.vdataSet.get(v_id);
-					v_uid = this.vdata_uid_map.get(v_id);
+					c = this.cDataSet.get(cData_id);
+					c_uid = this.cData_uid_map.get(cData_id);
 				}
 				
 				// Find the corresponding Partition from the Consistent Hash Ring
-				p = this.getPartition(v_uid);
+				p = this.getPartition(c_uid);
 				
 				// Create the new Data
-				d = new Data(Integer.parseInt(d_id), tbl_id, v_id, p.getPartition_id(), p.getPartition_serverId());
-				d.setData_uid(v_uid);
+				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
+				d.setData_uid(c_uid);
 				
-				// Set Partition, and Server id for the Virtual Data Node
-				v.setVdata_partition_id(p.getPartition_id());
-				v.setVdata_server_id(p.getPartition_serverId());
+				// Set Partition, and Server id for the compressed data
+				c.setVdata_partition_id(p.getPartition_id());
+				c.setVdata_server_id(p.getPartition_serverId());
 				
-				// Add the corresponding Data id into the Virtual Data Node
-				v.getVdata_set().add(d.getData_id());
+				// Add the corresponding Data id into the compressed data
+				c.getVdata_set().add(d.getData_id());
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -744,7 +602,7 @@ public class Cluster {
 				// Find the corresponding Partition from the Consistent Hash Ring
 				p = this.getPartition(_uid);			
 				
-				d = new Data(Integer.parseInt(d_id), tbl_id, -1, p.getPartition_id(), p.getPartition_serverId());				
+				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());				
 				d.setData_uid(_uid);
 				
 				// Assign Data to Partition
@@ -783,13 +641,13 @@ public class Cluster {
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {
-				int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
-				String v_uid = this.getVdata_uid_map().get(v_id);
+				int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+				String v_uid = this.getCData_uid_map().get(v_id);
 
 				// Find the corresponding Partition from the Consistent Hash Ring
 				p = this.getPartition(v_uid);
 				
-				VirtualData v = this.vdataSet.get(v_id);
+				CompressedData v = this.cDataSet.get(v_id);
 				v.getVdata_set().remove(Integer.parseInt(d_id));
 				
 			} else {				
@@ -838,8 +696,8 @@ public class Cluster {
 					String[] parts = Cluster.getTplIdFromDataId(d_id);
 					int tpl_pk = Integer.parseInt(parts[0]);
 					
-					int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);
-					int p_id = this.getVdata_pid_map().get(v_id);
+					int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
+					int p_id = this.getCData_pid_map().get(v_id);
 					p = this.getPartition(p_id);
 					
 				} else {
@@ -855,8 +713,8 @@ public class Cluster {
 					String[] parts = Cluster.getTplIdFromDataId(d_id);
 					int tpl_pk = Integer.parseInt(parts[0]);
 					
-					int v_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);				
-					String v_uid = this.getVdata_uid_map().get(v_id);
+					int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+					String v_uid = this.getCData_uid_map().get(v_id);
 
 					// Find the corresponding Partition from the Consistent Hash Ring
 					p = this.getPartition(v_uid);			

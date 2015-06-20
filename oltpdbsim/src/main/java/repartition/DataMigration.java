@@ -18,7 +18,7 @@ import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
-import main.java.cluster.VirtualData;
+import main.java.cluster.CompressedData;
 import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.metric.Metric;
@@ -100,18 +100,6 @@ public class DataMigration {
 				"      (Row :: Pre-Partition Id, Col :: Cluster Id, Elements :: Data Occurrence Counts)");
 	}
 	
-	private static void shuffleArray(int[] array)
-	{
-	    int index, temp;	    
-	    for (int i = array.length - 1; i > 1; i--)
-	    {
-	        index = Global.rand.nextInt(i-1) + 1;
-	        temp = array[index];
-	        array[index] = array[i];
-	        array[i] = temp;
-	    }
-	}
-	
 	private static void baseRandom(Cluster cluster, WorkloadBatch wb, String partitioner) {
 		setEnvironment(cluster);
 		
@@ -128,7 +116,8 @@ public class DataMigration {
 		}
 		
 		//System.out.println(">> "+mapping.getN()+"|"+arr.length);		
-		shuffleArray(arr);
+		if(!WorkloadExecutor.sword_initial)
+			Utility.shuffleArray(arr);
 		
 		// Create Key-Value (Destination PID-Cluster ID) Mappings from Mapping Matrix
 		Map<Integer, Integer> keyMap = new TreeMap<Integer, Integer>();		
@@ -319,6 +308,33 @@ public class DataMigration {
 		}
 	}
 	
+	// Sword - incremental repartitioning	
+	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {		
+		if(WorkloadExecutor.sword_initial) {
+			Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");
+			baseRandom(cluster, wb, partitioner);
+			
+		} else {
+			setEnvironment(cluster);		
+			Sword.populatePQ(cluster, wb);
+			
+			while(!Sword.pq.isEmpty()) {
+				System.out.println(Sword.pq.poll().toString());
+			}
+		}
+	}
+	
+	// RBPTA - Swapping partitions
+	private static void strategyRBPTA(Cluster cluster, WorkloadBatch wb) {
+		setEnvironment(cluster);
+		IntPair pSet = RBPTA.migrationDecision(cluster);
+	
+		if(pSet != null)
+			swapPartitions(cluster, wb, pSet);			
+		else
+			Global.LOGGER.info("Partition swapping is not required or will not improve the situation at this moment !!!");
+	}
+		
 	// RBSTA and FCIMining specific
 	public static void migrate(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
 		
@@ -360,35 +376,8 @@ public class DataMigration {
 			}
 		}
 	}
-		
-	// Sword - incremental repartitioning	
-	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {
-		if(Global.sword_cluster_setup) {
-			swordInitialRepartitioning(cluster, wb);
-			
-		} else {
-			setEnvironment(cluster);		
-			Sword.populatePQ(cluster, wb);
-		
-		}
-	}
 	
-	// Sword - initial repartitioning
-	private static void swordInitialRepartitioning(Cluster cluster, WorkloadBatch wb) {
-		baseRandom(cluster, wb, Global.workloadRepresentation);
-	}
-	
-	// RBPTA - Swapping partitions
-	private static void strategyRBPTA(Cluster cluster, WorkloadBatch wb) {
-		setEnvironment(cluster);
-		IntPair pSet = RBPTA.migrationDecision(cluster);
-
-		if(pSet != null)
-			swapPartitions(cluster, wb, pSet);			
-		else
-			Global.LOGGER.info("Partition swapping is not required or will not improve the situation at this moment !!!");
-	}
-	
+	// RBPTA specific
 	private static void swapPartitions(Cluster cluster, WorkloadBatch wb, IntPair pSet) {
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------------------------------------------------");
@@ -455,7 +444,7 @@ public class DataMigration {
         // Only for Sword
         if(Global.compressionBeforeSetup) {
         	
-        	VirtualData v = cluster.getVdataSet().get(data.getData_vdata_id());
+        	CompressedData v = cluster.getCDataSet().get(data.getData_compressed_data_id());
         	v.setVdata_partition_id(dst_partition_id);
         	v.setVdata_server_id(dst_server_id);
         	

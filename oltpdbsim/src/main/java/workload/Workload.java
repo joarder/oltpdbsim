@@ -12,8 +12,8 @@ import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Server;
-import main.java.db.Tuple;
 import main.java.db.Database;
+import main.java.db.Tuple;
 import main.java.entry.Global;
 import main.java.utils.graph.SimpleVertex;
 
@@ -147,45 +147,40 @@ public class Workload implements java.io.Serializable {
 					trDataSet.add(_id);					
 					
 				} else if (tpl.getTuple_action().equals("delete")) {
-					
-					//if(!Cluster._setup) {
-					if(Global.sword_cluster_setup) {
-					
-						 // Remove from Cluster
-						switch(Global.setup) {
-							case "range":					
-								cluster.deleteDataRangePartitioning(tpl_id);								
-								break;
+					// Remove from Cluster
+					switch(Global.setup) {
+						case "range":					
+							cluster.deleteDataRangePartitioning(tpl_id);								
+							break;
+						
+						case "consistenthash":
+							cluster.deleteDataConsistentHashing(tpl_id);
+							break;
 							
-							case "consistenthash":
-								cluster.deleteDataConsistentHashing(tpl_id);
-								break;
-								
-							default:
-								Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
-								break;
-						}
-						
-						 // Remove from Database
-						db.deleteTupleByPk(tbl_id, tpl_pk);
-											
-						_id = cluster.getDataIdFromTupleId(tpl_id);
-						
-						// Remove from Workload Batch												
-						// Removing vertex in Workload Batch graph and hypergraph						
-						wb.deleteTrDataFromWorkload(_id);
-						
-						SimpleVertex v = wb.hgr.getVertex(_id);
-						if(v != null) {
-							wb.hgr.removeVertex(v);
-							
-							if(Global.compressionEnabled)
-				        		wb.hgr.removeCVertex(v);
-						}
-						
-						deletedTuples.add(tpl_id);			
+						default:
+							Global.LOGGER.error("Wrong cluster setup method is specified !!! Choose either 'range' or 'consistenthash'");
+							break;
 					}
 					
+					 // Remove from Database
+					db.deleteTupleByPk(tbl_id, tpl_pk);
+										
+					_id = cluster.getDataIdFromTupleId(tpl_id);
+					
+					// Remove from Workload Batch												
+					// Removing vertex in Workload Batch graph and hypergraph						
+					wb.deleteTrDataFromWorkload(_id);
+					
+					SimpleVertex v = wb.hgr.getVertex(_id);
+					if(v != null) {
+						wb.hgr.removeVertex(v);
+						
+						if(Global.compressionEnabled)
+			        		wb.hgr.removeCVertex(v);
+					}
+					
+					deletedTuples.add(tpl_id);
+									
 				} else {
 					
 					_id = cluster.getDataIdFromTupleId(tpl_id);

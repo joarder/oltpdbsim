@@ -63,7 +63,7 @@ public class WorkloadBatchProcessor {
 	}
 	
 	private static Map<Integer, Integer> vertex_id_map;
-	private static Map<Integer, Integer> vvertex_id_map;
+	private static Map<Integer, Integer> cvertex_id_map;
 	
 	// Generates Workload File for Hypergraph partitioning
 	public static boolean generateHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb, ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr) {
@@ -149,50 +149,47 @@ public class WorkloadBatchProcessor {
 	}
 	
 	// Generates Workload File for Compressed Hypergraph based repartitioning
-	private static boolean generateCHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
-		
-		Map<CompressedHEdge, Set<CompressedVertex>> vedge = new HashMap<CompressedHEdge, Set<CompressedVertex>>();
-		Set<CompressedVertex> vvertex = new HashSet<CompressedVertex>();
-		
+	private static boolean generateCHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {		
 		Global.LOGGER.info("Total "+wb.hgr.getcHEdges().size()+" compressed hyperedges present in the current workload.");
 		Global.LOGGER.info("Total "+wb.hgr.getcVertices().size()+" compressed vertices present in the current workload.");				
 		Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");
 
-		// Only select the compressed hyperedges having at least two compressed vertices
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : wb.hgr.getcHEdges().entrySet()) {
+		// Only select the compressed hyperedges having at least two compressed vertices	
+		cvertex_id_map = new HashMap<Integer, Integer>();
+
+		Map<CompressedHEdge, Set<CompressedVertex>> cHESet = new HashMap<CompressedHEdge, Set<CompressedVertex>>();
+		HashSet<CompressedVertex> cVSet = new HashSet<CompressedVertex>(); 
+		int vvertex_id = 0;
+		
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getcHEdges().entrySet()) {
 			
-			if(entry.getValue().size() >= 2) {				
-				vedge.put(entry.getKey(), entry.getValue());
-				vvertex.addAll(entry.getValue());
+			if(ch_entry.getValue().size() >= 2) {				
+				cHESet.put(ch_entry.getKey(), ch_entry.getValue());
+				
+				for(CompressedVertex cv : ch_entry.getValue()){
+					if(!cVSet.contains(cv)) {
+						cVSet.add(cv);
+						cvertex_id_map.put(cv.getId(), ++vvertex_id);
+						
+						for(Entry<Integer, SimpleVertex> cv_entry : cv.getVSet().entrySet()) {
+							Data data = cluster.getData(cv_entry.getValue().getId());						
+							data.setData_inUse(true);
+						}
+					}
+				}
 				
 			} else {				
 				Global.LOGGER.error("Compressed hyperedge with only 1 compressed vertex !!!");
 			}
 		}
 				
-		Global.LOGGER.info("Total "+vedge.size()+" compressed hyperedges spanning "+vvertex.size()+" compressed vertices are selected.");
-		
-		vvertex_id_map = new HashMap<Integer, Integer>();
-		int vvertex_id = 0;
-		
-		for(CompressedVertex cv : vvertex) {
-			vvertex_id_map.put(cv.getId(), ++vvertex_id);
-			
-			for(Entry<Integer, SimpleVertex> entry : cv.getVSet().entrySet()) {
-				//System.out.println("@ "+entry.getValue().toString());
-				Data data = cluster.getData(entry.getValue().getId());
-				data.setData_virtual_data_id(cv.getId());
-				data.setData_inUse(true);
-			}
-		}
+		Global.LOGGER.info("Total "+cHESet.size()+" compressed hyperedges spanning "+vvertex_id+" compressed vertices are selected.");
 		
 		// Creating Compressed Hyper-graph Workload File
-		Global.LOGGER.info("Total "+vedge.size()+" virtual hyperedges containing "+vvertex.size()
-				+" virtual tuples have been identified for repartitioning.");
 		Global.LOGGER.info("Generating workload file for compressed hypergraph based repartitioning ...");
 			
-		int edges = vedge.size();
-		int vertices = vvertex.size();
+		int edges = cHESet.size();
+		int vertices = vvertex_id;
 		int hasTransactionWeight = 1;
 		int hasDataWeight = 1;
 				
@@ -202,7 +199,7 @@ public class WorkloadBatchProcessor {
 			Global.LOGGER.info("Repartitioning will be aborted for this run ...");			
 			return true;
 			
-		}else{		
+		} else {		
 			try {
 				wb.getWrl_file().getParentFile().mkdirs();
 				
@@ -218,7 +215,7 @@ public class WorkloadBatchProcessor {
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
 					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
 					
-					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : vedge.entrySet()) {
+					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHESet.entrySet()) {
 						
 						// Writing e' weight						
 						writer.write(Integer.toString(entry.getKey().getWeight())+" ");
@@ -226,7 +223,7 @@ public class WorkloadBatchProcessor {
 						// Writing v' incident on e'
 						Iterator<CompressedVertex> cv_itr =  entry.getValue().iterator();
 						while(cv_itr.hasNext()) {						
-							writer.write(Integer.toString(vvertex_id_map.get(cv_itr.next().getId())));
+							writer.write(Integer.toString(cvertex_id_map.get(cv_itr.next().getId())));
 							
 							if(cv_itr.hasNext())
 								writer.write(" "); 
@@ -235,8 +232,9 @@ public class WorkloadBatchProcessor {
 						writer.write("\n");		
 					}
 	
-					// Writing v' weight					
-					Iterator<CompressedVertex> cv_itr = vvertex.iterator();
+					// Writing v' weight
+					
+					Iterator<CompressedVertex> cv_itr = cVSet.iterator();
 					while(cv_itr.hasNext()) {
 						String cv_weight = Integer.toString(cv_itr.next().getWeight());
 						writer.write(cv_weight);
@@ -387,45 +385,32 @@ public class WorkloadBatchProcessor {
 				
 				int shadow_id = -1;
 				int cluster_id = -1;
-				int virtual_id = -1;
+				int temp_compressed_cv_id = -1;
 				
 				switch(Global.workloadRepresentation) {
-				
+				//System.out.println("@debug >> x="+"|keyMap.get(x)="+keyMap.get(x));
 					case "hgr":
-						if(Global.compressionEnabled) {
-							//System.out.println(">> x="+"|keyMap.get(x)="+keyMap.get(x));									
-							//virtual_id = data.getData_virtual_data_id();
-							virtual_id = vvertex_id_map.get(data.getData_virtual_data_id());
-							cluster_id = keyMap.get(virtual_id) + 1;
-							
+						if(Global.compressionEnabled) {							
+							temp_compressed_cv_id = cvertex_id_map.get(data.getData_compressed_data_id());
+							cluster_id = keyMap.get(temp_compressed_cv_id) + 1;							
 							data.setData_chmetisClusterId(cluster_id);
-							
-							wb.getWrl_virtualDataId_clusterId_map().put(data.getData_virtual_data_id(), cluster_id);
-							wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
 							
 						} else {							
 							shadow_id = vertex_id_map.get(data.getData_id());
-							cluster_id = keyMap.get(shadow_id) + 1;
-							
+							cluster_id = keyMap.get(shadow_id) + 1;							
 							data.setData_hmetisClusterId(cluster_id);
-							
-							wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
 						}
 						
 						break;
 						
 					case "gr":
 						shadow_id = vertex_id_map.get(data.getData_id());
-						cluster_id = keyMap.get(shadow_id) + 1;
-						
-						data.setData_metisClusterId(cluster_id);
-						
-						wb.getWrl_dataId_clusterId_map().put(data.getData_id(), cluster_id);
-						
+						cluster_id = keyMap.get(shadow_id) + 1;						
+						data.setData_metisClusterId(cluster_id);						
 						break;
 				}						
 
-				//System.out.println("@debug >> "+data.toString()+" | S="+shadow_id+" | C="+cluster_id+" | V="+virtual_id);
+				//System.out.println("@debug >> "+data.toString()+" | S="+shadow_id+" | C="+cluster_id+" | V="+compressed_id);
 				
 				data.setData_shadowId(-1);
 				data.setData_hasShadowId(false);					

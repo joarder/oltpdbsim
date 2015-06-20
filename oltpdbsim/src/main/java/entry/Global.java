@@ -100,8 +100,7 @@ public final class Global implements java.io.Serializable {
     public static boolean incrementalRepartitioning; // true/false
 	public static boolean graphcutBasedRepartitioning; // true/false
     public static boolean enableTrClassification; // true/false
-    
-    public static boolean singleRun;    
+        
     public static boolean repartStatic;
     public static boolean repartHourly;
     public static boolean repartThreshold;
@@ -125,12 +124,12 @@ public final class Global implements java.io.Serializable {
 	public static double lb_priority;
 
 	// For Sword
-	public static boolean sword_cluster_setup;
-	public static int virtualDataNodes;
-
+	public static int compressedVertices;
+	public static boolean sword_initial;
+	
 	// For Analysis
 	public static boolean analysis;
-	
+		
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);
 	}

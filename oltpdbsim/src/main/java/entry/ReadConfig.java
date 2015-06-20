@@ -126,9 +126,6 @@ public class ReadConfig {
 				Global.repartStatic = Boolean.parseBoolean((String) config_param.getProperty("static.repartitioning"));
 				Global.repartHourly = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
 				Global.repartThreshold = Boolean.parseBoolean((String) config_param.getProperty("threshold.repartitioning"));
-				
-				if(Global.repartStatic)
-					Global.singleRun = true;
 								
 				Global.streamCollection = Boolean.parseBoolean((String) config_param.getProperty("stream.collection"));								
 				Global.streamCollectorSizeFactor = Integer.parseInt((String) config_param.getProperty("stream.collector.size.factor"));
@@ -146,6 +143,9 @@ public class ReadConfig {
 								
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
+				
+				if(Global.compressionBeforeSetup && Global.repartStatic)
+					Global.sword_initial = true;
 				
 				if(Global.incrementalRepartitioning) {
 					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));					

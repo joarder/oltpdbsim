@@ -245,7 +245,7 @@ public class SimHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		String[] parts = Cluster.getTplIdFromDataId(v.getId());
 		int tpl_pk = Integer.parseInt(parts[0]);
 		
-		int cv_id = Utility.simpleHash(tpl_pk, Global.virtualDataNodes);		
+		int cv_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);		
 		CompressedVertex cv = this.getCVertex(cv_id);
 		
 		if(cv != null) {			

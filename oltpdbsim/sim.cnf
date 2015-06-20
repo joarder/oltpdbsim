@@ -3,7 +3,8 @@ simulation.name=C-T-SWORD
 setup=consistenthash
 
 analysis = false
-static.repartitioning=false
+
+static.repartitioning=true
 hourly.repartitioning=false
 threshold.repartitioning=true
 
@@ -11,7 +12,7 @@ workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=false
+graphcutbased.repartitioning=true
 
 workload.representation=hgr
 

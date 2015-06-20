@@ -3,7 +3,7 @@ package main.java.cluster;
 import java.util.HashSet;
 import java.util.Set;
 
-public class VirtualData implements Comparable<VirtualData>  {
+public class CompressedData implements Comparable<CompressedData>  {
 	
 	private int vdata_id;
 	private String vdata_uid;
@@ -12,7 +12,7 @@ public class VirtualData implements Comparable<VirtualData>  {
 	private String vdata_label;	
 	private Set<Integer> vdata_set;
 	
-	public VirtualData(int v_id, String v_uid) {		
+	public CompressedData(int v_id, String v_uid) {		
 		this.setVdata_id(v_id);
 		this.setVdata_uid(v_uid);
 		this.setVdata_partition_id(-1);
@@ -77,11 +77,11 @@ public class VirtualData implements Comparable<VirtualData>  {
 		
 	@Override
 	public boolean equals(Object object) {
-		if (!(object instanceof VirtualData)) {
+		if (!(object instanceof CompressedData)) {
 			return false;
 		}
 		
-		VirtualData vdata = (VirtualData) object;
+		CompressedData vdata = (CompressedData) object;
 		return this.getVdata_label().equals(vdata.getVdata_label());
 	}
 
@@ -96,7 +96,7 @@ public class VirtualData implements Comparable<VirtualData>  {
 	}
 
 	@Override
-	public int compareTo(VirtualData vdata) {		
+	public int compareTo(CompressedData vdata) {		
 		return (((int)this.getVdata_id() < (int)vdata.getVdata_id()) ? -1 : 
 			((int)this.getVdata_id() > (int)vdata.getVdata_id()) ? 1 : 0);		
 	}
