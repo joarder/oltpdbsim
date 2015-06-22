@@ -1,7 +1,6 @@
 package main.java.metric;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -114,16 +113,7 @@ public class Metric implements java.io.Serializable {
 		file = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
 		
-		try {			
-			file.getParentFile().mkdirs();
-			
-			if(file.exists())
-				file.delete();
-			
-			file.createNewFile();
-		} catch (IOException e) {
-			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
-		}		
+		prWriter = Utility.getPrintWriter(Global.metric_dir, file);		
 	}
 	
 	public static void initServerSet(Cluster cluster) {		
@@ -346,7 +336,7 @@ public class Metric implements java.io.Serializable {
 	
 	public static void write() {
 		int index = Metric.metricCollectionCycle;		
-		prWriter = Utility.getPrintWriter(Global.metric_dir, file);
+		prWriter = Utility.getPrintWriter(Global.metric_dir, file);		
 		
 		try {
 			prWriter.append(index+" ");			
@@ -376,5 +366,9 @@ public class Metric implements java.io.Serializable {
 		}
 		
 		++Metric.metricCollectionCycle;
+	}
+	
+	public static void close() {
+		prWriter.close();
 	}
 }

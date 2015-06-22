@@ -1,7 +1,6 @@
 package main.java.metric;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +50,7 @@ public class PerfMetric {
 			file3 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf3.out");
 		
-		try {			
+		/*try {			
 			file1.getParentFile().mkdirs();
 			file2.getParentFile().mkdirs();
 			
@@ -76,7 +75,7 @@ public class PerfMetric {
 			}			
 		} catch (IOException e) {
 			Global.LOGGER.error("Failed in creating metric directory or file !!", e);
-		}
+		}*/
 		
 		// File Writers
 		prWriter1 = Utility.getPrintWriter(Global.metric_dir, file1);

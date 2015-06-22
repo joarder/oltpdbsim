@@ -100,9 +100,6 @@ public class WorkloadExecutor {
 	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
 	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
 	
-	// Sword specific
-	public static boolean sword_initial;
-	
     public WorkloadExecutor() {
         
         MRG32k3a rand = new MRG32k3a();                
@@ -379,7 +376,8 @@ public class WorkloadExecutor {
 					
 		// Statistic preparation, calculation, and reporting		
 		collectStatistics(cluster, wb);
-		cluster.show();		
+		cluster.show();
+		
 		perfm.write();
 	}	
 
@@ -520,7 +518,7 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-				if(Global.graphcutBasedRepartitioning)
+				if(Global.graphcutBasedRepartitioning && Global.sword_initial)
 					WorkloadExecutor.runRepartitioner(cluster, wb);
 								
 				// Perform data migrations
@@ -708,7 +706,7 @@ class Arrival extends Event {
 			
 			if(Global.workloadAware) {
 				
-				if(Global.incrementalRepartitioning && !WorkloadExecutor.sword_initial) { // 3. Incremental Repartitioning
+				if(Global.incrementalRepartitioning && !Global.sword_initial) { // 3. Incremental Repartitioning
 					
 					if(isRepartRequired()) { // Checks for both Hourly and Threshold-based repartitioning						
 						++Global.repartitioningCycle;
@@ -774,6 +772,9 @@ class Arrival extends Event {
 						
 						// Repartition the database for a single time
 						WorkloadExecutor.startRepartitioning(cluster, wb);
+						
+						// Statistics collection
+						WorkloadExecutor.collectStatistics(cluster, wb);
 						
 						// Prevents future repartitioning
 						Global.repartStatic = false;

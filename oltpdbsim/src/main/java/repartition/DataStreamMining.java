@@ -376,7 +376,7 @@ public class DataStreamMining {
 					dst_partition_id = dst_partitionList.get(0).getPartition_id();
 				}
 				
-				DataMigration.migrate(cluster, dst_server_id, dst_partition_id, data);		
+				DataMigration.migrateSingleData(cluster, data, dst_server_id, dst_partition_id);		
 			}
 		}
 	}

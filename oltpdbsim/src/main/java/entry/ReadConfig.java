@@ -144,9 +144,6 @@ public class ReadConfig {
 				Global.compressionEnabled = Boolean.parseBoolean((String) config_param.getProperty("compression.enabled"));
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
-				if(Global.compressionBeforeSetup && Global.repartStatic)
-					Global.sword_initial = true;
-				
 				if(Global.incrementalRepartitioning) {
 					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));					
 					Global.span_reduction = Integer.parseInt((String) config_param.getProperty("span.reduction"));

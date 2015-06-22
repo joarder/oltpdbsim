@@ -287,19 +287,21 @@ public class Utility {
 		return prWriter;
 	}
 	
+	// 
 	public static PrintWriter getPrintWriter(String dir, File file) {		
 		PrintWriter prWriter = null;
 		
 		try {
 			file.getParentFile().mkdirs();
 			
-			if(file.exists())
-				file.delete();
+			/*if(file.exists())
+				file.delete();*/
 			
 			file.createNewFile();
 			
 			try {
-				prWriter = new PrintWriter(new BufferedWriter(new FileWriter(file, true)));				
+				prWriter = new PrintWriter(new BufferedWriter(new FileWriter(file, true)));	
+				
 			} catch(IOException e) {
 				Global.LOGGER.error("Failed to create a print writer !!", e);
 			}

@@ -1,15 +1,18 @@
 package main.java.repartition;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 import main.java.cluster.Cluster;
+import main.java.cluster.CompressedData;
+import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.IntPair;
 import main.java.utils.graph.CompressedHEdge;
@@ -20,8 +23,8 @@ import main.java.workload.WorkloadBatch;
 public class Sword {	
 	
 	// <v_id, <s_id, sum of weights of transactions incident of v_id>> -- <v_id, <s_id, nh>>
-	public static SortedMap<Integer, SortedMap<Integer, Integer>> dt_cnSet; 	
-	public static SortedMap<Integer, SortedMap<Integer, Integer>> ndt_cnSet;
+	public static HashMap<Integer, HashMap<Integer, Integer>> dt_cnSet; 	
+	public static HashMap<Integer, HashMap<Integer, Integer>> ndt_cnSet;
 	
 	public static Set<SwordCHEdge> hCut; // Set of Compressed Hyperedges in the Cut
 	public static PriorityQueue<SwordCHEdge> pq; 	// Priority Queue of Compressed Hyperedges in Cut
@@ -30,20 +33,26 @@ public class Sword {
 	public static Set<Integer> sCut; // Union set of Servers covered by all Compressed Hyperedges in the Cut
 
 	// First set of candidate Compressed Vertices for migration
-	public static Set<SwordCVertex> vCut; // Union set of Compressed Vertices covered by all Hyperedges in the Cut
+	public static Map<Integer, HashMap<Integer, SwordCVertex>> vCut; // Union set of Compressed Vertices covered by all Hyperedges in the Cut
 	// Second set of candidate Compressed Vertices for migration
-	public static Set<SwordCVertex> VS; // Set of Compressed Vertices that are covered only by the Hyperedges that are not Cut
+	public static Map<Integer, HashMap<Integer, SwordCVertex>> VS; // Set of Compressed Vertices that are covered only by the Hyperedges that are not Cut
+	
+	static ArrayList<IntPair> candidatePairList;
+	static Set<Integer> swapped;
 	
 	public static void init() {
-		dt_cnSet = new TreeMap<Integer, SortedMap<Integer, Integer>>();
-		ndt_cnSet = new TreeMap<Integer, SortedMap<Integer, Integer>>();
+		dt_cnSet = new HashMap<Integer, HashMap<Integer, Integer>>();
+		ndt_cnSet = new HashMap<Integer, HashMap<Integer, Integer>>();
 		
 		hCut = new HashSet<SwordCHEdge>();
 		pCut = new HashSet<Integer>();
 		sCut = new HashSet<Integer>();
 		
-		vCut = new HashSet<SwordCVertex>();
-		VS = new HashSet<SwordCVertex>();
+		vCut = new HashMap<Integer, HashMap<Integer, SwordCVertex>>();
+		VS = new HashMap<Integer, HashMap<Integer, SwordCVertex>>();
+		
+		candidatePairList = new ArrayList<IntPair>();
+		swapped = new HashSet<Integer>();
 	}
 	
 	// Populates a priority queue to keep the potential transactions 
@@ -61,25 +70,48 @@ public class Sword {
 		
 		// Calculate contribution of each compressed hyperedge toward total number of distributed transactions seen so far
 		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getcHEdges().entrySet()) {
-			if(isCHEdgeInCut(wb, ch_entry.getKey())) {				
-				if(isCHEdgeSpansTwoServers(wb, ch_entry.getKey())) {				
-					double C_e = ch_entry.getKey().getWeight()/sum_ndt_e;				
-					SwordCHEdge s_ch = new SwordCHEdge(ch_entry.getKey().getId(), ch_entry.getKey().getWeight(), C_e);
+			
+			if(isCHEdgeInCut(wb, ch_entry.getKey())) {
+				
+				if(isCHEdgeSpansTwoServers(wb, ch_entry.getKey())) {
 					
-					hCut.add(s_ch);
-					pq.add(s_ch);				
+					double C_e = ch_entry.getKey().getWeight()/sum_ndt_e;				
+					SwordCHEdge sch = new SwordCHEdge(ch_entry.getKey().getId(), 
+							ch_entry.getKey().getWeight(), C_e);
+					
+					hCut.add(sch);
+					pq.add(sch);				
 				
 					// Compressed Vertices in the Cut for the the selected compressed hyperedges
 					for(CompressedVertex cv : ch_entry.getValue()) {
-						vCut.add(new SwordCVertex(cv.getId(), cv.getWeight(), 
-								cv.getPartition_id(), cv.getServer_id(), cv.getVSet().values()));
+						
+						SwordCVertex scv = new SwordCVertex(cv.getId(), cv.getWeight(), 
+								cv.getPartition_id(), cv.getServer_id(), cv.getVSet().values());
+						
+						// Adding scv into sch 
+						if(sch.sCVertexSet.containsKey(scv.server_id)) {
+							sch.sCVertexSet.get(scv.server_id).put(scv.id, scv);
+						} else {
+							HashMap<Integer, SwordCVertex> scvSet = new HashMap<Integer, SwordCVertex>();
+							scvSet.put(scv.id, scv);
+							sch.sCVertexSet.put(scv.server_id, scvSet);
+						}
+												
+						// Adding servers, partitions, and vertices
+						sch.serverSet.add(cv.getServer_id());
+						sch.partitionSet.add(cv.getPartition_id());
+						
+						// Adding scv into vCut
+						if(vCut.containsKey(cv.getServer_id())) {
+							vCut.get(cv.getServer_id()).put(scv.id, scv);
+						} else {
+							HashMap<Integer, SwordCVertex> scvSet = new HashMap<Integer, SwordCVertex>();
+							scvSet.put(scv.id, scv);
+							vCut.put(cv.getServer_id(), scvSet);
+						}
 						
 						pCut.add(cv.getPartition_id());
-						sCut.add(cv.getServer_id());
-						
-						// Adding servers, partitions, and vertices
-						s_ch.server_Set.add(cv.getServer_id());
-						s_ch.partition_Set.add(cv.getPartition_id());						
+						sCut.add(cv.getServer_id());						
 					}
 				}
 			} else {
@@ -88,67 +120,184 @@ public class Sword {
 					SwordCVertex scv = new SwordCVertex(cv.getId(), cv.getWeight(), 
 							cv.getPartition_id(), cv.getServer_id(), cv.getVSet().values());
 					
-					if(!vCut.contains(scv))
-						// Compressed vertices not in the Cut
-						VS.add(scv);
+					// Compressed vertices not in the Cut
+					if(vCut.containsKey(cv.getServer_id())) {
+						if(!vCut.get(cv.getServer_id()).containsKey(scv.id)) {
+							if(VS.containsKey(cv.getServer_id())) {
+								VS.get(cv.getServer_id()).put(scv.id, scv);	
+							} else {
+								HashMap<Integer, SwordCVertex> scvSet = new HashMap<Integer, SwordCVertex>();
+								scvSet.put(scv.id, scv);
+								VS.put(scv.server_id, scvSet);
+							}
+						}
+					}
 				}
 			}
 		}
 		
 		// Keep only the movable vertices in VS which are not in the Cut
 		Set<SwordCVertex> toBeRemoved = new HashSet<SwordCVertex>();
-		for(SwordCVertex scv : VS) {
-			if(vCut.contains(scv))
-				toBeRemoved.add(scv);
+		for(Entry<Integer, HashMap<Integer, SwordCVertex>> entry : VS.entrySet()) {
+			for(Entry<Integer, SwordCVertex> scv_entry : entry.getValue().entrySet())			
+				if(vCut.get(entry.getKey()).containsKey(scv_entry.getKey()))
+					toBeRemoved.add(scv_entry.getValue());			
 		}
 
 		// Remove the non-movable compressed vertices from VS
 		for(SwordCVertex scv : toBeRemoved) 
-			VS.remove(scv);
+			VS.get(scv.server_id).remove(scv);
+		
+		// Adding more compressed data nodes to VS to produce more swapping candidates
+		for(Entry<Integer, CompressedData> cd_entry : cluster.getCDataSet().entrySet()) {
+			
+			CompressedData cd = cd_entry.getValue();
+			
+			SwordCVertex scv = new SwordCVertex(cd.getCData_id(), 0, 
+					cd.getVdata_partition_id(), cd.getVdata_server_id(), null);
+			
+			if(vCut.containsKey(scv.server_id) && VS.containsKey(scv.server_id)) {
+				if(!vCut.get(scv.server_id).containsKey(scv) && !VS.get(scv.server_id).containsKey(scv)) {
+					scv.vertexSet = new HashSet<Integer>(cd.getCData_set());
+					VS.get(scv.server_id).put(scv.id, scv);
+				}
+			}
+		}
 		
 		// Testing
-		System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
+		/*System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
 		System.out.println("@ Vertices = "+wb.hgr.getVertexCount());
 		System.out.println("@ Total Data = "+Global.global_dataCount);
 		System.out.println("@ CHEdges = "+wb.hgr.getcHEdges().size());
 		System.out.println("@ CVertices = "+wb.hgr.getcVertices().size());
 		System.out.println("@ hCut size = "+hCut.size());
-		System.out.println("@ vCut size = "+vCut.size());
-		System.out.println("@ VS size = "+VS.size()+" | "+VS);
+		System.out.println("@ vCut size = "+vCut.size()+" | "+vCut.get(1).size()+","+vCut.get(2).size()+","+vCut.get(3).size()+","+vCut.get(4).size());
+		System.out.println("@ VS size = "+VS.size()+" | "+VS.get(1).size()+","+VS.get(2).size()+","+VS.get(3).size()+","+VS.get(4).size());
 		System.out.println("@ pCut size = "+pCut.size());
 		System.out.println("@ sCut size = "+sCut.size());
-		System.out.println("@ PQ size = "+pq.size());
+		System.out.println("@ PQ size = "+pq.size());*/
 
 	}
-	
-	public static SwappingPair getSwappingPair(SwordCHEdge ch) {
 		
+	// Migration
+	public static void swapCandidatePair(Cluster cluster, WorkloadBatch wb, SwordCHEdge sch) {
+		//System.out.println("--> "+sch.toString());
+		ArrayList<Integer> serverSet = new ArrayList<Integer>(sch.serverSet);
 		
+		int s1 = serverSet.get(0);
+		int s2 = serverSet.get(1);
 		
+		double nh1 = getSumNHij(sch, s1);
+		double nh2 = getSumNHij(sch, s2);
 		
-		double SG1 = getSwappingGain(ch);
-		double SG2 = getSwappingGain(ch);
+		double SG1 = 2*sch.ndt_e - nh1;
+		double SG2 = 2*sch.ndt_e - nh2;
 		
-		System.out.println("--> SG1 = "+SG1+" | ndt_e"+ch.ndt_e+" | nh1 = ");
-		System.out.println("--> SG2 = "+SG2+" | ndt_e"+ch.ndt_e+" | nh2 = ");
+		//System.out.println("\t--> SG1 = "+SG1+" | ndt_e = "+sch.ndt_e+" | nh1 = "+nh1);
+		//System.out.println("\t--> SG2 = "+SG2+" | ndt_e = "+sch.ndt_e+" | nh2 = "+nh2);
 		
-		// Comparing swapping gain
-		if(SG1 >= SG2 && SG1 > 0) {
-			System.out.println(">> SG1 = "+SG1);
-			
-		} else if(SG1 >= SG2 && SG1 > 0) {
-			System.out.println(">> SG2 = "+SG2);
-			
+		// Comparing swapping gain and select a possible swapping candidate pair
+		if(SG1 >= SG2 && SG1 > 0) { // Migrate s1 --> s2
+			//System.out.println("\t>> SG1 = "+SG1);
+			getSwappingPair(sch, s1, s2);		
+					
+		} else if(SG2 >= SG1 && SG2 > 0) { // Migrate s2 --> s1
+			//System.out.println("\t>> SG2 = "+SG2);
+			getSwappingPair(sch, s2, s1);
 		}
 		
-		return new SwappingPair();
+		// Actual data migration
+		migrate(cluster);
+	}
+		
+	// Calculate swapping gain
+	private static double getSumNHij(SwordCHEdge ch, int server_id) {		
+		double sum_nh_ij = 0.0d;
+		for(Entry<Integer, SwordCVertex> scv_entry : ch.sCVertexSet.get(server_id).entrySet())
+			sum_nh_ij += scv_entry.getValue().nh_ij;		
+		
+		return sum_nh_ij;
 	}
 	
-	
-	// Calculate swapping gain
-	private static double getSwappingGain(SwordCHEdge ch) {
+	// Selecting swapping pair
+	private static void getSwappingPair(SwordCHEdge sch, int src_server_id, int dst_server_id) {
 		
-		return 0.0;
+		for(Entry<Integer, SwordCVertex> scv_entry : sch.sCVertexSet.get(src_server_id).entrySet()) {
+			int vs_id = getVSSwappingCandidate(dst_server_id);
+			
+			if(vs_id != -1)
+				candidatePairList.add(new IntPair(scv_entry.getValue().id, vs_id));
+		}
+	}		
+	
+	// Returns a swapping candidate from VS
+	private static int getVSSwappingCandidate(int dst_server_id) {
+		
+		if(VS.containsKey(dst_server_id)) {
+			ArrayList<Integer> temp = new ArrayList<Integer>(VS.get(dst_server_id).keySet());
+			int rand_id = Global.rand.nextInt(temp.size());
+			int _id = VS.get(dst_server_id).get(temp.get(rand_id)).id;
+			
+			SwordCVertex scv = VS.get(dst_server_id).get(_id);
+			int scv_id = scv.id;
+	
+			if(!swapped.contains(scv_id)) {	
+				swapped.add(scv_id);			
+				VS.get(dst_server_id).remove(scv_id);
+				
+				if(VS.get(dst_server_id).isEmpty())
+					VS.remove(dst_server_id);
+				
+				return scv_id;			
+			} else
+				return -1;
+		}
+		
+		return -1;
+	}
+	
+	// Data migration
+	private static void migrate(Cluster cluster) {
+		// Testing
+		/*System.out.println(swappingPairList.size()+" | "+swappingPairList);		
+		System.out.println(">> "+VS.size());
+		for(Entry<Integer, HashMap<Integer, SwordCVertex>> entry : VS.entrySet()) {
+			System.out.println("\t"+entry.getValue().size());
+			
+			for(Entry<Integer, SwordCVertex> entry1 : entry.getValue().entrySet())
+				System.out.println("\t\t "+entry1.toString());
+		}*/
+		
+		for(IntPair p : candidatePairList) {			
+			CompressedData cd1 = cluster.getCDataSet().get(p.x);
+			CompressedData cd2 = cluster.getCDataSet().get(p.y);
+
+			// First compressed data
+			int dst_server_id1 = cd2.getVdata_server_id();
+			int dst_partition_id1 = cd2.getVdata_partition_id();
+			
+			for(int d_id : cd1.getCData_set()) {
+				Data data = cluster.getData(d_id);
+				DataMigration.migrateSingleData(cluster, data, dst_server_id1, dst_partition_id1);
+			}
+
+			// Second compressed data
+			int dst_server_id2 = cd1.getVdata_server_id();
+			int dst_partition_id2 = cd1.getVdata_partition_id();
+			
+			for(int d_id : cd2.getCData_set()) {
+				Data data = cluster.getData(d_id);
+				DataMigration.migrateSingleData(cluster, data, dst_server_id2, dst_partition_id2);
+			}
+			
+			// Updating first compressed data
+			cd1.setCData_partition_id(dst_partition_id1);
+	    	cd1.setCData_server_id(dst_server_id1);
+	    	
+			// Updating second compressed data 
+			cd2.setCData_partition_id(dst_partition_id2);
+	    	cd2.setCData_server_id(dst_server_id2);
+		}
 	}
 	
 	// Checks and returns true if a compressed hyperedge is in the Cut i.e. distributed
@@ -180,17 +329,19 @@ public class Sword {
 
 class SwordCHEdge  implements Comparable<SwordCHEdge> {
 	int id;
-	int ndt_e; // Weight of the hyperedge e in the Cut
+	double ndt_e; // Weight of the hyperedge e in the Cut
 	double C_e; // Contribution in DT
-	Set<Integer> server_Set;
-	Set<Integer> partition_Set;
+	Set<Integer> serverSet;
+	Set<Integer> partitionSet;
+	Map<Integer, Map<Integer, SwordCVertex>> sCVertexSet;
 	
-	public SwordCHEdge(int id, int weight, double contribution) {
+	public SwordCHEdge(int id, double weight, double contribution) {
 		this.id = id;
 		this.ndt_e = weight;
 		this.C_e = contribution;
-		this.server_Set = new HashSet<Integer>();
-		this.partition_Set = new HashSet<Integer>();
+		this.serverSet = new HashSet<Integer>();
+		this.partitionSet = new HashSet<Integer>();
+		this.sCVertexSet = new HashMap<Integer, Map<Integer, SwordCVertex>>();
 	}
 	
 	// Descending order
@@ -232,7 +383,8 @@ class SwordCHEdge  implements Comparable<SwordCHEdge> {
 	
 	@Override
 	public String toString() {
-		return (">> CH("+this.id+") | ndt_e("+this.ndt_e+") | C_e("+this.C_e+") | S"+this.server_Set+" | P"+this.partition_Set);
+		return ("CH("+this.id+") | ndt_e("+this.ndt_e+") | C_e("+this.C_e+") "
+				+ "| S"+this.serverSet+" | P"+this.partitionSet+" | "+this.sCVertexSet);
 	}
 }
 
@@ -249,9 +401,11 @@ class SwordCVertex implements Comparable<SwordCVertex> {
 		this.partition_id = pid;
 		this.server_id = sid;
 		
-		this.vertexSet = new HashSet<Integer>();
-		for(SimpleVertex v : vSet)
-			vertexSet.add(v.getId());				
+		if(vSet != null) {
+			this.vertexSet = new HashSet<Integer>();
+			for(SimpleVertex v : vSet)
+				vertexSet.add(v.getId());
+		}
 	}
 	
 	@Override
@@ -283,15 +437,6 @@ class SwordCVertex implements Comparable<SwordCVertex> {
 	
 	@Override
 	public String toString() {
-		return (">> CV("+this.id+") | nh_ij("+this.nh_ij+") | P("+this.partition_id+")/S("+this.server_id+") | "+this.vertexSet);
-	}
-}
-
-class SwappingPair {
-	IntPair candidatePair;
-	double gain;
-	
-	SwappingPair() {
-		this.gain = 0.0;
+		return ("CV("+this.id+") | nh_ij("+this.nh_ij+") | P("+this.partition_id+")/S("+this.server_id+") | "+this.vertexSet);
 	}
 }

@@ -59,6 +59,9 @@ public class Main {
 					// Workload execution
 					wrlExecutor.execute(tpccDatabase, dbCluster, wb, tpcc);									
 					
+					// Close the metric collection
+					Metric.close();
+					
 					// Proceed for the next simulation run
 					--Global.repeated_runs;																
 				}

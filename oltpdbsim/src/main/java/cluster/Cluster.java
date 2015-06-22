@@ -97,8 +97,8 @@ public class Cluster {
 		return cDataSet;
 	}
 
-	public void setCDataSet(Map<Integer, CompressedData> vdataSet) {
-		this.cDataSet = vdataSet;
+	public void setCDataSet(Map<Integer, CompressedData> cDataSet) {
+		this.cDataSet = cDataSet;
 	}
 
 	public ConsistentHashRing<Long> getRing() {
@@ -245,7 +245,7 @@ public class Cluster {
 				tbl_id = 1;
 		}
 				
-		// Determine the number of Virtual Data Nodes to be created
+		// Determine the number of Compressed Data Nodes to be created
 		if(Global.compressionEnabled)
 			Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
@@ -443,19 +443,19 @@ public class Cluster {
 					c = this.cDataSet.get(cData_id);
 				}
 			
-				// Create an entry in the vData---Partition map
+				// Create an entry in the cData---Partition map
 				this.getCData_pid_map().put(cData_id, p_id);
 				
 				// Create the new Data
 				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
 				d.setData_uid(null);
 				
-				// Set Partition, and Server id for the Virtual Data Node
-				c.setVdata_partition_id(p.getPartition_id());
-				c.setVdata_server_id(p.getPartition_serverId());
+				// Set Partition, and Server id for the Compressed Data Node
+				c.setCData_partition_id(p.getPartition_id());
+				c.setCData_server_id(p.getPartition_serverId());
 				
-				// Add the corresponding Data id into the Virtual Data Node
-				c.getVdata_set().add(d.getData_id());
+				// Add the corresponding Data id into the Compressed Data Node
+				c.getCData_set().add(d.getData_id());
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -508,14 +508,14 @@ public class Cluster {
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {
-				int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
-				int p_id = this.getCData_pid_map().get(v_id);
+				int cd_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+				int p_id = this.getCData_pid_map().get(cd_id);
 
 				// Find the corresponding Partition from the Consistent Hash Ring
 				p = this.getPartition(p_id);
 				
-				CompressedData v = this.cDataSet.get(v_id);
-				v.getVdata_set().remove(Integer.parseInt(d_id));
+				CompressedData cd = this.cDataSet.get(cd_id);
+				cd.getCData_set().remove(Integer.parseInt(d_id));
 				
 			} else {				
 				// Find the corresponding Partition from the Consistent Hash Ring
@@ -585,11 +585,11 @@ public class Cluster {
 				d.setData_uid(c_uid);
 				
 				// Set Partition, and Server id for the compressed data
-				c.setVdata_partition_id(p.getPartition_id());
-				c.setVdata_server_id(p.getPartition_serverId());
+				c.setCData_partition_id(p.getPartition_id());
+				c.setCData_server_id(p.getPartition_serverId());
 				
 				// Add the corresponding Data id into the compressed data
-				c.getVdata_set().add(d.getData_id());
+				c.getCData_set().add(d.getData_id());
 				
 				// Assign Data to Partition
 				p.getPartition_dataSet().put(d.getData_id(), d);
@@ -641,14 +641,14 @@ public class Cluster {
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
 			if(Global.compressionBeforeSetup) {
-				int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
-				String v_uid = this.getCData_uid_map().get(v_id);
+				int cd_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+				String cd_uid = this.getCData_uid_map().get(cd_id);
 
 				// Find the corresponding Partition from the Consistent Hash Ring
-				p = this.getPartition(v_uid);
+				p = this.getPartition(cd_uid);
 				
-				CompressedData v = this.cDataSet.get(v_id);
-				v.getVdata_set().remove(Integer.parseInt(d_id));
+				CompressedData cd = this.cDataSet.get(cd_id);
+				cd.getCData_set().remove(Integer.parseInt(d_id));
 				
 			} else {				
 				// Find the corresponding Partition from the Consistent Hash Ring

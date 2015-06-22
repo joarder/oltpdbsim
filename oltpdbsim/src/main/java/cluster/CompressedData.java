@@ -5,74 +5,72 @@ import java.util.Set;
 
 public class CompressedData implements Comparable<CompressedData>  {
 	
-	private int vdata_id;
-	private String vdata_uid;
-	private int vdata_partition_id;
-	private int vdata_server_id;
-	private String vdata_label;	
-	private Set<Integer> vdata_set;
+	private int cData_id;
+	private String cData_uid;
+	private int cData_partition_id;
+	private int cData_server_id;
+	private String cData_label;	
+	private Set<Integer> cData_set;
 	
-	public CompressedData(int v_id, String v_uid) {		
-		this.setVdata_id(v_id);
-		this.setVdata_uid(v_uid);
-		this.setVdata_partition_id(-1);
-		this.setVdata_server_id(-1);
-		this.setVdata_set(new HashSet<Integer>());
+	public CompressedData(int c_id, String c_uid) {		
+		this.setCData_id(c_id);
+		this.setCData_uid(c_uid);
+		this.setCData_partition_id(-1);
+		this.setCData_server_id(-1);
+		this.setCData_set(new HashSet<Integer>());
 	}
 
-	public int getVdata_id() {
-		return vdata_id;
+	public int getCData_id() {
+		return cData_id;
 	}
 
-	public void setVdata_id(int vdata_id) {
-		this.vdata_id = vdata_id;
+	public void setCData_id(int cData_id) {
+		this.cData_id = cData_id;
 	}
 
-	public String getVdata_uid() {
-		return vdata_uid;
+	public String getCData_uid() {
+		return cData_uid;
 	}
 
-	public void setVdata_uid(String vdata_uid) {
-		this.vdata_uid = vdata_uid;
+	public void setCData_uid(String cData_uid) {
+		this.cData_uid = cData_uid;
 	}
 
 	public int getVdata_partition_id() {
-		return vdata_partition_id;
+		return cData_partition_id;
 	}
 
-	public void setVdata_partition_id(int vdata_partition_id) {
-		this.vdata_partition_id = vdata_partition_id;
+	public void setCData_partition_id(int cData_partition_id) {
+		this.cData_partition_id = cData_partition_id;
 	}
 
 	public int getVdata_server_id() {
-		return vdata_server_id;
+		return cData_server_id;
 	}
 
-	public void setVdata_server_id(int vdata_server_id) {
-		this.vdata_server_id = vdata_server_id;
+	public void setCData_server_id(int cData_server_id) {
+		this.cData_server_id = cData_server_id;
 	}
 
-	public Set<Integer> getVdata_set() {
-		return vdata_set;
+	public Set<Integer> getCData_set() {
+		return cData_set;
 	}
 
-	public void setVdata_set(Set<Integer> vdata_set) {
-		this.vdata_set = vdata_set;
+	public void setCData_set(Set<Integer> cData_set) {
+		this.cData_set = cData_set;
 	}
 
 	public String getVdata_label() {
-		return vdata_label;
+		return cData_label;
 	}
 
-	public void setVdata_label(String vdata_label) {
-		this.vdata_label = vdata_label;
+	public void setVdata_label(String cData_label) {
+		this.cData_label = cData_label;
 	}
 
 	@Override
 	public String toString() {
-		String msg = "V"+this.vdata_id+" | P"+this.vdata_partition_id+" | S"+this.vdata_server_id; 
-		
-		return msg;
+		return ("CD"+this.cData_id+" | P"+this.cData_partition_id+" | S"+this.cData_server_id); 
 	}
 		
 	@Override
@@ -81,8 +79,8 @@ public class CompressedData implements Comparable<CompressedData>  {
 			return false;
 		}
 		
-		CompressedData vdata = (CompressedData) object;
-		return this.getVdata_label().equals(vdata.getVdata_label());
+		CompressedData cData = (CompressedData) object;
+		return this.getVdata_label().equals(cData.getVdata_label());
 	}
 
 	@Override
@@ -90,14 +88,14 @@ public class CompressedData implements Comparable<CompressedData>  {
 		final int prime = 31;
 		
 		int result = 1;
-		result = prime * result + vdata_id;
+		result = prime * result + cData_id;
 		
 		return result;
 	}
 
 	@Override
-	public int compareTo(CompressedData vdata) {		
-		return (((int)this.getVdata_id() < (int)vdata.getVdata_id()) ? -1 : 
-			((int)this.getVdata_id() > (int)vdata.getVdata_id()) ? 1 : 0);		
+	public int compareTo(CompressedData cData) {		
+		return ((this.getCData_id() < cData.getCData_id()) ? -1 : 
+			(this.getCData_id() > cData.getCData_id()) ? 1 : 0);		
 	}
 }

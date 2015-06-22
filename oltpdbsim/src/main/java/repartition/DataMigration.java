@@ -7,6 +7,7 @@
 package main.java.repartition;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -15,10 +16,10 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
+import main.java.cluster.CompressedData;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
-import main.java.cluster.CompressedData;
 import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.metric.Metric;
@@ -26,8 +27,8 @@ import main.java.utils.IntPair;
 import main.java.utils.Matrix;
 import main.java.utils.MatrixElement;
 import main.java.utils.Utility;
-import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.ISimpleHypergraph;
+import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
 import main.java.workload.WorkloadExecutor;
@@ -56,10 +57,11 @@ public class DataMigration {
 	public static void performDataMigration(Cluster cluster, WorkloadBatch wb) {
 		
 		String partitioner = Global.workloadRepresentation;
+		migratedDataSet = new HashSet<Data>();
 		
 		switch(Global.dataMigrationStrategy) {
 			case "random":
-				Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");
+				Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");				
 				baseRandom(cluster, wb, partitioner);				
 				break;
 				
@@ -90,7 +92,7 @@ public class DataMigration {
 				
 			case "sword":
 				Global.LOGGER.info("Applying Sword Strategy (SWD) ...");
-				strategySword(cluster, wb, "random");				
+				strategySword(cluster, wb, "hgr");				
 				break;				
 		}
 	}
@@ -106,6 +108,7 @@ public class DataMigration {
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
+		
 		message();
 		mapping.print();
 		
@@ -116,19 +119,17 @@ public class DataMigration {
 		}
 		
 		//System.out.println(">> "+mapping.getN()+"|"+arr.length);		
-		if(!WorkloadExecutor.sword_initial)
+		if(!Global.sword_initial)
 			Utility.shuffleArray(arr);
 		
 		// Create Key-Value (Destination PID-Cluster ID) Mappings from Mapping Matrix
 		Map<Integer, Integer> keyMap = new TreeMap<Integer, Integer>();		
-		for(int col = 0; col < mapping.getN(); col++) {				
-			//keyMap.put(col, col); // which cluster will go to which partition
-			//System.out.println("-#-Entry("+col+") [ACT] C"+col+"|P"+col);
-			
+		for(int col = 0; col < mapping.getN(); col++) {
+			// which cluster will go to which partition
 			if(col == 0)
-				keyMap.put(col, col); // which cluster will go to which partition
+				keyMap.put(col, col);
 			
-			keyMap.put(col, arr[col]); // which cluster will go to which partition
+			keyMap.put(col, arr[col]);
 			//System.out.println("-#-Entry("+col+") [ACT] C"+col+"|P"+arr[col]);
 		}
 		
@@ -145,6 +146,7 @@ public class DataMigration {
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
+		
 		message();
 		mapping.print();
 		
@@ -153,7 +155,10 @@ public class DataMigration {
 		MatrixElement colMax;
 		for(int col = 1; col < mapping.getN(); col++) {
 			colMax = mapping.findColMax(col);
-			keyMap.put(colMax.getCol_pos(), colMax.getRow_pos()); // which cluster will go to which partition
+			
+			// which cluster will go to which partition
+			keyMap.put(colMax.getCol_pos(), colMax.getRow_pos());
+			
 			//System.out.println("-#-Col("+col+") [ACT] C"+(colMax.getCol_pos())+"|P"+(colMax.getRow_pos()));
 		}
 		
@@ -170,6 +175,7 @@ public class DataMigration {
 		// Create Mapping Matrix
 		MappingTable mappingTable = new MappingTable();		
 		Matrix mapping = mappingTable.generateMappingTable(cluster, wb);
+		
 		message();
 		mapping.print();
 		
@@ -310,17 +316,28 @@ public class DataMigration {
 	
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {		
-		if(WorkloadExecutor.sword_initial) {
+		if(Global.sword_initial) {
+			// Initial data migration
 			Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");
+			migratedCDataSet = new HashSet<CompressedData>();
 			baseRandom(cluster, wb, partitioner);
 			
 		} else {
 			setEnvironment(cluster);		
 			Sword.populatePQ(cluster, wb);
+						
+			Global.LOGGER.info("-----------------------------------------------------------------------------------------------------------------------");
+			Global.LOGGER.info("Swapping candidate compressed vertices ...");
 			
 			while(!Sword.pq.isEmpty()) {
-				System.out.println(Sword.pq.poll().toString());
+				//System.out.println(Sword.pq.poll().toString());
+				SwordCHEdge sch = Sword.pq.peek();
+				Sword.swapCandidatePair(cluster, wb, sch);				
+				Sword.pq.remove();
 			}
+			
+			wb.set_intra_dmv(intra_server_dmgr);
+			wb.set_inter_dmv(inter_server_dmgr);
 		}
 	}
 	
@@ -333,48 +350,6 @@ public class DataMigration {
 			swapPartitions(cluster, wb, pSet);			
 		else
 			Global.LOGGER.info("Partition swapping is not required or will not improve the situation at this moment !!!");
-	}
-		
-	// RBSTA and FCIMining specific
-	public static void migrate(Cluster cluster, int dst_server_id, int dst_partition_id, Data data) {
-		
-		Partition dst_partition = cluster.getPartition(dst_partition_id);
-		Partition current_partition = cluster.getPartition(data.getData_partition_id());
-		Partition home_partition = cluster.getPartition(data.getData_homePartitionId());												
-		
-		int current_server_id = data.getData_server_id();
-		int current_partition_id = data.getData_partition_id();
-		int home_partition_id = data.getData_homePartitionId();
-		
-		if(dst_partition_id != current_partition_id) { // Data needs to be moved					
-			if(data.isData_isRoaming()) { // Data is already Roaming
-				if(dst_partition_id == home_partition_id) {
-					updateData(cluster, data, dst_partition_id, dst_server_id, false);
-					updatePartition(cluster, data, current_partition_id, dst_partition_id);
-					updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);																		
-					
-					current_partition.decPartition_foreign_data();
-					home_partition.decPartition_roaming_data();
-					
-				} else if(dst_partition_id == current_partition_id) {									
-					// Nothing to do									
-				} else {
-					updateData(cluster, data, dst_partition_id, dst_server_id, true);
-					updatePartition(cluster, data, current_partition_id, dst_partition_id);
-					updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
-					
-					dst_partition.incPartition_foreign_data();
-					current_partition.decPartition_foreign_data();					
-				}
-			} else {
-				updateData(cluster, data, dst_partition_id, dst_server_id, true);
-				updatePartition(cluster, data, current_partition_id, dst_partition_id);
-				updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
-				
-				dst_partition.incPartition_foreign_data();								
-				home_partition.incPartition_roaming_data();
-			}
-		}
 	}
 	
 	// RBPTA specific
@@ -424,14 +399,15 @@ public class DataMigration {
 		
 		// Update server-level load statistic and show
 		cluster.updateLoad();
-		cluster.show();
+		//cluster.show();
 		
 		wb.set_intra_dmv(intra_server_dmgr);
-		wb.set_inter_dmv(inter_server_dmgr);	
+		wb.set_inter_dmv(inter_server_dmgr);
 	}
 	
-	private static void updateData(Cluster cluster, Data data, 
-			int dst_partition_id, int dst_server_id, boolean roaming) {
+	// Updates Data
+	private static void updateData(Cluster cluster, Data data, int dst_partition_id, int dst_server_id, 
+			boolean roaming) {
 		
 		data.setData_partion_id(dst_partition_id);					
 		data.setData_server_id(dst_server_id);
@@ -440,35 +416,9 @@ public class DataMigration {
 			data.setData_isRoaming(true);
 		else
 			data.setData_isRoaming(false);
-		        
-        // Only for Sword
-        if(Global.compressionBeforeSetup) {
-        	
-        	CompressedData v = cluster.getCDataSet().get(data.getData_compressed_data_id());
-        	v.setVdata_partition_id(dst_partition_id);
-        	v.setVdata_server_id(dst_server_id);
-        	
-        	// Move all the Data objects reside in this Virtual Data
-        	for(Integer d_id : v.getVdata_set()) {
-        		Data d = cluster.getData(d_id);
-        		int current_partition_id = d.getData_partition_id();
-        		int current_server_id = d.getData_server_id();
-        		
-        		d.setData_partion_id(dst_partition_id);					
-        		d.setData_server_id(dst_server_id);
-        		
-        		if(roaming)
-        			d.setData_isRoaming(true);
-        		else
-        			d.setData_isRoaming(false);
-        		
-        		updatePartition(cluster, d, d.getData_partition_id(), dst_partition_id);
-        		updateMovementCounts(cluster, dst_server_id, current_server_id, 
-        				dst_partition_id, current_partition_id);
-        	}
-        }
-	}
-	
+	}		
+
+	// Updates Partition
 	private static void updatePartition(Cluster cluster, Data data, 
 			int current_partition_id, int dst_partition_id) {
 		
@@ -476,16 +426,16 @@ public class DataMigration {
         Partition dst_partition = cluster.getPartition(dst_partition_id);
         Partition home_partition = cluster.getPartition(data.getData_homePartitionId());
         
-        // Actual Movement
+        // Actual physical migration
         dst_partition.getPartition_dataSet().put(data.getData_id(), data);
         current_partition.getPartition_dataSet().remove(data.getData_id());
         
-        // Update Lookup Table
-        updateLookupTable(home_partition, dst_partition_id, data);
+        // Update lookup table
+        updateLookupTable(home_partition, data, dst_partition_id);
 	}
 	
-	private static void updateLookupTable(Partition home_partition, int dst_partition_id, 
-			Data data) {
+	// Updates Partition lookup table
+	private static void updateLookupTable(Partition home_partition, Data data, int dst_partition_id) {
 		
 		if(home_partition.getPartition_dataLookupTable().containsKey(data.getData_id())) {
 			
@@ -498,7 +448,8 @@ public class DataMigration {
         }
 	}
 	
-	private static void updateMovementCounts(Cluster cluster, int dst_server_id, 
+	// Updates migration counts
+	private static void updateMigrationCounts(Cluster cluster, int dst_server_id, 
 			int src_server_id, int dst_partition_id, int current_partition_id) {
 		
 		cluster.getPartition(dst_partition_id).incPartition_inflow();		 
@@ -515,145 +466,172 @@ public class DataMigration {
 		}
 	}		
 	
-	private static void updateMutuallyExclusiveServerSets(int src, int dst) {		
-		//int old_value = Metric.getMESValue(src, dst);
+	// Updates mutually exclusive server sets
+	private static void updateMutuallyExclusiveServerSets(int src, int dst) {
 		Metric.updateMESValue(src, dst);
 	}
 	
+	// Updates server-level flow counts
 	private static void updateServerFlowCounts(Cluster cluster, int src, int dst) {
 		cluster.getServer(dst).incServer_totalData();
 		cluster.getServer(src).decServer_totalData();
 		
 		cluster.getServer(dst).incServer_inflow();
 		cluster.getServer(src).incServer_outflow();
+	}	
+	
+	// Sword specific --  for the single static repartitioning
+	static Set<CompressedData> migratedCDataSet;
+	public static void migrateCompressedData(Cluster cluster, Data data,  
+			int dst_partition_id, int dst_server_id) {
+		
+		CompressedData cd = cluster.getCDataSet().get(data.getData_compressed_data_id());
+		
+		if(!migratedCDataSet.contains(cd)) {
+			migratedCDataSet.add(cd);
+		
+			cd.setCData_partition_id(dst_partition_id);
+	    	cd.setCData_server_id(dst_server_id);
+			
+			// Move all the Data tuples residing in this compressed Data
+	    	for(Integer d_id : cd.getCData_set()) {
+	    		Data d = cluster.getData(d_id);    		
+	    		migrateSingleData(cluster, d, dst_server_id, dst_partition_id);    		
+	    	}
+		}
 	}
 	
-	// Perform Actual Data Migration
-	private static void migrate(Cluster cluster, WorkloadBatch wb, ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr,  
-			Map<Integer, Integer> keyMap, String type) {
+	// Migrates a single Data from one partition to another
+	// Performs actual Data migration operation
+	static Set<Data> migratedDataSet;
+	static void migrateSingleData(Cluster cluster, Data data, int dst_server_id, int dst_partition_id) {
 		
-		Partition home_partition = null;
-		Partition current_partition = null;
+		if(!migratedDataSet.contains(data)) {
+			migratedDataSet.add(data);
+		
+			Partition dst_partition = cluster.getPartition(dst_partition_id);
+			Partition current_partition = cluster.getPartition(data.getData_partition_id());
+			Partition home_partition = cluster.getPartition(data.getData_homePartitionId());												
+			
+			int current_server_id = data.getData_server_id();
+			int current_partition_id = data.getData_partition_id();
+			int home_partition_id = data.getData_homePartitionId();		
+			
+			if(dst_partition_id != current_partition_id) { // Data needs to be moved					
+				if(data.isData_isRoaming()) { // Data is already Roaming
+					if(dst_partition_id == home_partition_id) { 
+						// Data will be roamed back to its home partition
+						updateData(cluster, data, dst_partition_id, dst_server_id, false);
+						updatePartition(cluster, data, current_partition_id, dst_partition_id);
+						updateMigrationCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+						
+						current_partition.decPartition_foreign_data();
+						home_partition.decPartition_roaming_data();
+						
+					} else { 
+						// Data will be roamed to another foreign partition
+						updateData(cluster, data, dst_partition_id, dst_server_id, true);
+						updatePartition(cluster, data, current_partition_id, dst_partition_id);
+						updateMigrationCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
+						
+						dst_partition.incPartition_foreign_data();
+						current_partition.decPartition_foreign_data();							
+					}
+				} else { 
+					// Data will be roamed for its home partition
+					updateData(cluster, data, dst_partition_id, dst_server_id, true);						
+					updatePartition(cluster, data, current_partition_id, dst_partition_id);
+					updateMigrationCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);						
+					
+					dst_partition.incPartition_foreign_data();								
+					home_partition.incPartition_roaming_data();
+				}
+			}	
+		}
+	}	
+	
+	// Migrates all the Data present in the current workload
+	private static void migrate(Cluster cluster, WorkloadBatch wb, 
+			ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr, Map<Integer, Integer> keyMap, String type) {
+
 		Partition dst_partition = null;
 		
-		int home_partition_id = -1;
 		int current_partition_id = -1;
 		int dst_partition_id = -1;		
 		int current_server_id = -1;		
 		int dst_server_id = -1;		
 		
 		Set<Integer> dataSet = new TreeSet<Integer>();			
-						
-		//for(SimpleHEdge h : wb.hgr.getEdges()) {
+
+		for(SimpleVertex v : hgr.getVertices()) {
+			Data data = cluster.getData(v.getId());
 			
-			//Transaction tr = wb.getTransaction(h.getId());
-		
-			//for(Integer d : tr.getTr_dataSet()) {
-			for(SimpleVertex v : hgr.getVertices()) {
-				//System.out.println("--> "+d);
-				Data data = cluster.getData(v.getId());
+			if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
+				dataSet.add(data.getData_id());																		
 				
-				if(!dataSet.contains(data.getData_id()) && data.isData_inUse()) {
-					dataSet.add(data.getData_id());
-					
-					home_partition_id = data.getData_homePartitionId();
-					home_partition = cluster.getPartition(data.getData_homePartitionId());																		
-					
-					current_partition_id = data.getData_partition_id();									
-					current_partition = cluster.getPartition(current_partition_id);
-					current_server_id = data.getData_server_id();			
-					
-					switch(type) {
-					
-						case "hgr":
-							if(Global.compressionEnabled) {
-								dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
-								data.setData_chmetisClusterId(-1);
-								
-							} else {
-								dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
-								data.setData_hmetisClusterId(-1);
-							}
-							break;
-													
-						case "gr":
-							dst_partition_id = keyMap.get(data.getData_metisClusterId());
-							data.setData_metisClusterId(-1);
-							break;
-					}
-					
-					//System.out.println("@debug >> P"+dst_partition_id);
-					
-					if(Global.associative) {
-						// Decide destination server
-						dst_server_id = dst_partition_id;
-
-						// Decide destination partition if data needs to be migrated						
-						if(dst_server_id != current_server_id) {
-							dst_partition_id = selectPartitionId(cluster, dst_server_id);
-							dst_partition = cluster.getPartition(dst_partition_id);
+				current_partition_id = data.getData_partition_id();
+				current_server_id = data.getData_server_id();			
+				
+				switch(type) {
+				
+					case "hgr":
+						if(Global.compressionEnabled) {
+							dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
+							data.setData_chmetisClusterId(-1);
 							
 						} else {
-							// Target data tuple is already in the destination server, no data migration is needed
-							dst_partition_id = current_partition_id;
+							dst_partition_id = keyMap.get(data.getData_hmetisClusterId());
+							data.setData_hmetisClusterId(-1);
 						}
-						
-						// Populate FCI clusters
-						if(DataStreamMining.fci_clusters.containsKey(dst_server_id)) {
-							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
-						} else {						
-							DataStreamMining.fci_clusters.put(dst_server_id, new FCICluster());
-							DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
-						}
+						break;
+												
+					case "gr":
+						dst_partition_id = keyMap.get(data.getData_metisClusterId());
+						data.setData_metisClusterId(-1);
+						break;
+				}
+				
+				//System.out.println("@debug >> P"+dst_partition_id);
+				
+				if(Global.associative) {
+					// Decide destination server
+					dst_server_id = dst_partition_id;
 
-					} else {
+					// Decide destination partition if data needs to be migrated						
+					if(dst_server_id != current_server_id) {
+						dst_partition_id = selectPartitionId(cluster, dst_server_id);
 						dst_partition = cluster.getPartition(dst_partition_id);
-						dst_server_id = dst_partition.getPartition_serverId();
-					}
-					
-					if(dst_partition_id != current_partition_id) { // Data needs to be moved					
-						if(data.isData_isRoaming()) { // Data is already Roaming
-							if(dst_partition_id == home_partition_id) {
-								updateData(cluster, data, dst_partition_id, dst_server_id, false);
-								updatePartition(cluster, data, current_partition_id, dst_partition_id);
-								updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);																		
-								
-								current_partition.decPartition_foreign_data();
-								home_partition.decPartition_roaming_data();
-								
-							} else if(dst_partition_id == current_partition_id) {									
-								// Nothing to do									
-							} else {
-								updateData(cluster, data, dst_partition_id, dst_server_id, true);
-								updatePartition(cluster, data, current_partition_id, dst_partition_id);
-								updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
-								
-								dst_partition.incPartition_foreign_data();
-								current_partition.decPartition_foreign_data();
-								
-							}
-						} else {
-							updateData(cluster, data, dst_partition_id, dst_server_id, true);
-							updatePartition(cluster, data, current_partition_id, dst_partition_id);
-							updateMovementCounts(cluster, dst_server_id, current_server_id, dst_partition_id, current_partition_id);
-							
-							dst_partition.incPartition_foreign_data();								
-							home_partition.incPartition_roaming_data();
-						}
+						
 					} else {
-						// This is just for testing purpose to make sure the total number of data in the cluster is correct
-						++intra_server_dmgr;
+						// Target Data tuple is already in the destination server, no migration is required
+						dst_partition_id = current_partition_id;
 					}
 					
-					data.setData_inUse(false);
-				} // end -- if()-Data
-			} // end -- for()-Data
-			
-			//if(tr.isDt() && Global.compressionBeforeSetup)
-				//wb.sword.hCut.add(h);
-			
-		//} // end -- for()		
-		
+					// Populate FCI clusters
+					if(DataStreamMining.fci_clusters.containsKey(dst_server_id)) {
+						DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
+					} else {						
+						DataStreamMining.fci_clusters.put(dst_server_id, new FCICluster());
+						DataStreamMining.fci_clusters.get(dst_server_id).fci.add(data.getData_id());
+					}
+
+				} else {
+					dst_partition = cluster.getPartition(dst_partition_id);
+					dst_server_id = dst_partition.getPartition_serverId();
+				}
+				
+				// Actual Data migration
+				migrateSingleData(cluster, data, dst_server_id, dst_partition_id);
+				
+				// Sword specific -- Migrate the entire corresponding Compressed Data
+				if(Global.compressionBeforeSetup && Global.sword_initial)
+					DataMigration.migrateCompressedData(cluster, data, dst_partition_id, dst_server_id);
+				
+				data.setData_inUse(false);
+				
+			} // end -- if()-Data
+		} // end -- for()-Data	
+					
 		wb.set_intra_dmv(intra_server_dmgr);
 		wb.set_inter_dmv(inter_server_dmgr);	
 	}

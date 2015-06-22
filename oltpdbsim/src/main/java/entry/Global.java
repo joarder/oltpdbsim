@@ -125,7 +125,7 @@ public final class Global implements java.io.Serializable {
 
 	// For Sword
 	public static int compressedVertices;
-	public static boolean sword_initial;
+	public static boolean sword_initial = true;
 	
 	// For Analysis
 	public static boolean analysis;
