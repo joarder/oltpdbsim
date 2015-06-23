@@ -1,8 +1,26 @@
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
+
 package main.java.db;
 
 import java.util.HashMap;
 import java.util.Map;
+
 import main.java.utils.Utility;
+import main.java.workload.WorkloadConstants;
 
 public class Tuple implements Comparable<Tuple>, java.io.Serializable {
 	
@@ -17,7 +35,7 @@ public class Tuple implements Comparable<Tuple>, java.io.Serializable {
 	Tuple(Table tbl, int pk) {
 		this.setTuple_id(Utility.rightPadding(pk, tbl.getTbl_id()));
 		this.setTuple_label("t"+this.getTuple_id());
-		this.setTuple_action("initial");
+		this.setTuple_action(WorkloadConstants.TPL_INITIAL);
 		
 		switch(tbl.getTbl_type()) {
 			case 0: // Primary Table (i.e. Warehouse and Item Tables in TPCC)

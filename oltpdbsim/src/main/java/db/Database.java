@@ -1,27 +1,39 @@
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
+
 package main.java.db;
 
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
-import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.Workload;
 
-public class Database implements java.io.Serializable {	
-
-	private static final long serialVersionUID = 4457221663737113018L;
+public class Database {	
 
 	private String db_name;
 	private int db_tuple_counts;
-	private SortedMap<Integer, Table> db_tables;
+	private HashMap<Integer, Table> db_tables;
+	private HashMap<String, Integer> db_tbl_name_id_map;
 	
-	Database(String name) {
+	protected Database(String name) {
 		this.setDb_name(name);
 		this.setDb_tuple_counts(0);
-		this.setDb_tables(new TreeMap<Integer, Table>());
+		this.setDb_tables(new HashMap<Integer, Table>());
+		this.setDb_tbl_name_id_map(new HashMap<String, Integer>());
 	}
 
 	public String getDb_name() {
@@ -40,14 +52,22 @@ public class Database implements java.io.Serializable {
 		this.db_tuple_counts = db_tuple_counts;
 	}
 
-	public SortedMap<Integer, Table> getDb_tables() {
+	public HashMap<Integer, Table> getDb_tables() {
 		return this.db_tables;
 	}
 
-	public void setDb_tables(SortedMap<Integer, Table> db_tables) {
+	public void setDb_tables(HashMap<Integer, Table> db_tables) {
 		this.db_tables = db_tables;
 	}
 		
+	public HashMap<String, Integer> getDb_tbl_name_id_map() {
+		return db_tbl_name_id_map;
+	}
+
+	public void setDb_tbl_name_id_map(HashMap<String, Integer> db_tbl_name_id_map) {
+		this.db_tbl_name_id_map = db_tbl_name_id_map;
+	}
+
 	// Updates total Tuple counts within the entire Database
 	public void updateTupleCounts() {
 		int tuple_count = 0;
@@ -93,109 +113,8 @@ public class Database implements java.io.Serializable {
 	// Returns a Table by its id
 	public Table getTable(int tbl_id) {
 		return this.getDb_tables().get(tbl_id);
-	}	
-	
-	int getBase(int x) { 
-		int value = Math.abs(x);
-		
-		if (value == 0) 
-			return 1; 
-		else 
-			return (int) (1 + Math.floor((Math.log(value)/Math.log(10.0d)))); 
-	}		
-	
-	// Populate Database with Data tuples
-	public void populate() {
-		
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Populating initial database ...");
-		
-		for(Entry<Integer, Table> tbl_entry : this.getDb_tables().entrySet()) {
-			
-			Table tbl = tbl_entry.getValue();
-			
-			Table ftbl = null;
-			Iterator<Integer> f_tbl_itr = null;
-			ArrayList<Integer> fk_list = null;
-			
-			int f_tuple[] = new int[2];
-			int i = 0;
-			int pk, fk = 0;
-						
-			for(pk = 1; pk <= tbl.getTbl_init_tuples(); pk++) {
-				
-				++Global.global_tupleSeq;											
-				Tuple tpl = this.insertTuple(tbl.getTbl_id(), pk);
-				
-				if(tbl.getTbl_type() != 0) {
-					
-					fk_list = new ArrayList<Integer>();
-					f_tbl_itr = tbl.getTbl_foreign_tables().iterator();
-					
-					while(f_tbl_itr.hasNext()) {
-						ftbl = this.getTable(f_tbl_itr.next());
-						
-						++f_tuple[i];
-						fk = ftbl.getTupleByPk(f_tuple[i]).getTuple_pk();
-						tpl.getTuple_fk().put(tbl.getTbl_id(), fk);									
-						
-						// Index
-						switch(tbl.getTbl_type()) {
-							case 1: // Secondary Table
-								// Insert into Index
-								tbl.insertSecondaryIdx(fk, pk);									
-								break;
-							
-							case 2:	// Dependent Table								
-								fk_list.add(fk);
-								break;
-						}
-						
-						// Reset
-						if(f_tuple[i] == ftbl.getTbl_tuples().size())
-							f_tuple[i] = 0;						
-
-						++i;
-					} //--end while()--foreign tables
-					
-					// Index -- Dependent Table
-					if(tbl.getTbl_type() == 2){
-						tbl.getIdx_multikey_dependent().put(fk_list.get(0), fk_list.get(1), pk);
-					}
-					
-					// Reset
-					i = 0;
-				} //--end if()--secondary and dependent tables
-			} //--end for()--data
-			
-			tbl.setTbl_last_entry(pk);
-			Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into "+tbl.getTbl_name()+" table.");
-		} //--end for()--table
-		
-		this.updateTupleCounts();		
 	}
 	
-	public void setupDbCache(Database db, Workload wrl) {
-		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Setting up database cache ...");		
-
-		wrl.warmingup = true;
-		
-		// i -- Transaction types
-		for(int i = 1; i <= wrl.tr_types; i++) {
-			// Calculate the number of transactions to be created for a specific type
-			int tr_nums = (int) Math.ceil(wrl.tr_proportions.get(i) * Global.observationWindow); // 3600 transactions ~ 1hr workload			
-			//Global.LOGGER.info("Streaming "+tr_nums+" transactions of type "+i+" ...");
-
-			// j -- number of Transactions for a specific Transaction type
-			for(int j = 1; j <= tr_nums; j++) {		
-				wrl.getTrTupleSet(db, i);
-			}			
-		}
-		
-		wrl.warmingup = false;
-		db.updateTupleCounts();
-		
-		Global.LOGGER.info("After initial population and cache setup, total db tuples are "+this.getDb_tuple_counts()+".");
-	}
+	// Populate initial database
+	public void populate(Workload wrl) {}
 }

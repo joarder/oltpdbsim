@@ -1,4 +1,20 @@
-package main.java.workload;
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
+
+package main.java.workload.tpcc;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -7,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
+
 import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -15,13 +32,10 @@ import main.java.db.Tuple;
 import main.java.db.Database;
 import main.java.db.Table;
 import main.java.entry.Global;
+import main.java.workload.Workload;
+import main.java.workload.WorkloadConstants;
 
-public class TpccWorkload extends Workload {	
-
-	private static final long serialVersionUID = 1L;
-	
-	public double scale = 0.0;
-	public int warehouses = 0;
+public class TpccWorkload extends Workload {
 	
 	public TpccWorkload(String file) {	
 		super(file);				
@@ -34,19 +48,19 @@ public class TpccWorkload extends Workload {
 	    int i, j = 0;
 	    
 	    try {
-	    	config_file = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(this.file_name)));
+	    	config_file = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(this.getFile_name())));
 	    	
 		//Load configuration parameters
 	    	parameters = new PropertiesConfiguration();
 			parameters.load(config_file);
 			
 		//Read TPCC scale
-			scale = parameters.getDouble("tpcc.scale");		    	
-			Global.LOGGER.info("TPCC scale: "+scale);
+			TpccConstants.SCALE_FACTOR = parameters.getDouble("tpcc.scale");		    	
+			Global.LOGGER.info("TPCC scale: "+TpccConstants.SCALE_FACTOR);
 		 
 		//Read TPCC warehouses
-			warehouses = parameters.getInt("tpcc.warehouses");	    	
-			Global.LOGGER.info("TPCC warehouses: "+warehouses);
+			TpccConstants.NUM_WAREHOUSES = parameters.getInt("tpcc.warehouses");	    	
+			Global.LOGGER.info("TPCC warehouses: "+TpccConstants.NUM_WAREHOUSES);
 			
 		//Read TPCC table types
 			i = 1;
@@ -71,8 +85,7 @@ public class TpccWorkload extends Workload {
 				++j;
 			}
 			Global.LOGGER.info("TPCC table-level schema: "+schema);
-
-			//19,28,29,39,48,50,59,67,76,79			
+			
 		//Read TPCC transaction proportion
 			i = 0;
 			//new 
@@ -157,7 +170,7 @@ public class TpccWorkload extends Workload {
 			tuple_nums = this.tr_tuple_distributions.get(tr_type).get(tbl.getTbl_id()-1);
 			action = this.tr_changes.get(tr_type).get(tbl.getTbl_id()-1);
 			
-			//System.out.println("--> Table("+tbl.getTbl_name()+") | data = "+tbl.getTbl_tuples().size()+" | action = "+action);
+			//System.out.println("--> Table("+tbl.getTbl_name()+") | data = "+tbl.getTbl_tuples().size()+" | action = "+action+" | tuple_nums = "+tuple_nums);
 			
 			switch(action) {
 			case 0:						
@@ -170,7 +183,7 @@ public class TpccWorkload extends Workload {
 						for(int d = 1; d <= tuple_nums; d++) {
 							//================new
 							switch(tbl.getTbl_name()) {
-								case "Warehouse":
+								case TpccConstants.TBL_WAREHOUSE:
 									_w = tbl.zipfDistribution.sample();
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_w);
@@ -178,7 +191,7 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> W("+_w+")");
 									break;
 									
-								case "Item":
+								case TpccConstants.TBL_ITEM:
 									_i = tbl.zipfDistribution.sample();
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_i);
@@ -186,7 +199,7 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> I("+_i+")");
 									break;
 									
-								case "District":
+								case TpccConstants.TBL_DISTRICT:
 									if(tr_type <= 1 || this._cache.isEmpty()) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_w);
@@ -213,7 +226,7 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> D("+_d+") for W("+_w+")");
 									break;
 									
-								case "Stock":
+								case TpccConstants.TBL_STOCK:
 									if(tr_type <= 1 || this._cache.isEmpty()) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_w);
@@ -228,7 +241,7 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> S("+_s+") for W("+_w+") and I("+_i+")");
 									break;
 									
-								case "Customer": // District Table
+								case TpccConstants.TBL_CUSTOMER: // District Table
 									if(tr_type <= 1 || this._cache.isEmpty()) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_d);
@@ -256,11 +269,11 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> C("+_c+") for D("+_d+") -- "+tupleList.get(0));										
 									break;
 									
-								case "History": // Customer Table
+								case TpccConstants.TBL_HISTORY: // Customer Table
 									// Nothing to do
 									break;
 									
-								case "Orders":
+								case TpccConstants.TBL_ORDERS:
 									if(tr_type <= 1 || this._cache.isEmpty()) {
 										keyList = new ArrayList<Integer>();
 										keyList.add(_c);
@@ -276,11 +289,11 @@ public class TpccWorkload extends Workload {
 									//System.out.println("\t\t--> O("+_o+") for C("+_c+") -- "+tupleList.get(0));
 									break;
 									
-								case "New-Order": // Customer Table (the last 1/3 values from the Order table)					
+								case TpccConstants.TBL_NEW_ORDER: // Customer Table (the last 1/3 values from the Order table)					
 									// Nothing to do
 									break;
 									
-								case "Order-Line": // Stock Table (10 most popular values from the Stock table)
+								case TpccConstants.TBL_ORDER_LINE: // Stock Table (10 most popular values from the Stock table)
 									keyList = new ArrayList<Integer>();
 									keyList.add(_s);
 									keyList.add(_o);
@@ -293,8 +306,10 @@ public class TpccWorkload extends Workload {
 														
 							if(trTupleList.contains(tupleList.get(0)) && d > 1) {
 								--d;
+								
 							} else {
-								trTupleList.add(tupleList.get(0));							
+								trTupleList.add(tupleList.get(0));
+								//System.out.println("@ "+tupleList.get(0));
 								trTupleSet.add(tbl.getTupleByPk(tupleList.get(0)).getTuple_id());
 							}
 						}
@@ -314,10 +329,10 @@ public class TpccWorkload extends Workload {
 					trTupleSet.add(tpl.getTuple_id()); // Add Tuple id
 					
 					if(!this.warmingup) 
-						tpl.setTuple_action("insert");
+						tpl.setTuple_action(WorkloadConstants.TPL_INSERT);
 					
 					switch(tbl.getTbl_name()) {
-						case("History"):
+						case(TpccConstants.TBL_HISTORY):
 							tpl.getTuple_fk().put(3, _d); // 3: District Table
 							tpl.getTuple_fk().put(5, _c); // 5: Customer Table
 						
@@ -326,7 +341,7 @@ public class TpccWorkload extends Workload {
 							tbl.getIdx_multikey_dependent().put(_d, _c, tbl.getTbl_tuples().size());
 							break;
 						
-						case("Orders"):
+						case(TpccConstants.TBL_ORDERS):
 							_o = tbl.getTbl_last_entry();
 							//System.out.println("\t\t>> Inserting _o("+_o+") for _c("+_c+") and _d("+_d+")");
 						
@@ -348,7 +363,7 @@ public class TpccWorkload extends Workload {
 						// Insert								
 							Tuple _no_tpl = db.insertTuple(_no_tbl.getTbl_id(), _no_tpl_pk);
 							trTupleSet.add(_no_tpl.getTuple_id()); // Add Tuple id
-							if(!this.warmingup) _no_tpl.setTuple_action("insert");	
+							if(!this.warmingup) _no_tpl.setTuple_action(WorkloadConstants.TPL_INSERT);	
 							
 							_no = _no_tbl.getTbl_last_entry();
 							_no_tpl.setTuple_pk(_no);
@@ -371,7 +386,7 @@ public class TpccWorkload extends Workload {
 						// Insert								
 							Tuple _ol_tpl = db.insertTuple(_ol_tbl.getTbl_id(), _ol_tpl_pk);
 							trTupleSet.add(_ol_tpl.getTuple_id());
-							if(!this.warmingup) _ol_tpl.setTuple_action("insert");
+							if(!this.warmingup) _ol_tpl.setTuple_action(WorkloadConstants.TPL_INSERT);
 														
 							_ol = _ol_tbl.getTbl_last_entry();
 							_ol_tpl.setTuple_pk(_ol);
@@ -419,7 +434,7 @@ public class TpccWorkload extends Workload {
 					trTupleSet.add(tuple.getTuple_id()); // Add Tuple id
 					
 					if(!this.warmingup) 
-						tuple.setTuple_action("delete");
+						tuple.setTuple_action(WorkloadConstants.TPL_DELETE);
 					
 					// Remove from Table index
 					tbl.getIdx_multivalue_secondary().remove(_o);

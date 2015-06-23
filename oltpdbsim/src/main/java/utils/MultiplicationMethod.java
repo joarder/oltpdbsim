@@ -1,33 +1,22 @@
-/************************************************************************
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
  *
- * 1. This software is for the purpose of demonstrating one of many
- * ways to implement the algorithms in Introduction to Algorithms,
- * Second edition, by Thomas H. Cormen, Charles E. Leiserson, Ronald
- * L. Rivest, and Clifford Stein.  This software has been tested on a
- * limited set of test cases, but it has not been exhaustively tested.
- * It should not be used for mission-critical applications without
- * further testing.
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
  *
- * 2. McGraw-Hill licenses and authorizes you to use this software
- * only on a microcomputer located within your own facilities.
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *
- * 3. You will abide by the Copyright Law of the United Sates.
- *
- * 4. You may prepare a derivative version of this software provided
- * that your source code indicates that it based on this software and
- * also that you have made changes to it.
- *
- * 5. If you believe that you have found an error in this software,
- * please send email to clrs-java-bugs@mhhe.com.  If you have a
- * suggestion for an improvement, please send email to
- * clrs-java-suggestions@mhhe.com.
- *
- ***********************************************************************/
-
-package main.java.utils;
-
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
 /** Implements the multiplication method of hashing on pages 231-232
  * of <i>Introduction to Algorithms</i>, Second edition. */
+
+package main.java.utils;
 
 public class MultiplicationMethod
 {

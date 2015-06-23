@@ -1,6 +1,18 @@
-/**
- * @author Joarder Kamal
- */
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
 
 package main.java.db;
 
@@ -36,7 +48,7 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 	private Map<Integer, ArrayList<Integer>> idx_multivalue_secondary; // For Secondary Tables
 	private MultiKeyMap<Integer, Integer> idx_multikey_dependent; // For Dependent Tables
 	
-	Table(int id, int type, String name) {
+	public Table(int id, int type, String name) {
 		this.setTbl_id(id);
 		this.setTbl_name(name);
 		this.setTbl_type(type);
@@ -191,15 +203,17 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 		if(_null)
 			tpl_id.add(-1);
 		else {
-//			System.out.println("@ d = "+d+" | "+this.getTbl_type());
-//			System.out.println("@ "+this.getTupleByPk(d).toString());
+			//System.out.println("@ d = "+d+" | "+this.getTbl_type());
+			//System.out.println("@ "+this.getTupleByPk(d).toString());
 			if(this.getTupleByPk(d).getTuple_pk() != 0)
 				tpl_id.add(this.getTupleByPk(d).getTuple_pk());
-//			System.out.println("@ "+tpl_id);
+			
+			//System.out.println("@ "+tpl_id);
 		}
 		
 		tpl_id.add(d);
-//		System.out.println("@ "+tpl_id);
+		//System.out.println("@ "+tpl_id);
+		
 		return tpl_id;
 	}
 	

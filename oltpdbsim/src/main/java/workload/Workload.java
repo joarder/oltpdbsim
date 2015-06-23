@@ -1,3 +1,19 @@
+/*******************************************************************************
+ * Copyright [2014] [Joarder Kamal]
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
+
 package main.java.workload;
 
 import java.io.BufferedReader;
@@ -21,9 +37,7 @@ import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
-public class Workload implements java.io.Serializable {	
-
-	private static final long serialVersionUID = 1L;
+public class Workload {
 	
 	public boolean warmingup;
 	
@@ -32,9 +46,9 @@ public class Workload implements java.io.Serializable {
 	public Map<Integer, ArrayList<Integer>> schema = null;
 	
 	public Map<Integer, Double> tr_proportions = null;
-	Map<Integer, ArrayList<Integer>> tr_tuple_distributions = null;	
-	Map<Integer, ArrayList<Integer>> tr_changes = null;
-	String file_name = null;
+	protected Map<Integer, ArrayList<Integer>> tr_tuple_distributions = null;	
+	protected Map<Integer, ArrayList<Integer>> tr_changes = null;
+	private String file_name = null;
 	
 	public int tr_types = 0;
 	
@@ -47,16 +61,16 @@ public class Workload implements java.io.Serializable {
 	protected ArrayList<Integer> _cache_keys;
 	protected int _cache_id;		
 	
-	Workload(String file) {
-		file_name = file;
+	protected Workload(String file) {
+		setFile_name(file);
 		BufferedReader config_file = null; 
 	    AbstractFileConfiguration parameters = null;
 	    
 	    try {
 	    	config_file = new BufferedReader(
-	    			new InputStreamReader(getClass().getResourceAsStream(file_name)));
+	    			new InputStreamReader(getClass().getResourceAsStream(getFile_name())));
 	    	
-			Global.LOGGER.info("Configuration file "+file_name+" is found under src/main/resources and read.");
+			Global.LOGGER.info("Configuration file "+getFile_name()+" is found under src/main/resources and read.");
 	    	
 		    //Load configuration parameters
 	    	parameters = new PropertiesConfiguration();
@@ -116,9 +130,9 @@ public class Workload implements java.io.Serializable {
 				Tuple tpl = db.getTupleById(tbl_id, tpl_id);
 				int _id = -1;
 				
-				if(tpl.getTuple_action().equals("insert")) {
+				if(tpl.getTuple_action().equals(WorkloadConstants.TPL_INSERT)) {
 					
-					tpl.setTuple_action("initial");
+					tpl.setTuple_action(WorkloadConstants.TPL_INITIAL);
 					
 					// Insert into Cluster, already in the Database
 					
@@ -191,4 +205,14 @@ public class Workload implements java.io.Serializable {
 	
 		return trDataSet;
 	}
+
+	public String getFile_name() {
+		return file_name;
+	}
+
+	public void setFile_name(String file_name) {
+		this.file_name = file_name;
+	}
+
+	public void readConfig() {}
 }
