@@ -17,18 +17,17 @@
 package main.java.workload.tpcc;
 
 public abstract class TpccConstants {
-	public static final String TBL_WAREHOUSE = "Warehouse";
-    public static final String TBL_ITEM	= "Item";
-    public static final String TBL_DISTRICT	= "District";
-    public static final String TBL_STOCK = "Stock";
-    public static final String TBL_CUSTOMER	= "Customer";
-    public static final String TBL_HISTORY = "History";
-    public static final String TBL_ORDERS = "Orders";
-    public static final String TBL_NEW_ORDER = "New-Order";
-    public static final String TBL_ORDER_LINE = "Order-Line";
+	public static final String TBL_WAREHOUSE = "warehouse";
+    public static final String TBL_ITEM	= "item";
+    public static final String TBL_DISTRICT	= "district";
+    public static final String TBL_STOCK = "stock";
+    public static final String TBL_CUSTOMER	= "customer";
+    public static final String TBL_HISTORY = "history";
+    public static final String TBL_ORDERS = "orders";
+    public static final String TBL_NEW_ORDER = "new_order";
+    public static final String TBL_ORDER_LINE = "order_line";
 
-    public static double SCALE_FACTOR = 1;
-    public static int NUM_WAREHOUSES = 1;
+    public static int NUM_WAREHOUSES = 1; // TPC-C Scale Factor - Number of Warehouses
     
     public static final double ZIPF_EXP = 2.0; // 1.75
     

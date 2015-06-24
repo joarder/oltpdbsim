@@ -534,7 +534,7 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-				if(Global.graphcutBasedRepartitioning && Global.sword_initial)
+				if(Global.graphcutBasedRepartitioning || Global.sword_initial)
 					WorkloadExecutor.runRepartitioner(cluster, wb);
 								
 				// Perform data migrations

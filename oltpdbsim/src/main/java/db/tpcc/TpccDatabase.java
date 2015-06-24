@@ -17,7 +17,9 @@
 package main.java.db.tpcc;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import main.java.db.Database;
@@ -26,6 +28,7 @@ import main.java.db.Tuple;
 import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.Workload;
+import main.java.workload.WorkloadConstants;
 import main.java.workload.tpcc.TpccConstants;
 import main.java.workload.tpcc.TpccWorkload;
 
@@ -38,9 +41,9 @@ public class TpccDatabase extends Database {
 	}
 		
 	// Estimate initial database Table sizes
-	private void estimateTableSize(TpccWorkload wrl) {
+	private void estimateTableSize(Workload wrl) {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Estimating initial data tuple counts for "+this.getDb_name()+" database ...");
+		Global.LOGGER.info("Estimating initial data tuple counts for '"+this.getDb_name()+"' database ...");
 		
 		String[] table_names = {
 				TpccConstants.TBL_WAREHOUSE,
@@ -68,9 +71,9 @@ public class TpccDatabase extends Database {
 				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 				
 			} else if(tbl.getTbl_name().equals(TpccConstants.TBL_ITEM)) {
-				tbl.setTbl_data_rank(new int[((int) (TpccConstants.NUM_ITEMS * TpccConstants.SCALE_FACTOR)) + 1]);
+				tbl.setTbl_data_rank(new int[((int) (TpccConstants.NUM_ITEMS * WorkloadConstants.SCALE_FACTOR)) + 1]);
 				
-				tbl.zipfDistribution = new ZipfDistribution(((int) (TpccConstants.NUM_ITEMS * TpccConstants.SCALE_FACTOR)), TpccConstants.ZIPF_EXP);
+				tbl.zipfDistribution = new ZipfDistribution(((int) (TpccConstants.NUM_ITEMS * WorkloadConstants.SCALE_FACTOR)), TpccConstants.ZIPF_EXP);
 				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);				
 			}
 			
@@ -83,7 +86,7 @@ public class TpccDatabase extends Database {
 					break;
 					
 				case TpccConstants.TBL_ITEM:
-					tbl.setTbl_init_tuples((int) (TpccConstants.NUM_ITEMS * TpccConstants.SCALE_FACTOR));					
+					tbl.setTbl_init_tuples((int) (TpccConstants.NUM_ITEMS * WorkloadConstants.SCALE_FACTOR));					
 					break;
 					
 				case TpccConstants.TBL_DISTRICT:
@@ -91,11 +94,11 @@ public class TpccDatabase extends Database {
 					break;
 					
 				case TpccConstants.TBL_STOCK:
-					tbl.setTbl_init_tuples((int) (TpccConstants.STOCKS_PER_WAREHOUSE * TpccConstants.NUM_WAREHOUSES * TpccConstants.SCALE_FACTOR));
+					tbl.setTbl_init_tuples((int) (TpccConstants.STOCKS_PER_WAREHOUSE * TpccConstants.NUM_WAREHOUSES * WorkloadConstants.SCALE_FACTOR));
 					break;
 					
 				case TpccConstants.TBL_CUSTOMER: // Relating District Table
-					tbl.setTbl_init_tuples((int) (TpccConstants.CUSTOMERS_PER_DISTRICT * this.getTable(this.getDb_tbl_name_id_map().get(TpccConstants.TBL_DISTRICT)).getTbl_init_tuples() * TpccConstants.SCALE_FACTOR));
+					tbl.setTbl_init_tuples((int) (TpccConstants.CUSTOMERS_PER_DISTRICT * this.getTable(this.getDb_tbl_name_id_map().get(TpccConstants.TBL_DISTRICT)).getTbl_init_tuples() * WorkloadConstants.SCALE_FACTOR));
 					break;
 					
 				case TpccConstants.TBL_HISTORY: // Relating Customer Table (1+) // CUSTOMER
@@ -133,10 +136,11 @@ public class TpccDatabase extends Database {
 	}
 	
 	// Populate Database with Data tuples
+	@Override
 	public void populate(Workload wrl) {
 		
 		// Estimate initial table sizes
-		this.estimateTableSize((TpccWorkload)wrl);
+		this.estimateTableSize((TpccWorkload) wrl);
 		
 		// Populate initial database
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
@@ -169,7 +173,17 @@ public class TpccDatabase extends Database {
 						
 						++f_tuple[i];
 						fk = ftbl.getTupleByPk(f_tuple[i]).getTuple_pk();
-						tpl.getTuple_fk().put(tbl.getTbl_id(), fk);									
+						//tpl.getTuple_fk().put(tbl.getTbl_id(), fk);
+						// Populating foreign keys
+						if(tpl.getTuple_fk().containsKey(ftbl.getTbl_id())) {
+	    					tpl.getTuple_fk().get(ftbl.getTbl_id()).add(fk);
+	    					
+	    				} else {
+	    					Set<Integer> fkList = new HashSet<Integer>();
+	    					fkList.add(fk);
+	    					tpl.getTuple_fk().put(ftbl.getTbl_id(), fkList);
+	    				}
+						
 						
 						// Index
 						switch(tbl.getTbl_type()) {
@@ -201,7 +215,7 @@ public class TpccDatabase extends Database {
 			} //--end for()--data
 			
 			tbl.setTbl_last_entry(pk);
-			Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into "+tbl.getTbl_name()+" table.");			
+			Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into '"+tbl.getTbl_name()+"' table.");			
 		} //--end for()--table
 		
 		// Update tuple counts after initial population

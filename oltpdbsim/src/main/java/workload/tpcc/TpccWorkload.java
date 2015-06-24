@@ -20,20 +20,20 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.Set;
+
+import main.java.db.Database;
+import main.java.db.Table;
+import main.java.db.Tuple;
+import main.java.entry.Global;
+import main.java.workload.Workload;
+import main.java.workload.WorkloadConstants;
 
 import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-
-import main.java.db.Tuple;
-import main.java.db.Database;
-import main.java.db.Table;
-import main.java.entry.Global;
-import main.java.workload.Workload;
-import main.java.workload.WorkloadConstants;
 
 public class TpccWorkload extends Workload {
 	
@@ -55,8 +55,8 @@ public class TpccWorkload extends Workload {
 			parameters.load(config_file);
 			
 		//Read TPCC scale
-			TpccConstants.SCALE_FACTOR = parameters.getDouble("tpcc.scale");		    	
-			Global.LOGGER.info("TPCC scale: "+TpccConstants.SCALE_FACTOR);
+			WorkloadConstants.SCALE_FACTOR = parameters.getDouble("tpcc.scale");		    	
+			Global.LOGGER.info("TPCC scale: "+WorkloadConstants.SCALE_FACTOR);
 		 
 		//Read TPCC warehouses
 			TpccConstants.NUM_WAREHOUSES = parameters.getInt("tpcc.warehouses");	    	
@@ -150,7 +150,7 @@ public class TpccWorkload extends Workload {
 	// Creates a Tuple set for a specific transaction of type i
 	public Set<Integer> getTrTupleSet(Database db, int tr_type) {
 		
-		Set<Integer> trTupleSet = new TreeSet<Integer>();
+		Set<Integer> trTupleSet = new HashSet<Integer>();
 		
 		ArrayList<Integer> trTupleList = new ArrayList<Integer>();
 		ArrayList<Integer> tupleList = null;
@@ -167,8 +167,8 @@ public class TpccWorkload extends Workload {
 			
 			Table tbl = tbl_entry.getValue();
 			
-			tuple_nums = this.tr_tuple_distributions.get(tr_type).get(tbl.getTbl_id()-1);
-			action = this.tr_changes.get(tr_type).get(tbl.getTbl_id()-1);
+			tuple_nums = this.tr_tuple_distributions.get(tr_type).get(tbl.getTbl_id() - 1);
+			action = this.tr_changes.get(tr_type).get(tbl.getTbl_id() - 1);
 			
 			//System.out.println("--> Table("+tbl.getTbl_name()+") | data = "+tbl.getTbl_tuples().size()+" | action = "+action+" | tuple_nums = "+tuple_nums);
 			
@@ -333,9 +333,26 @@ public class TpccWorkload extends Workload {
 					
 					switch(tbl.getTbl_name()) {
 						case(TpccConstants.TBL_HISTORY):
-							tpl.getTuple_fk().put(3, _d); // 3: District Table
-							tpl.getTuple_fk().put(5, _c); // 5: Customer Table
+							//tpl.getTuple_fk().put(3, _d); // 3: District Table						
+							// 3: District Table
+							if(tpl.getTuple_fk().containsKey(3))
+								tpl.getTuple_fk().get(3).add(_d);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_d);
+								tpl.getTuple_fk().put(3, fkSet);
+							}
 						
+							//tpl.getTuple_fk().put(5, _c); // 5: Customer Table
+							// 5: Customer Table
+							if(tpl.getTuple_fk().containsKey(5))
+								tpl.getTuple_fk().get(5).add(_c);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_c);
+								tpl.getTuple_fk().put(5, fkSet);
+							}
+							
 							//System.out.println("\t\t>> Inserting _h(x) for _c("+_c+") and _d("+_d+")");
 							
 							tbl.getIdx_multikey_dependent().put(_d, _c, tbl.getTbl_tuples().size());
@@ -345,8 +362,17 @@ public class TpccWorkload extends Workload {
 							_o = tbl.getTbl_last_entry();
 							//System.out.println("\t\t>> Inserting _o("+_o+") for _c("+_c+") and _d("+_d+")");
 						
-							tpl.getTuple_fk().put(5, _c); // 5: Customer Table
-							
+							//tpl.getTuple_fk().put(5, _c); // 5: Customer Table
+						
+							// 5: Customer Table
+							if(tpl.getTuple_fk().containsKey(5))
+								tpl.getTuple_fk().get(5).add(_c);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_c);
+								tpl.getTuple_fk().put(5, fkSet);
+							}
+						
 							// Insert into Index
 							tbl.insertSecondaryIdx(_c, _o);						
 							
@@ -363,12 +389,23 @@ public class TpccWorkload extends Workload {
 						// Insert								
 							Tuple _no_tpl = db.insertTuple(_no_tbl.getTbl_id(), _no_tpl_pk);
 							trTupleSet.add(_no_tpl.getTuple_id()); // Add Tuple id
-							if(!this.warmingup) _no_tpl.setTuple_action(WorkloadConstants.TPL_INSERT);	
+							
+							if(!this.warmingup) 
+								_no_tpl.setTuple_action(WorkloadConstants.TPL_INSERT);	
 							
 							_no = _no_tbl.getTbl_last_entry();
 							_no_tpl.setTuple_pk(_no);
-							_no_tpl.getTuple_fk().put(7, _o); // 7: Orders Table
-						
+							//_no_tpl.getTuple_fk().put(7, _o); // 7: Orders Table						
+							
+							// 7: Orders Table
+							if(tpl.getTuple_fk().containsKey(7))
+								tpl.getTuple_fk().get(7).add(_o);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_o);
+								tpl.getTuple_fk().put(7, fkSet);
+							}
+								
 							//System.out.println("\t\t>> Inserting _no("+_no+") for _o("+_o+")");
 							
 							// Insert into Index
@@ -390,8 +427,26 @@ public class TpccWorkload extends Workload {
 														
 							_ol = _ol_tbl.getTbl_last_entry();
 							_ol_tpl.setTuple_pk(_ol);
-							_ol_tpl.getTuple_fk().put(4, _s); // 4: Stock Table
-							_ol_tpl.getTuple_fk().put(7, _o); // 7: Order Table
+							//_ol_tpl.getTuple_fk().put(4, _s); // 4: Stock Table
+							
+							// 4: Stock Table
+							if(tpl.getTuple_fk().containsKey(4))
+								tpl.getTuple_fk().get(4).add(_s);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_s);
+								tpl.getTuple_fk().put(4, fkSet);
+							}
+							
+							//_ol_tpl.getTuple_fk().put(7, _o); // 7: Orders Table
+							// 7: Orders Table
+							if(tpl.getTuple_fk().containsKey(7))
+								tpl.getTuple_fk().get(7).add(_o);
+							else {
+								Set<Integer> fkSet = new HashSet<Integer>();
+								fkSet.add(_o);
+								tpl.getTuple_fk().put(7, fkSet);
+							}
 							
 							//System.out.println("\t\t>> Inserting _ol("+_ol+"|"+ol_tuple_pk+"|"+_ol_tpl.getData_pk()+") for _s("+_s+") and _o("+_o+")");
 							

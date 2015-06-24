@@ -143,6 +143,7 @@ public class Workload {
 							
 							_id = cluster.insertData_RangePartitioning(tpl_id, s_id, p_id);
 							
+							
 							++s_id;
 							if(s_id > Global.servers)
 								s_id = 1;

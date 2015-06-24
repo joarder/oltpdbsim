@@ -18,19 +18,18 @@ package main.java.db;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import main.java.utils.Utility;
 import main.java.workload.WorkloadConstants;
 
-public class Tuple implements Comparable<Tuple>, java.io.Serializable {
-	
-	private static final long serialVersionUID = -1372118580750617923L;
+public class Tuple implements Comparable<Tuple> {
 	
 	private int tuple_id;
 	private int tuple_pk;
 	private String tuple_label;
 	private String tuple_action;
-	private Map<Integer, Integer> tuple_fk;
+	private Map<Integer, Set<Integer>> tuple_fk;
 	
 	Tuple(Table tbl, int pk) {
 		this.setTuple_id(Utility.rightPadding(pk, tbl.getTbl_id()));
@@ -44,11 +43,11 @@ public class Tuple implements Comparable<Tuple>, java.io.Serializable {
 				
 			case 1: // Secondary Table
 				this.setTuple_pk(pk);
-				this.setTuple_fk(new HashMap<Integer, Integer>());
+				this.setTuple_fk(new HashMap<Integer, Set<Integer>>());
 				break;
 				
 			case 2: // Dependent Table (i.e. History Table in TPCC)
-				this.setTuple_fk(new HashMap<Integer, Integer>());
+				this.setTuple_fk(new HashMap<Integer, Set<Integer>>());
 				break;
 		}		
 	}
@@ -85,11 +84,11 @@ public class Tuple implements Comparable<Tuple>, java.io.Serializable {
 		this.tuple_pk = tuple_pk;
 	}
 
-	public Map<Integer, Integer> getTuple_fk() {
+	public Map<Integer, Set<Integer>> getTuple_fk() {
 		return tuple_fk;
 	}
 
-	public void setTuple_fk(Map<Integer, Integer> tuple_fk) {
+	public void setTuple_fk(Map<Integer, Set<Integer>> tuple_fk) {
 		this.tuple_fk = tuple_fk;
 	}
 		

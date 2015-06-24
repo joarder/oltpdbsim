@@ -191,7 +191,7 @@ public class WorkloadBatchProcessor {
 				}
 				
 			} else {				
-				Global.LOGGER.error("Compressed hyperedge with only 1 compressed vertex !!!");
+				Global.LOGGER.info("Omitting compressed hyperedge with only 1 compressed vertex !!!");
 			}
 		}
 				

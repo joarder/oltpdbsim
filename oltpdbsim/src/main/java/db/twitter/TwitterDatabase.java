@@ -16,78 +16,232 @@
 
 package main.java.db.twitter;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
 import main.java.db.Database;
 import main.java.db.Table;
+import main.java.db.Tuple;
 import main.java.entry.Global;
+import main.java.utils.distributions.ScrambledZipfianGenerator;
+import main.java.utils.distributions.ZipfianGenerator;
+import main.java.workload.Workload;
+import main.java.workload.WorkloadConstants;
 import main.java.workload.twitter.TwitterConstants;
-import main.java.workload.twitter.TwitterWorkload;
-
-import org.apache.commons.math3.distribution.ZipfDistribution;
 
 public class TwitterDatabase extends Database {
 
+	private int num_users;
+	private int num_tweets;
+	private int num_follows;
+	
 	public TwitterDatabase(String name) {
 		super(name);
+		
+		this.num_users = 0;
+		this.num_tweets = 0;
+		this.num_follows = 0;
 	}
 	
-	public void estimateTableSize(TwitterWorkload twitter) {
+	@Override
+	public void populate(Workload wrl) {
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Estimating initial data tuple counts for "+this.getDb_name()+" database ...");
+		Global.LOGGER.info("Estimating initial data tuple counts for '"+this.getDb_name()+"' database ...");
+		
+		String[] table_names = {
+				TwitterConstants.TBL_USER,
+				TwitterConstants.TBL_FOLLOWERS,
+				TwitterConstants.TBL_FOLLOWS,
+				TwitterConstants.TBL_TWEETS,
+				TwitterConstants.TBL_ADDED_TWEETS
+		};
+		
+		this.num_users = (int)Math.round(TwitterConstants.NUM_USERS * WorkloadConstants.SCALE_FACTOR);
+		this.num_tweets = (int)Math.round(TwitterConstants.NUM_TWEETS * WorkloadConstants.SCALE_FACTOR);
+		this.num_follows = (int)Math.round(TwitterConstants.MAX_FOLLOW_PER_USER * WorkloadConstants.SCALE_FACTOR);
 		
 		int dependent = 0;
 		
-		for(int tbl_id = 1; tbl_id <= twitter.tbl; tbl_id++) {
-			Table tbl = new Table(tbl_id, twitter.tbl_types.get(tbl_id), null);			
+		for(int tbl_id = 1; tbl_id <= wrl.tbl; tbl_id++) {
+			Table tbl = new Table(tbl_id, wrl.tbl_types.get(tbl_id), table_names[tbl_id-1]);
 			
-			if(tbl.getTbl_id() == 2) {
-				// TBL_FOLLOWERS
-				tbl.setTbl_data_rank(new int[TwitterConstants.NUM_USERS + 1]);				
-				tbl.zipfDistribution = new ZipfDistribution(TwitterConstants.NUM_USERS,1.75);
-				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);			
-				
-			} else if(tbl.getTbl_id() == 3) {
-				// TBL_FOLLOWS
-				tbl.setTbl_data_rank(new int[TwitterConstants.NUM_USERS + 1]);
-				tbl.zipfDistribution = new ZipfDistribution(TwitterConstants.MAX_FOLLOW_PER_USER, 1.75);
-				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
-			}
-			
+			this.getDb_tbl_name_id_map().put(tbl.getTbl_name(), tbl.getTbl_id());			
 			this.getDb_tables().put(tbl_id, tbl);			
-			
-			// Determine the number of Data rows to be populated for each individual table
-			switch(tbl.getTbl_name()) {
-				case TwitterConstants.TBL_USER:
-					tbl.setTbl_init_tuples((int)Math.round(TwitterConstants.NUM_USERS * twitter.scale));
-					break;
-				
-				case TwitterConstants.TBL_FOLLOWERS:
-					tbl.setTbl_init_tuples(0);
-					break;
-					
-				case TwitterConstants.TBL_FOLLOWS:
-					tbl.setTbl_init_tuples((int)Math.round(TwitterConstants.MAX_FOLLOW_PER_USER * twitter.scale));
-					break;
-					
-				case TwitterConstants.TBL_TWEETS:
-					tbl.setTbl_init_tuples((int)Math.round(TwitterConstants.NUM_TWEETS * twitter.scale));
-					break;
-					
-				case TwitterConstants.TBL_ADDED_TWEETS:
-					tbl.setTbl_init_tuples(0);
-					break;	
-			}
-			
-			Global.LOGGER.info(tbl.getTbl_name()+": "+tbl.getTbl_init_tuples());
 			
 			// Setting dependency information for the database tables
 			if(tbl.getTbl_type() != 0){
-				for(int i = 1; i <= twitter.tbl; i++) {
-					dependent = twitter.schema.get(tbl.getTbl_id()).get(i-1); // ArrayList index starts from 0					
+				for(int i = 1; i <= wrl.tbl; i++) {
+					dependent = wrl.schema.get(tbl.getTbl_id()).get(i-1); // ArrayList index starts from 0					
 					
 					if(dependent == 1)
 						tbl.getTbl_foreign_tables().add(i);				
 				}
 			}
-		}		
+		}
+					
+		// Populate initial database
+		Global.LOGGER.info("-----------------------------------------------------------------------------");
+		Global.LOGGER.info("Populating initial database ...");
+		
+		// Loading Tables
+		this.loadUsers();		
+		this.loadFollowData();
+		this.loadTweets();
+		
+		// Update tuple counts after initial population
+		this.updateTupleCounts();
+	}
+	
+	// Load Users
+	private void loadUsers() {		
+		
+		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
+		
+		int pk = 0;
+		for (pk = 1; pk <= this.num_users; pk++) {
+			++Global.global_tupleSeq;								
+			this.insertTuple(tbl.getTbl_id(), pk);
+		}
+		
+		tbl.setTbl_last_entry(pk);
+		Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into '"+tbl.getTbl_name()+"' table.");
+	}	
+	
+	/**
+	 * The number of Tweets is fixed to num_tweets
+	 * We simply select using the distribution who issued the Tweet
+	 */		
+	private void loadTweets() {		
+		
+		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
+		
+		// Foreign Table
+		ArrayList<Integer> ftblList = new ArrayList<Integer>(tbl.getTbl_foreign_tables());
+		Table ftbl = this.getTable(ftblList.get(0));
+		
+		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(this.num_users);
+		
+		int pk = 0, fk = 0;
+		for (pk = 1; pk <= this.num_tweets; pk++) {
+			fk = szGen.nextInt();
+        	
+			++Global.global_tupleSeq;											
+			Tuple tpl = this.insertTuple(tbl.getTbl_id(), pk);
+			
+			// Populating foreign table relationships			
+			if(tpl.getTuple_fk().containsKey(ftbl.getTbl_id())) {
+				tpl.getTuple_fk().get(ftbl.getTbl_id()).add(fk);
+				
+			} else {
+				Set<Integer> fkList = new HashSet<Integer>();
+				fkList.add(fk);
+				tpl.getTuple_fk().put(ftbl.getTbl_id(), fkList);
+			}
+			
+			// Populating into index
+			tbl.insertSecondaryIdx(fk, pk);
+		}
+		
+		tbl.setTbl_last_entry(pk);
+		Global.LOGGER.info(tbl.getTbl_tuples().size()+" tuples have successfully inserted into '"+tbl.getTbl_name()+"' table.");
+	}
+	
+	/**
+	 * For each User (Follower) we select how many users he is following (followees List)
+     * then select users to fill up that list.
+     * Selecting is based on the distribution.
+     * NOTE: We are using two different distribution to avoid correlation:
+     * ZipfianGenerator (describes the followed most) 
+     * ScrambledZipfianGenerator (describes the heavy tweeters)
+	 */
+	private void loadFollowData() {		
+		
+		Table tbl_followers = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_FOLLOWERS));
+		Table tbl_follows = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_FOLLOWS));
+
+		// Foreign Tables
+		ArrayList<Integer> ftblList_followers = new ArrayList<Integer>(tbl_followers.getTbl_foreign_tables());
+		Table ftbl_followers = this.getTable(ftblList_followers.get(0));
+		
+		ArrayList<Integer> ftblList_follows = new ArrayList<Integer>(tbl_follows.getTbl_foreign_tables());
+		Table ftbl_follows = this.getTable(ftblList_follows.get(0));		
+				
+		// Distributions
+		ZipfianGenerator zipfFollowee = new ZipfianGenerator(this.num_users, TwitterConstants.ZIPF_EXP);
+		ZipfianGenerator zipfFollows = new ZipfianGenerator(this.num_follows, TwitterConstants.ZIPF_EXP);
+		
+		Set<Integer> allFollowees = new HashSet<Integer>();
+        Set<Integer> followees = new HashSet<Integer>();        
+        int follower = 0, followee = 0;
+        
+        for (follower = 1; follower <= this.num_users; follower++) {        	
+        	// Adding a new 'Follower'
+        	++Global.global_tupleSeq;			
+        	Tuple follower_tpl = this.insertTuple(tbl_follows.getTbl_id(), follower);
+        	
+            followees.clear();
+
+            int time = zipfFollows.nextInt();
+            
+            // At least this follower will follow 1 user
+            if(time == 0) 
+            	time = 1;
+            
+            for (int f = 0; f < time; ) {
+                followee = zipfFollowee.nextInt()+1;
+                
+                if (follower != followee && !followees.contains(followee)) {
+                	followees.add(followee);
+                	
+                	// Adding a new 'Followee' if not exists
+                	Tuple followee_tpl;
+                	
+                	if(!allFollowees.contains(followee)) {
+                		++Global.global_tupleSeq;			
+                		followee_tpl = this.insertTuple(tbl_followers.getTbl_id(), followee);
+                		
+                	} else {
+                		followee_tpl = tbl_followers.getTupleByPk(followee);
+                	}
+                	
+                // Follows Table ('follower' follows 'followee' || f2 follows f1 )            				
+    				// Populating foreign table relationships
+    				if(follower_tpl.getTuple_fk().containsKey(ftbl_follows.getTbl_id())) {
+    					follower_tpl.getTuple_fk().get(ftbl_follows.getTbl_id()).add(followee);
+    					
+    				} else {
+    					Set<Integer> followsSet = new HashSet<Integer>();
+    					followsSet.add(followee);
+    					follower_tpl.getTuple_fk().put(ftbl_follows.getTbl_id(), followsSet);
+    				}
+    				
+    				// Insert into index
+    				tbl_follows.insertSecondaryIdx(follower, followee);
+                	
+                // Followers Table ('followee' is followed by 'follower' || f1 is followed by f2)    				
+    				// Populating foreign table relationships    				
+    				if(followee_tpl.getTuple_fk().containsKey(ftbl_followers.getTbl_id())) {
+    					followee_tpl.getTuple_fk().get(ftbl_followers.getTbl_id()).add(follower);
+    					
+    				} else {
+    					Set<Integer> followersSet = new HashSet<Integer>();
+    					followersSet.add(follower);
+    					followee_tpl.getTuple_fk().put(ftbl_followers.getTbl_id(), followersSet);
+    				}
+    				
+    				// Insert into index
+    				tbl_followers.insertSecondaryIdx(followee, follower);
+                                                            
+                    ++f;
+                }//end-if()
+            }//end-for()
+        }//end-for()
+        
+        tbl_followers.setTbl_last_entry(followee);
+        tbl_follows.setTbl_last_entry(follower);
+        
+		Global.LOGGER.info(tbl_followers.getTbl_tuples().size()+" tuples have successfully inserted into '"+tbl_followers.getTbl_name()+"' table.");
+		Global.LOGGER.info(tbl_follows.getTbl_tuples().size()+" tuples have successfully inserted into '"+tbl_follows.getTbl_name()+"' table.");
 	}
 }

@@ -18,11 +18,9 @@ package main.java.db;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.Set;
 
 import main.java.entry.Global;
 import main.java.utils.Utility;
@@ -30,22 +28,20 @@ import main.java.utils.Utility;
 import org.apache.commons.collections4.map.MultiKeyMap;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 
-public class Table implements Comparable<Table>, java.io.Serializable {
-
-	private static final long serialVersionUID = 1L;
+public class Table implements Comparable<Table> {
 	
 	private int tbl_id;
 	private String tbl_name;
 	private int tbl_type;
 	private int tbl_init_tuples;
-	private SortedMap<Integer, Tuple> tbl_tuples; // <id, Tuple> pairs
-	private SortedSet<Integer> tbl_foreign_tables;
+	private Map<Integer, Tuple> tbl_tuples; // <id, Tuple> pairs
+	private Set<Integer> tbl_foreign_tables;
 	private int[] tbl_tuple_rank;
 	private int tbl_last_entry;
 	public ZipfDistribution zipfDistribution;
 	
 	// Indexes
-	private Map<Integer, ArrayList<Integer>> idx_multivalue_secondary; // For Secondary Tables
+	private Map<Integer, Set<Integer>> idx_multivalue_secondary; // For Secondary Tables
 	private MultiKeyMap<Integer, Integer> idx_multikey_dependent; // For Dependent Tables
 	
 	public Table(int id, int type, String name) {
@@ -53,7 +49,7 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 		this.setTbl_name(name);
 		this.setTbl_type(type);
 		this.setTbl_init_tuples(0);
-		this.setTbl_tuples(new TreeMap<Integer, Tuple>());
+		this.setTbl_tuples(new HashMap<Integer, Tuple>());
 		this.setTbl_last_entry(0);
 		
 		switch(this.getTbl_type()){
@@ -61,12 +57,12 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 			break;
 			
 		case 1: // Secondary Table
-			this.setTbl_foreign_tables(new TreeSet<Integer>());
-			this.setIdx_multivalue_secondary(new HashMap<Integer, ArrayList<Integer>>());
+			this.setTbl_foreign_tables(new HashSet<Integer>());
+			this.setIdx_multivalue_secondary(new HashMap<Integer, Set<Integer>>());
 			break;
 			
 		case 2: // Dependent Table (i.e. History Table in TPCC)
-			this.setTbl_foreign_tables(new TreeSet<Integer>());
+			this.setTbl_foreign_tables(new HashSet<Integer>());
 			this.setIdx_multikey_dependent(new MultiKeyMap<Integer, Integer>());
 			break;
 		}
@@ -104,27 +100,27 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 		this.tbl_init_tuples = tbl_init_tuples;
 	}
 
-	public SortedMap<Integer, Tuple> getTbl_tuples() {
+	public Map<Integer, Tuple> getTbl_tuples() {
 		return tbl_tuples;
 	}
 
-	public void setTbl_tuples(SortedMap<Integer, Tuple> tbl_tuples) {
+	public void setTbl_tuples(Map<Integer, Tuple> tbl_tuples) {
 		this.tbl_tuples = tbl_tuples;
 	}
 
-	public SortedSet<Integer> getTbl_foreign_tables() {
+	public Set<Integer> getTbl_foreign_tables() {
 		return tbl_foreign_tables;
 	}
 
-	public void setTbl_foreign_tables(SortedSet<Integer> tbl_foreign_tables) {
+	public void setTbl_foreign_tables(Set<Integer> tbl_foreign_tables) {
 		this.tbl_foreign_tables = tbl_foreign_tables;
 	}
 
-	public Map<Integer, ArrayList<Integer>> getIdx_multivalue_secondary() {
+	public Map<Integer, Set<Integer>> getIdx_multivalue_secondary() {
 		return idx_multivalue_secondary;
 	}
 
-	public void setIdx_multivalue_secondary(Map<Integer, ArrayList<Integer>> tbl_tuple_map_s) {
+	public void setIdx_multivalue_secondary(Map<Integer, Set<Integer>> tbl_tuple_map_s) {
 		this.idx_multivalue_secondary = tbl_tuple_map_s;
 	}
 
@@ -159,15 +155,13 @@ public class Table implements Comparable<Table>, java.io.Serializable {
 	}
 	
 	// Insert into Index
-	public void insertSecondaryIdx(int k, int v) {
-		ArrayList<Integer> fkeyList = null;
-		
-		if(this.getIdx_multivalue_secondary().containsKey(k))
-			this.getIdx_multivalue_secondary().get(k).add(v);
+	public void insertSecondaryIdx(int pk, int fk) {		
+		if(this.getIdx_multivalue_secondary().containsKey(pk))
+			this.getIdx_multivalue_secondary().get(pk).add(fk);
 		else {
-			fkeyList = new ArrayList<Integer>();
-			fkeyList.add(v);
-			this.getIdx_multivalue_secondary().put(k, fkeyList);
+			Set<Integer> fkeySet = new HashSet<Integer>();
+			fkeySet.add(fk);
+			this.getIdx_multivalue_secondary().put(pk, fkeySet);
 		}
 	}
 	
