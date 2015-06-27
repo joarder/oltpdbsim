@@ -20,14 +20,12 @@
 
 package main.java.incmine.core;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Observable;
 import weka.core.Instance;
 
-public abstract class SlidingWindowManager extends Observable implements Serializable{
-    
-    private static final long serialVersionUID = 1L;
+public abstract class SlidingWindowManager extends Observable {
+
     protected Segment currentSegment;
     protected double minSupport;
     

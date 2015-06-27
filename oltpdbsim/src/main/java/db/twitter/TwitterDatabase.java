@@ -211,9 +211,9 @@ public class TwitterDatabase extends Database {
     					follower_tpl.getTuple_fk().get(ftbl_follows.getTbl_id()).add(followee);
     					
     				} else {
-    					Set<Integer> followsSet = new HashSet<Integer>();
-    					followsSet.add(followee);
-    					follower_tpl.getTuple_fk().put(ftbl_follows.getTbl_id(), followsSet);
+    					Set<Integer> followeeSet = new HashSet<Integer>();
+    					followeeSet.add(followee);
+    					follower_tpl.getTuple_fk().put(ftbl_follows.getTbl_id(), followeeSet);
     				}
     				
     				// Insert into index
@@ -225,9 +225,9 @@ public class TwitterDatabase extends Database {
     					followee_tpl.getTuple_fk().get(ftbl_followers.getTbl_id()).add(follower);
     					
     				} else {
-    					Set<Integer> followersSet = new HashSet<Integer>();
-    					followersSet.add(follower);
-    					followee_tpl.getTuple_fk().put(ftbl_followers.getTbl_id(), followersSet);
+    					Set<Integer> followerSet = new HashSet<Integer>();
+    					followerSet.add(follower);
+    					followee_tpl.getTuple_fk().put(ftbl_followers.getTbl_id(), followerSet);
     				}
     				
     				// Insert into index

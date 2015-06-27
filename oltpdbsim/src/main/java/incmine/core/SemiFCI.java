@@ -20,16 +20,13 @@
 
 package main.java.incmine.core;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-//import moa.learners.IncMine;
 import main.java.incmine.learners.IncMine;
 
-public class SemiFCI implements Comparable<SemiFCI>,Serializable {
+public class SemiFCI implements Comparable<SemiFCI> {
 
-    private static final long serialVersionUID = 7468516413419567582L;
     private final List<Integer> items;
     private int[] supports;
     private boolean updated;

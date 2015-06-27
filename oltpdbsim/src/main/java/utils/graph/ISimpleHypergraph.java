@@ -27,22 +27,40 @@ public interface ISimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge
 		
 	boolean addHEdge(H h, Set<V> vSet);
 	boolean removeHEdge(H h);
+
 	H getHEdge(int id);
 	H getHEdge(Set<V> vSet);
+	
 	V getVertex(int id);
-	Set<V> getVertices(H h);
-	boolean addCHEdge(H h);
-	boolean removeCHEdge(H h);
-	boolean addCVertex(V v);
-	boolean removeCVertex(V v);
-	Map<CompressedHEdge, Set<CompressedVertex>> getcHEdges();
-	Map<CompressedVertex, Set<CompressedHEdge>> getcVertices();
-	CompressedHEdge getCHEdge(H h);
-	CompressedHEdge getCHEdge(Set<CompressedVertex> vSet);
-	CompressedHEdge getCHEdge(int id);
-	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);
-	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
-	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);
+	
 	void updateHEdgeWeight(H h, int weight);
 	void updateVertexWeight(V v);
+	
+	// Compressed Hypergraph specific	
+	Map<CompressedHEdge, Set<CompressedVertex>> getCHEdges();
+	void setCHEdges(Map<CompressedHEdge, Set<CompressedVertex>> cHEdges);
+	
+	Map<CompressedVertex, Set<CompressedHEdge>> getCVertices();
+	void setCVertices(Map<CompressedVertex, Set<CompressedHEdge>> cVertices);
+	
+	void setCHEMap(Map<Integer, CompressedHEdge> cHEMap);
+	void setCVMap(Map<Integer, CompressedVertex> cVMap);
+	
+	Map<Integer, CompressedVertex> getCVMap();
+	
+	CompressedHEdge addCHEdge(H h);
+	//boolean removeCHEdge(H h);
+	
+	CompressedVertex addCVertex(V v);
+	//boolean removeCVertex(V v);
+	
+	//CompressedHEdge getCHEdge(H h);
+	CompressedHEdge getCHEdge(Set<CompressedVertex> vSet);
+	//CompressedHEdge getCHEdge(int id);
+	
+	Set<CompressedHEdge> getIncidentCHEdges(CompressedVertex cv);
+	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);	
+	
+	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
+	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);	
 }

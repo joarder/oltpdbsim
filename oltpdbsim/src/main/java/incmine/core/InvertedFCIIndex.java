@@ -19,16 +19,13 @@
  */
 
 package main.java.incmine.core;
-import java.io.Serializable;
+
 import java.util.*;
 
-public class InvertedFCIIndex implements Serializable {
+public class InvertedFCIIndex {
     
-	private static final long serialVersionUID = -3878964912225109260L;
+	protected class IDArrayList {
 
-	protected class IDArrayList implements Serializable{
-
-        private static final long serialVersionUID = -334457025555188840L;
         protected Map<Integer, ArrayList<Integer>> map; //performs better than TreeSet
         private Map<Integer, Boolean> sortCheck; //use a flag to check sort invariant
         

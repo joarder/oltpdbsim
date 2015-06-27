@@ -19,26 +19,24 @@
 
 package main.java.incmine.Charm_BitSet;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Itemsets implements Serializable{
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 7931088952991324406L;
-	private final List<List<Itemset>> levels = new ArrayList<List<Itemset>>();  // itemset class� par taille
+public class Itemsets {
+
+	private final List<List<Itemset>> levels = new ArrayList<List<Itemset>>();  // itemset class par taille
 	private int itemsetsCount=0;
 	
-	public Itemsets(){
+	public Itemsets() {
 		levels.add(new ArrayList<Itemset>()); // We create an empty level 0 by default.
 	}
 			
-	public void addItemset(Itemset itemset){
-		while(levels.size() <= itemset.itemset.size()){
-                    levels.add(new ArrayList<Itemset>());
+	public void addItemset(Itemset itemset) {
+		
+		while(levels.size() <= itemset.itemset.size()) {
+			levels.add(new ArrayList<Itemset>());
 		}
+	
 		levels.get(itemset.itemset.size()).add(itemset);
 		itemsetsCount++;
 	}
@@ -49,6 +47,5 @@ public class Itemsets implements Serializable{
 
 	public int getItemsetsCount() {
 		return itemsetsCount;
-	}
-	
+	}	
 }

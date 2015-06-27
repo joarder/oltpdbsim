@@ -155,13 +155,13 @@ public class Table implements Comparable<Table> {
 	}
 	
 	// Insert into Index
-	public void insertSecondaryIdx(int pk, int fk) {		
-		if(this.getIdx_multivalue_secondary().containsKey(pk))
-			this.getIdx_multivalue_secondary().get(pk).add(fk);
+	public void insertSecondaryIdx(int fk, int pk) {		
+		if(this.getIdx_multivalue_secondary().containsKey(fk))
+			this.getIdx_multivalue_secondary().get(fk).add(pk);
 		else {
-			Set<Integer> fkeySet = new HashSet<Integer>();
-			fkeySet.add(fk);
-			this.getIdx_multivalue_secondary().put(pk, fkeySet);
+			Set<Integer> pkSet = new HashSet<Integer>();
+			pkSet.add(pk);
+			this.getIdx_multivalue_secondary().put(fk, pkSet);
 		}
 	}
 	

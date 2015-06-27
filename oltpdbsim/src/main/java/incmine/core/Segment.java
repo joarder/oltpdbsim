@@ -21,22 +21,21 @@
 package main.java.incmine.core;
 
 import main.java.entry.Global;
+
 import main.java.incmine.Charm_BitSet.AlgoCharm_Bitset;
 import main.java.incmine.Charm_BitSet.Context;
 import main.java.incmine.Charm_BitSet.Itemset;
 import main.java.incmine.Charm_BitSet.Itemsets;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import weka.core.Instance;
 import weka.core.SparseInstance;
 
-public class Segment implements Serializable{
+public class Segment {
 
-    private static final long serialVersionUID = -5259948122890387234L;
-    private Context context;
+	private Context context;
     private int MAX_ITEMSET_LENGTH;
     private double minSupport;
     

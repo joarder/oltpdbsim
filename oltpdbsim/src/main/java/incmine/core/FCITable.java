@@ -20,16 +20,12 @@
 
 package main.java.incmine.core;
 
-import java.io.Serializable;
 import java.util.*;
 
-public class FCITable implements Iterable<SemiFCI>, Serializable  {
-    
-    private static final long serialVersionUID = 1L;
+public class FCITable implements Iterable<SemiFCI> {
 
-	protected class FCIArray implements Iterable<SemiFCI>, Serializable {
-    
-        private static final long serialVersionUID = 4500840981452151513L;
+	protected class FCIArray implements Iterable<SemiFCI> {
+
         private ArrayList<SemiFCI> itemsets;
         private LinkedList<Integer> garbageQueue;
         private ArrayList<Integer> goodPositions; //we store here the positions in the array containing a semiFCI to speedup iteration over the FCIArray

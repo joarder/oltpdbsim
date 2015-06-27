@@ -25,7 +25,6 @@ import weka.core.Instance;
 
 public class FixedLengthWindowManager extends SlidingWindowManager {
 
-    private static final long serialVersionUID = -4548175425739509372L;
     private double segmentLenght;
 
     /**

@@ -61,8 +61,7 @@ public class SimpleHEdge implements Comparable<SimpleHEdge> {
 
 	@Override
 	public int compareTo(SimpleHEdge e) {		
-		return (((int)this.getId() < (int)e.getId()) ? -1 : 
-			((int)this.getId() > (int)e.getId()) ? 1 : 0);		
+		return ((this.getId() < e.getId()) ? -1 : (this.getId() > e.getId()) ? 1 : 0);		
 	}
 	
 	@Override

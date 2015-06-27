@@ -190,8 +190,8 @@ public class Workload {
 					if(v != null) {
 						wb.hgr.removeVertex(v);
 						
-						if(Global.compressionEnabled)
-			        		wb.hgr.removeCVertex(v);
+						/*if(Global.compressionEnabled)
+			        		wb.hgr.removeCVertex(v);*/
 					}
 					
 					deletedTuples.add(tpl_id);

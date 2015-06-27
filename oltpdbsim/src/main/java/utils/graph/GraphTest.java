@@ -22,27 +22,27 @@ import java.util.Set;
 public class GraphTest {
 
 	public static void main(String[] args) {
-		ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();
+		ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr = new SimpleHypergraph<SimpleVertex, SimpleHEdge>();
 		
-		SimpleVertex v1 = new SimpleVertex(1, 1, 1, 1);
+		SimpleVertex v1 = new SimpleVertex(1, -1, 1, 1, 1);
 		hgr.addVertex(v1);
-		SimpleVertex v2 = new SimpleVertex(2, 1, 1, 1);
+		SimpleVertex v2 = new SimpleVertex(2, -1, 1, 1, 1);
 		hgr.addVertex(v2);
-		SimpleVertex v3 = new SimpleVertex(3, 1, 1, 1);
+		SimpleVertex v3 = new SimpleVertex(3, -1, 1, 1, 1);
 		hgr.addVertex(v3);
-		SimpleVertex v4 = new SimpleVertex(4, 1, 1, 1);
+		SimpleVertex v4 = new SimpleVertex(4, -1, 1, 1, 1);
 		hgr.addVertex(v4);
-		SimpleVertex v5 = new SimpleVertex(5, 1, 1, 1);
+		SimpleVertex v5 = new SimpleVertex(5, -1, 1, 1, 1);
 		hgr.addVertex(v5);
-		SimpleVertex v6 = new SimpleVertex(6, 1, 1, 1);
+		SimpleVertex v6 = new SimpleVertex(6, -1, 1, 1, 1);
 		hgr.addVertex(v6);
-		SimpleVertex v7 = new SimpleVertex(7, 1, 1, 1);
+		SimpleVertex v7 = new SimpleVertex(7, -1, 1, 1, 1);
 		hgr.addVertex(v7);
-		SimpleVertex v8 = new SimpleVertex(8, 1, 1, 1);
+		SimpleVertex v8 = new SimpleVertex(8, -1, 1, 1, 1);
 		hgr.addVertex(v8);
-		SimpleVertex v9 = new SimpleVertex(9, 1, 1, 1);
+		SimpleVertex v9 = new SimpleVertex(9, -1, 1, 1, 1);
 		hgr.addVertex(v9);
-		SimpleVertex v10 = new SimpleVertex(10, 1, 1, 1);
+		SimpleVertex v10 = new SimpleVertex(10, -1, 1, 1, 1);
 		hgr.addVertex(v10);
 
 		SimpleHEdge h1 = new SimpleHEdge(1, 1);

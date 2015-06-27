@@ -20,12 +20,9 @@
 
 package main.java.incmine.core;
 
-import java.io.Serializable;
+public class SemiFCIid {
 
-public class SemiFCIid implements Serializable{
-
-    private static final long serialVersionUID = 4518952879185709365L;
-    private int dimension;
+	private int dimension;
     private int position;
 
     /**

@@ -352,8 +352,8 @@ public class Cluster {
 		}
 		
 		// Determine the number of compressed data nodes to be created
-		//if(Global.compressionEnabled)
-		Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
+		if(Global.compressionEnabled)
+			Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
 				
 		// Physical Data Distribution
 		this.physicalDataDistribution(db);
@@ -433,6 +433,7 @@ public class Cluster {
 		++Global.global_dataCount;
 		
 		int[] replicas = new int[Global.replicas];
+		int cData_id = -1;
 		
 		Data d = null;
 		CompressedData c = null;
@@ -448,7 +449,9 @@ public class Cluster {
 		// Create a new Data object and its replicas
 		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
-			int cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);	
+			
+			if(Global.compressionEnabled)
+				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);	
 			
 			if(Global.compressionBeforeSetup) {
 				// Create a Compressed Data if required
@@ -560,6 +563,7 @@ public class Cluster {
 		++Global.global_dataCount;
 		
 		int[] replicas = new int[Global.replicas];
+		int cData_id = -1;
 		
 		Data d = null;
 		CompressedData c = null;		
@@ -575,7 +579,9 @@ public class Cluster {
 		for(int repl = 1; repl <= Global.replicas; repl++) {
 			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
-			int cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
+			
+			if(Global.compressionEnabled)
+				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
 						
 			if(Global.compressionBeforeSetup) {				
 				String c_uid = null;				

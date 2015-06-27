@@ -84,8 +84,7 @@ public class MinCut {
 		return arg_list;
 	}
 	
-	public static void runMinCut(WorkloadBatch wb, int partitions, boolean waitForResponse) {
-		
+	public static void runMinCut(WorkloadBatch wb, int partitions, boolean waitForResponse) {		
 		long startTime = 0;
 		long duration = 0;
 		String response = "";
@@ -112,8 +111,7 @@ public class MinCut {
 				int shellExitStatus = p.waitFor();
 				Global.LOGGER.info("Completing workload clustering ... [Exit status (" + shellExitStatus+")]");
 				 
-				response = convertStreamToStr(shellIn);
-				 
+				response = convertStreamToStr(shellIn);				 
 				shellIn.close();
 			}			
 		} catch (IOException | InterruptedException e) {						
@@ -124,7 +122,6 @@ public class MinCut {
 		
 		duration = (System.currentTimeMillis() - startTime);
 		Global.LOGGER.info("Workload file has been clustered in "+duration+ " ms.");
-		//System.setOut(_ps_console);
 	}
 	
 	/*
@@ -134,10 +131,8 @@ public class MinCut {
 	* produce the string.
 	*/
 	 
-	public static String convertStreamToStr(InputStream is) throws IOException {
-	 
-		if (is != null) {
-			
+	public static String convertStreamToStr(InputStream is) throws IOException {	 
+		if (is != null) {			
 			Writer writer = new StringWriter();			 
 			char[] buffer = new char[1024];
 			

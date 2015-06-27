@@ -21,7 +21,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -31,7 +30,7 @@ import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
 import main.java.utils.graph.ISimpleHypergraph;
-import main.java.utils.graph.SimHypergraph;
+import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import umontreal.iro.lecuyer.simevents.Sim;
@@ -44,11 +43,6 @@ public class WorkloadBatch {
 	
 	// Hypergraph	
 	public ISimpleHypergraph<SimpleVertex, SimpleHEdge> hgr;
-		
-	// To keep track of edge id and corresponding hyperedge/transaction id
-	public Map<Integer, Set<Integer>> edge_id_map;
-	public Map<Integer, Integer> cEdge_id_map;
-	public Map<Integer, Integer> cHEdge_id_map;
 	
 	private int db_tuple_counts;	
 	private int wrl_total_data;	
@@ -85,30 +79,12 @@ public class WorkloadBatch {
 	private double _percentage_inter_dmv;
 	
 	public WorkloadBatch(int id) {
-		this.setWrl_id(id);
-		
+		this.setWrl_id(id);		
 		this.set_old_dt_nums(0);
-		this.set_old_ndt_nums(0);
-		
-		this.setTrMap(new HashMap<Integer, Map<Integer, Transaction>>());
-		
-		this.setWrl_dataId_clusterId_map(new HashMap<Integer, Integer>());		
-		
-		this.hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();		
-		
-		switch(Global.workloadRepresentation) {
-			case "gr":
-				if(Global.compressionEnabled)
-					this.cEdge_id_map = new HashMap<Integer, Integer>();
-					
-				break;
-				
-			case "hgr":
-				if(Global.compressionEnabled)
-					this.cHEdge_id_map = new HashMap<Integer, Integer>();
-				
-				break;
-		}
+		this.set_old_ndt_nums(0);		
+		this.setTrMap(new HashMap<Integer, Map<Integer, Transaction>>());		
+		this.setWrl_dataId_clusterId_map(new HashMap<Integer, Integer>());				
+		this.hgr = new SimpleHypergraph<SimpleVertex, SimpleHEdge>();		
 	}
 
 	public int getWrl_id() {
@@ -372,8 +348,7 @@ public class WorkloadBatch {
 	
 	// Adding a hyperedge from a single transaction
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
-		
-		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
+		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());		
 		int tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
 				
 		if(h != null) {
@@ -381,21 +356,22 @@ public class WorkloadBatch {
 			
 		} else {
 			this.hgr.addHEdge(new SimpleHEdge(tr.getTr_id(), tr_frequency), 
-					this.getVertices(cluster, tr.getTr_dataSet()));
+					this.getVertices(cluster, tr, tr_frequency));
 		}
 	}
 	
 	// Converts a set of transactional data set into a set of vertices
-	public Set<SimpleVertex> getVertices(Cluster cluster, Set<Integer> trDataSet) {		
+	public Set<SimpleVertex> getVertices(Cluster cluster, Transaction tr, int tr_weight) {		
 		Set<SimpleVertex> trSet = new HashSet<SimpleVertex>();
 		
-		for(Integer d : trDataSet) {
+		for(Integer d : tr.getTr_dataSet()) {
 			Data data = cluster.getData(d);			
 			SimpleVertex v = this.hgr.getVertex(data.getData_id());
 			
-			if(v == null)
-				v = new SimpleVertex(d, 1,  // 1 : Initial Vertex weight
+			if(v == null) {
+				v = new SimpleVertex(d, data.getData_compressed_data_id(), tr_weight,
 					data.getData_partition_id(), data.getData_server_id());
+			}
 			
 			trSet.add(v);			
 		}
@@ -410,13 +386,14 @@ public class WorkloadBatch {
 		for(Entry<Integer, Integer> d : trDataMap.entrySet()) {
 			Data data = cluster.getData(d.getKey());
 			
-			trSet.add(new SimpleVertex(d.getKey(), d.getValue(),  // Calculated Vertex Weight
+			trSet.add(new SimpleVertex(d.getKey(), data.getData_compressed_data_id(), d.getValue(),  // Calculated Vertex Weight
 					data.getData_partition_id(), data.getData_server_id()));
 		}
 		
 		return trSet;		
 	}
 	
+	// Returns a Transaction based on the given id
 	public Transaction getTransaction(int tr_id) {
 		
 		for(Entry<Integer, Map<Integer, Transaction>> entry : this.getTrMap().entrySet()) {
@@ -427,17 +404,9 @@ public class WorkloadBatch {
 		return null;
 	}
 	
-	private void removeIncidentTrId(Cluster cluster, Transaction tr) {
-		for(int d_id : tr.getTr_dataSet()) {
-			Data data = cluster.getData(d_id);
-			data.getData_incidentTr().remove(tr.getTr_id());
-		}
-	}
-	
 	// Removes edges and hyperedges from the graphs and hypergraphs
 	// Remove the nonDT non-movable edges from Graph and Hypergraph
-	public void removeTransaction(Cluster cluster, Transaction tr) {
-				
+	public void removeTransaction(Cluster cluster, Transaction tr) {		
 		// Remove incident tr id from the data set
 		removeIncidentTrId(cluster, tr);
 		
@@ -445,33 +414,35 @@ public class WorkloadBatch {
 		this.getTrMap().get(tr.getTr_type()).remove(tr.getTr_id());
 		
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());
-		//System.out.println(">> Removing "+h.toString()+"|"+this.hgr.getIncidentVertices(h));
+		//Global.LOGGER.info(">> Removing "+h.toString()+"|"+this.hgr.getIncidentVertices(h));		
 		this.hgr.removeHEdge(h);		
-	}	
+	}
 	
-	// Unused function
-	// Remove a set of transactions from the Workload
-	public void removeTransactions(Set<Integer> removed_transactions, int i) {
-		HashMap<Integer, TreeSet<Integer>> _dataSetMap = new HashMap<Integer, TreeSet<Integer>>();
-		
-		for(int tr_id : removed_transactions) {
-			++Global.remove_count;
-			Transaction transaction = this.getTransaction(tr_id);
-			
-			Set<Integer> dataSet = new TreeSet<Integer>();
-			dataSet = transaction.getTr_dataSet();
-			_dataSetMap.put(tr_id, (TreeSet<Integer>) dataSet);
-			
-			this.getTrMap().get(i).remove(transaction.getTr_id()); // Removing Object			
-			//this.decWrl_totalTransactions();					
+	// Remove the incident transaction id
+	private void removeIncidentTrId(Cluster cluster, Transaction tr) {		
+		for(int d_id : tr.getTr_dataSet()) {
+			Data data = cluster.getData(d_id);
+			data.getData_incidentTr().remove(tr.getTr_id());
 		}
-	}	
+	}
 	
+	// Add the incident transaction id
+	public void addIncidentTrId(Cluster cluster, Set<Integer> trDataSet, int tr_id) {		
+		for(int d : trDataSet) {		
+			Data data = cluster.getData(d);
+			data.getData_incidentTr().add(tr_id);
+		}
+	}
+	
+	// Delete Operation
+	// While deleting a Data from the Database it also has to be removed from the Workload
+	public void deleteTrDataFromWorkload(int data_id) {
+		this.deleteDataFromTr(data_id, getTrListForSearchedData(data_id));		
+	}
+		
 	// Returns a list of transaction ids which contain the searched data id (Only at the time of new Transaction generation)
-	public ArrayList<Integer> getTrListForSearchedData(int data_id) {
-		
+	public ArrayList<Integer> getTrListForSearchedData(int data_id) {		
 		ArrayList<Integer> trList = new ArrayList<Integer>();		
-		
 		for(Entry<Integer, Map<Integer, Transaction>> e : this.getTrMap().entrySet())
 			for(Entry<Integer, Transaction> tr : e.getValue().entrySet())
 				if(tr.getValue().getTr_dataSet().contains(data_id))
@@ -481,8 +452,7 @@ public class WorkloadBatch {
 	}
 	
 	// Remove a data id from the given list of transactions (Only at the time of new Transaction generation)
-	public void deleteDataFromTr(int data_id, ArrayList<Integer> trList) {
-		
+	private void deleteDataFromTr(int data_id, ArrayList<Integer> trList) {		
 		for(int tr_id : trList) {
 			//System.out.println("@ Removing "+data_id+" from T"+tr_id);
 			Transaction tr = this.getTransaction(tr_id);
@@ -490,48 +460,8 @@ public class WorkloadBatch {
 		}
 	}
 	
-	public void deleteTrDataFromWorkload(int data_id) {
-		this.deleteDataFromTr(data_id, getTrListForSearchedData(data_id));		
-	}
-	
-	// Write workloads into file for stream mining
-	public void prepareMiningFile(Cluster cluster) {		
-				
-		for(SimpleHEdge h : this.hgr.getEdges()) {
-			
-			Transaction tr = this.getTransaction(h.getId());				
-			Iterator<Integer> data =  tr.getTr_dataSet().iterator();
-			
-			++Global.mining_serial;
-			this.getMiner_prWriter().print(Global.mining_serial+" "+Global.mining_serial+" "
-											+tr.getTr_dataSet().size()+" ");
-			
-			while(data.hasNext()) {
-				this.getMiner_prWriter().print(cluster.getData(data.next()).getData_id());
-				
-				if(data.hasNext())
-					this.getMiner_prWriter().print(" ");
-				else
-					this.getMiner_prWriter().println();
-			}
-		}		
-		
-		this.getMiner_prWriter().flush();
-		this.getMiner_prWriter().close();
-	}
-	
-	// Add the incident transaction id
-	public void addIncidentTr(Cluster cluster, Set<Integer> trDataSet, int trId) {
-		
-		for(int d : trDataSet) {		
-			Data data = cluster.getData(d);
-			data.getData_incidentTr().add(trId);
-		}
-	}
-	
 	// Calculate the percentage of Distributed Transactions within the Workload (before and after the Data movements)
 	public void calculateDTI(Cluster cluster) {
-
 		int dt_nums = 0;
 		int ndt_nums = 0;
 		
@@ -543,16 +473,11 @@ public class WorkloadBatch {
 			Transaction tr = this.getTransaction(h.getId());
 			tr.calculateSpans(cluster);
 			
-			if(tr.isDt()) {
-				++dt_nums;
-				
-				//if(Global.compressionBeforeSetup)
-					//this.sword.hCut.add(h);
-				
-			} else { // Non-distributed transactions
+			if(tr.isDt())
+				++dt_nums;				
+			else
 				++ndt_nums;
-			}
-		} // end -- for()		
+		}	
 			
 		this.set_tr_nums(this.hgr.getEdgeCount());
 		this.set_edges_in_cut(dt_nums);
@@ -569,9 +494,6 @@ public class WorkloadBatch {
 		
 		this.set_percentage_dt(dt_percentage);
 		this.set_percentage_ndt(ndt_percentage);
-		
-		//if(Global.compressionBeforeSetup)
-			//this.sword.calculateContribution(cluster, this);
 	}
 	
 	public void show() {		

@@ -19,51 +19,47 @@
 
 package main.java.incmine.Charm_BitSet;
 
-import java.io.Serializable;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Set;
 
-public class Itemset implements Serializable{
+public class Itemset {
         
-        /**
-	 * 
-	 */
-	private static final long serialVersionUID = -1490857156451018246L;
-		Set<Integer> itemset; // ordered
-        int cardinality;
-        BitSet tidset;
+	Set<Integer> itemset; // ordered
+	int cardinality;
+	BitSet tidset;
 
-        public Itemset() {
-            itemset = new HashSet<Integer>();
+	public Itemset() {
+		itemset = new HashSet<Integer>();
 	}
         
 	public double getRelativeSupport(int nbObject) {
 		return ((double) cardinality) / ((double) nbObject);
 	}
         
-        public int getAbsoluteSupport() {
+    public int getAbsoluteSupport() {
 		return cardinality;
 	}
         
-        public Set<Integer> getItems() {
+    public Set<Integer> getItems() {
 		return itemset;
 	}
         
-        public void addItem(Integer value) {
+    public void addItem(Integer value) {
 		itemset.add(value);
 	}
         
-        public void setCardinality(int cardinality){
-            this.cardinality = cardinality;
-        }
+    public void setCardinality(int cardinality){
+        this.cardinality = cardinality;
+    }
         
-        @Override
-        public String toString(){
-            StringBuilder sb = new StringBuilder();
-            for(Integer item : itemset)
-                sb.append(item).append(" ");
-            
-            return sb.toString();
-        }
+    @Override
+    public String toString(){
+        StringBuilder sb = new StringBuilder();
+ 
+        for(Integer item : itemset)
+            sb.append(item).append(" ");
+        
+        return sb.toString();
+    }
 }

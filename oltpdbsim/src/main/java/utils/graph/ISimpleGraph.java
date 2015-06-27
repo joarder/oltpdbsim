@@ -14,27 +14,14 @@
  *    limitations under the License.
  *******************************************************************************/
 
-package main.java.utils.queue;
+package main.java.utils.graph;
 
-import java.util.Comparator;
-import java.util.PriorityQueue;
-import main.java.utils.graph.CompressedHEdge;
+import edu.uci.ics.jung.graph.UndirectedGraph;
 
-@SuppressWarnings("serial")
-public class PQ<E> extends PriorityQueue<E> {
+public interface ISimpleGraph<V extends SimpleVertex, E extends SimpleEdge> 
+	extends UndirectedGraph<V, E> {
 
-	public PQ(int i, Comparator<CompressedHEdge> reverseOrder) {
-		super();
-	}
-
-	//Will not contain/allow any duplicates
-	@Override
-	public boolean add(E e) {
-		boolean isAdded = false;
-     
-		if(!super.contains(e))
-			isAdded = super.add(e);
-   
-		return isAdded;
-	}
+	void addGraphEdge(E e, V v1, V v2);
+	E getEdge(int id);
+	V getVertex(int id);
 }

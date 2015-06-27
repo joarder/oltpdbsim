@@ -17,18 +17,16 @@
 package main.java.utils.graph;
 
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
 public class CompressedVertex extends SimpleVertex {
 	
 	private Map<Integer, SimpleVertex> VSet;
-	private int nh;
 	
 	public CompressedVertex(int id, int weight, int pid, int sid) {
-		super(id, weight, pid, sid);
-		this.setVSet(new HashMap<Integer, SimpleVertex>());
-		this.setNh(0);
+		super(id, id, weight, pid, sid);
+		this.setVSet(new TreeMap<Integer, SimpleVertex>());
 	}
 	
 	public Map<Integer, SimpleVertex> getVSet() {
@@ -37,14 +35,6 @@ public class CompressedVertex extends SimpleVertex {
 
 	public void setVSet(Map<Integer, SimpleVertex> VSet) {
 		this.VSet = VSet;
-	}
-	
-	public int getNh() {
-		return nh;
-	}
-
-	public void setNh(int nh) {
-		this.nh = nh;
 	}
 
 	public void updateWeight() {

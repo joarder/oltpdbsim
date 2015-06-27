@@ -1,10 +1,10 @@
-simulation.name=C-T-CHG-MSM-Basic
+simulation.name=C-T-HGR-MSM-Basic
 
 setup=consistenthash
 
 analysis = false
 
-static.repartitioning=fale
+static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
 
@@ -27,7 +27,7 @@ transaction.classification.strategy=basic
 
 data.migration.strategy=msm
 
-compression.enabled=true
+compression.enabled=false
 compression.before.setup=false
 compression.ratio=6
 

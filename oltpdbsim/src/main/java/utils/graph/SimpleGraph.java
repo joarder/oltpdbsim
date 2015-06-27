@@ -16,12 +16,44 @@
 
 package main.java.utils.graph;
 
-import edu.uci.ics.jung.graph.UndirectedGraph;
+//import main.java.entry.Global;
+import edu.uci.ics.jung.graph.UndirectedSparseGraph;
 
-public interface SimpleGraph<V extends SimpleVertex, E extends SimpleEdge> 
-	extends UndirectedGraph<V, E> {
+public class SimpleGraph<V extends SimpleVertex, E extends SimpleEdge> 
+	extends UndirectedSparseGraph<V, E> implements ISimpleGraph<V, E> {
 
-	void addGraphEdge(E e, V v1, V v2);
-	E getEdge(int id);
-	V getVertex(int id);
+	private static final long serialVersionUID = 1L;
+
+	// Adds a new edge in the graph
+	public void addGraphEdge(E e, V v1, V v2) {        
+        
+        this.addEdge(e, v1, v2);
+        
+        /*if(Global.compressionEnabled)
+        	this.addCompressedGraphEdge(e);*/
+    }
+	
+	/*private void addCompressedGraphEdge(E e) {	
+		
+	}*/
+
+	public E getEdge(int id) {
+
+		for(E e : this.edges.keySet()) {
+			if(e.getId() == id)
+				return e;
+		}
+		
+		return null;
+	}
+	
+	public V getVertex(int id) {
+		
+		for(V v : this.vertices.keySet()) {
+			if(v.getId() == id)
+				return v;
+		}
+		
+		return null;
+	}
 }

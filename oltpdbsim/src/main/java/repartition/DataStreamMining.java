@@ -37,7 +37,7 @@ import main.java.incmine.core.SemiFCI;
 import main.java.incmine.learners.IncMine;
 import main.java.incmine.streams.ZakiFileStream;
 import main.java.utils.Utility;
-import main.java.utils.graph.SimHypergraph;
+import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
@@ -152,7 +152,7 @@ public class DataStreamMining {
 		// Create a hypergraph from the FCI list
 		Global.LOGGER.info("Creating association rule hypergraph ...");
 		
-		hgr = new SimHypergraph<SimpleVertex, SimpleHEdge>();
+		hgr = new SimpleHypergraph<SimpleVertex, SimpleHEdge>();
 		fci_clusters = new HashMap<Integer, FCICluster>();
 		
 		ArrayList<FCIHEdge> fciHEdgeList = new ArrayList<FCIHEdge>();

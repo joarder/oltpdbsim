@@ -1,4 +1,4 @@
-simulation.name=C-T-CHG-MC-Basic-TPCC
+simulation.name=C-T-GR-MSM-Basic
 
 setup=consistenthash
 
@@ -14,7 +14,7 @@ workload.aware=true
 incremental.repartitioning=true
 graphcutbased.repartitioning=true
 
-workload.representation=hgr
+workload.representation=gr
 
 stream.collection=false
 stream.collector.size.factor=3
@@ -25,9 +25,9 @@ adaptive=false
 transaction.classification=true
 transaction.classification.strategy=basic
 
-data.migration.strategy=improved_mc
+data.migration.strategy=msm
 
-compression.enabled=true
+compression.enabled=false
 compression.before.setup=false
 compression.ratio=6
 

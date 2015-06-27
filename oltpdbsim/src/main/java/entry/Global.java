@@ -26,10 +26,8 @@ import org.apache.commons.math3.random.RandomDataGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class Global implements java.io.Serializable {
+public final class Global {
 
-	private static final long serialVersionUID = -6044446681907434051L;
-	
 	// Global variables
 	public static int global_index = 0;
 	public static Map<Integer, Integer> global_index_map = new HashMap<Integer, Integer>();

@@ -41,14 +41,10 @@ import org.paukov.combinatorics.ICombinatoricsVector;
 
 import umontreal.iro.lecuyer.simevents.Sim;
 
-public class Metric implements java.io.Serializable {
+public class Metric {	
 	
-	private static final long serialVersionUID = 2422722688394703455L;
-	
-	public static ArrayList<Double> time;
-	
-	public static ArrayList<Double> mean_throughput;
-	
+	public static ArrayList<Double> time;	
+	public static ArrayList<Double> mean_throughput;	
 	public static ArrayList<Double> idt;
 	public static ArrayList<Double> percentage_dt;
 	public static ArrayList<Double> percentage_ndt;

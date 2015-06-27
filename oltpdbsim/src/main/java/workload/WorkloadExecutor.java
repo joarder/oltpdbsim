@@ -166,7 +166,7 @@ public class WorkloadExecutor {
 			tr = new Transaction(Global.global_trSeq, type, trDataSet, Sim.time());
 			
 			// Add the incident transaction id
-			wb.addIncidentTr(cluster, trDataSet, Global.global_trSeq);
+			wb.addIncidentTrId(cluster, trDataSet, Global.global_trSeq);
 			
 			// Add the newly created Transaction in the Workload Transaction map	
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);

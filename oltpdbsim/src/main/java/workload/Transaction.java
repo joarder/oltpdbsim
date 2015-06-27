@@ -24,9 +24,7 @@ import java.util.Set;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 
-public class Transaction implements Comparable<Transaction>, java.io.Serializable {
-
-	private static final long serialVersionUID = 1L;
+public class Transaction implements Comparable<Transaction> {
 	
 	private int tr_id;	
 	private String tr_label;

@@ -168,6 +168,9 @@ public class TwitterWorkload extends Workload {
 		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_FOLLOWERS));
 		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
+		// Add the followee
+		trTupleSet.add(db.getTupleByPk(tbl_user.getTbl_id(), followee).getTuple_id());
+		
 		// Get the 'followers' for this 'followee'
 		Set<Integer> followers = new HashSet<Integer>();
 		
@@ -190,9 +193,18 @@ public class TwitterWorkload extends Workload {
 		Set<Integer> trTupleSet = new HashSet<Integer>();
 
 		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
-		Tuple tpl = db.getTupleByPk(tbl.getTbl_id(), tweet_id);
+		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
-		trTupleSet.add(tpl.getTuple_id());	
+		// Tweet
+		Tuple tpl_tweet = db.getTupleByPk(tbl.getTbl_id(), tweet_id);
+		trTupleSet.add(tpl_tweet.getTuple_id());
+		
+		// Tweeted User		
+		Set<Integer> users = tpl_tweet.getTuple_fk().get(tbl_user.getTbl_id());		
+		for(int u : users) {
+			Tuple tpl_user = db.getTupleByPk(tbl_user.getTbl_id(), u);
+			trTupleSet.add(tpl_user.getTuple_id());
+		}
 		
 		return trTupleSet;
 	}
@@ -251,19 +263,19 @@ public class TwitterWorkload extends Workload {
 		
 		++Global.global_tupleSeq;
 		int pk = tbl.getTbl_last_entry() + 1;
-		Tuple tpl = db.insertTuple(tbl.getTbl_id(), pk);
+		Tuple tpl_tweet = db.insertTuple(tbl.getTbl_id(), pk);
 		
 		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(ftbl.getTbl_tuples().size());
 		int fk = szGen.nextInt();
 		
 		// Populating foreign table relationships			
-		if(tpl.getTuple_fk().containsKey(ftbl.getTbl_id())) {
-			tpl.getTuple_fk().get(ftbl.getTbl_id()).add(fk);
+		if(tpl_tweet.getTuple_fk().containsKey(ftbl.getTbl_id())) {
+			tpl_tweet.getTuple_fk().get(ftbl.getTbl_id()).add(fk);
 			
 		} else {
 			Set<Integer> fkList = new HashSet<Integer>();
 			fkList.add(fk);
-			tpl.getTuple_fk().put(ftbl.getTbl_id(), fkList);
+			tpl_tweet.getTuple_fk().put(ftbl.getTbl_id(), fkList);
 		}
 		
 		// Populating into index
@@ -273,10 +285,14 @@ public class TwitterWorkload extends Workload {
 		tbl.setTbl_last_entry(pk);
 		
 		// Insert into the Database
-		tpl.setTuple_action(WorkloadConstants.TPL_INSERT);		
+		tpl_tweet.setTuple_action(WorkloadConstants.TPL_INSERT);		
 		
-		// Adding tuples to the tuple set
-		trTupleSet.add(tpl.getTuple_id());
+		// Adding Tweet to the tuple set
+		trTupleSet.add(tpl_tweet.getTuple_id());
+		
+		// Adding tweeted User to the tuple set
+		Tuple tpl_user = db.getTupleByPk(ftbl.getTbl_id(), fk);
+		trTupleSet.add(tpl_user.getTuple_id());
 		
 		return trTupleSet;
 	}

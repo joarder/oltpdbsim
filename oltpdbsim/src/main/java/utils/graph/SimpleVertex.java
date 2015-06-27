@@ -20,12 +20,14 @@ package main.java.utils.graph;
 public class SimpleVertex implements Comparable<SimpleVertex> {
 	
 	private int id;
+	private int cid; // Id of corresponding compressed vertex
 	private int weight; // Sum of weights of the incident hyperedges
 	private int partition_id; // Residing Partition id
 	private int server_id; // Residing Partition id
 	
-	public SimpleVertex(int id, int weight, int partition_id, int server_id) {
+	public SimpleVertex(int id, int cid, int weight, int partition_id, int server_id) {
 		this.setId(id);
+		this.setCid(cid);
 		this.setWeight(weight);
 		this.setPartition_id(partition_id);
 		this.setServer_id(server_id);
@@ -39,6 +41,14 @@ public class SimpleVertex implements Comparable<SimpleVertex> {
 		this.id = id;
 	}
 	
+	public int getCid() {
+		return cid;
+	}
+
+	public void setCid(int cid) {
+		this.cid = cid;
+	}
+
 	public int getWeight() {
 		return weight;
 	}

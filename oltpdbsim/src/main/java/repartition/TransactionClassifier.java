@@ -292,6 +292,7 @@ public class TransactionClassifier {
 		for(Integer d : tr.getTr_dataSet()) {			
 			SimpleVertex v = wb.hgr.getVertex(d);
 			
+			if(wb.hgr.getIncidentEdges(v) != null) {
 			for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {				
 				Transaction incidentTr = wb.getTransaction(h.getId());
 				
@@ -317,6 +318,13 @@ public class TransactionClassifier {
 						
 						break;
 				}
+			}
+			} else {
+				SimpleHEdge h = wb.hgr.getHEdge(tr.getTr_id());
+				System.out.println("No incident h for "+v+" | "+d);
+				System.out.println("\t"+h+" | Tr = "+tr.toString());
+				System.out.println("\t\tIncident Vertices of "+h+": "+wb.hgr.getIncidentVertices(h));
+				System.out.println("\t\tIncident HEdges of "+v+": "+wb.hgr.getIncidentEdges(v));				
 			}
 		}
 		

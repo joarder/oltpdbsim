@@ -19,18 +19,12 @@
 
 package main.java.incmine.Charm_BitSet;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class Context implements Serializable{
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 2881137224215367135L;
+public class Context {
 	// Contexte
 	private final Set<Integer> attributes = new HashSet<Integer>();
 	private final List<Itemset> objects = new ArrayList<Itemset>();
