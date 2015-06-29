@@ -105,7 +105,11 @@ public class MappingTable {
 						break;
 					
 					case "gr":
-						cluster_id = data.getData_metisClusterId();
+						if(Global.compressionEnabled)
+							cluster_id = data.getData_chmetisClusterId();
+						else
+							cluster_id = data.getData_metisClusterId();
+						
 						break;
 				}					
 														

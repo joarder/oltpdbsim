@@ -368,7 +368,7 @@ public class WorkloadBatch {
 			SimpleVertex v = this.hgr.getVertex(data.getData_id());
 			
 			if(v == null) {
-				v = new SimpleVertex(d, data.getData_compressed_data_id(), 1,
+				v = new SimpleVertex(d, data.getData_compressed_data_id(), tr_weight,
 					data.getData_partition_id(), data.getData_server_id());
 			}
 			

@@ -37,11 +37,11 @@ public interface ISimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge
 	void updateVertexWeight(V v);
 	
 	// Compressed Hypergraph specific	
-	Map<CompressedHEdge, Set<CompressedVertex>> getCHEdges();
-	void setCHEdges(Map<CompressedHEdge, Set<CompressedVertex>> cHEdges);
+	Map<CompressedHEdge, Set<CompressedVertex>> getCHEdgeMap();
+	void setCHEdges(Map<CompressedHEdge, Set<CompressedVertex>> cHEdgeMap);
 	
-	Map<CompressedVertex, Set<CompressedHEdge>> getCVertices();
-	void setCVertices(Map<CompressedVertex, Set<CompressedHEdge>> cVertices);
+	Map<CompressedVertex, Set<CompressedHEdge>> getCVertexMap();
+	void setCVertices(Map<CompressedVertex, Set<CompressedHEdge>> cVertexMap);
 	
 	void setCHEMap(Map<Integer, CompressedHEdge> cHEMap);
 	void setCVMap(Map<Integer, CompressedVertex> cVMap);
@@ -58,9 +58,15 @@ public interface ISimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge
 	CompressedHEdge getCHEdge(Set<CompressedVertex> vSet);
 	//CompressedHEdge getCHEdge(int id);
 	
+	Set<CompressedHEdge> getCHEdges();
+	Set<CompressedVertex> getCVertices();
+	
 	Set<CompressedHEdge> getIncidentCHEdges(CompressedVertex cv);
 	Set<CompressedVertex> getIncidentCVertices(CompressedHEdge ch);	
 	
 	Set<Integer> getIncidentPartitions(WorkloadBatch wb, CompressedHEdge ch);
-	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);	
+	Set<Integer> getIncidentServers(WorkloadBatch wb, CompressedHEdge ch);
+	
+	Set<CompressedVertex> getCNeighbors(CompressedVertex cv);
+	CompressedHEdge findCEdge(CompressedVertex cv1, CompressedVertex cv2);
 }

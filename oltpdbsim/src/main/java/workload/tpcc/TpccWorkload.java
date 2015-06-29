@@ -184,6 +184,7 @@ public class TpccWorkload extends Workload {
 							//================new
 							switch(tbl.getTbl_name()) {
 								case TpccConstants.TBL_WAREHOUSE:
+									//_w = Global.rand.nextInt(tbl.getTbl_tuples().size())+1;
 									_w = tbl.zipfDistribution.sample();
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_w);

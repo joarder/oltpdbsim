@@ -1,4 +1,4 @@
-simulation.name=C-T-CGR-MSM-FD-Twitter
+simulation.name=C-T-CGR-MSM-Basic-TPCC
 
 setup=consistenthash
 
@@ -16,14 +16,14 @@ graphcutbased.repartitioning=true
 
 workload.representation=gr
 
-stream.collection=true
+stream.collection=false
 stream.collector.size.factor=3
 
 associative=false
 adaptive=false
 
 transaction.classification=true
-transaction.classification.strategy=fd
+transaction.classification.strategy=basic
 
 data.migration.strategy=msm
 

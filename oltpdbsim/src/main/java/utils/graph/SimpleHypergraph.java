@@ -141,12 +141,13 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	
 	// Updating Vertex weight
 	public void updateVertexWeight(V v) {
-		//int weight = 0;
+		/*int weight = 0;
 			
-		//for(H h : this.getIncidentEdges(v))
-			//weight += h.getWeight();		
+		for(H h : this.getIncidentEdges(v))
+			weight += h.getWeight();*/		
 			
-		v.setWeight(this.getIncidentEdges(v).size());	
+		//v.setWeight(this.getIncidentEdges(v).size());
+		v.setWeight(1);
 	}
 
 //===================================================================================================
@@ -168,7 +169,7 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		
 		if(ch != null) {
 			ch.getHESet().put(h.getId(), h);			
-			ch.updateWeight();
+			this.updateCHEdgeWeight(ch);
 			
 			// Add incident Compressed Vertices
 			this.cHEdges.get(ch).addAll(cvSet);
@@ -181,6 +182,7 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			if(cvSet.size() >= 2) {
 				ch = new CompressedHEdge(++Global.cHEdgeSeq, h.getWeight());
 				ch.getHESet().put(h.getId(), h);
+				this.updateCHEdgeWeight(ch);
 	
 				// Add incident Compressed Vertices
 				this.cHEdges.put(ch, new HashSet<CompressedVertex>(cvSet));
@@ -235,11 +237,12 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		if(cv != null) {			
 			if(!cv.getVSet().containsKey(v.getId())) {
 				cv.getVSet().put(v.getId(), v);
-				//this.updateCVertexWeight(cv);
+				this.updateCVertexWeight(cv);
 			}			
 		} else {
-			cv = new CompressedVertex(v.getCid(), 1, v.getPartition_id(), v.getServer_id());	        	
-	        cv.getVSet().put(v.getId(), v);	    
+			cv = new CompressedVertex(v.getCid(), v.getWeight(), v.getPartition_id(), v.getServer_id());	        	
+	        cv.getVSet().put(v.getId(), v);
+	        this.updateCVertexWeight(cv);
 	        
         	this.cVertices.put(cv, new HashSet<CompressedHEdge>());
         	this.cVMap.put(cv.getId(), cv);
@@ -278,10 +281,29 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		}
 	}*/
 
+	// Updating Compressed Hyperedge weight	
+	public void updateCHEdgeWeight(CompressedHEdge ch) {
+		/*int weight = 0;
+		
+		for(Entry<Integer, SimpleHEdge> h : HSet.entrySet()) {
+			weight += h.getValue().getWeight();
+		}
+		
+		ch.setWeight(weight);*/		
+		ch.setWeight(ch.getHESet().size());		
+	}
+	
 	
 	// Updating Vertex weight
 	public void updateCVertexWeight(CompressedVertex cv) {
-		cv.setWeight(this.getIncidentCHEdges(cv).size());	
+		/*int weight = 0;
+		
+		for(CompressedHEdge ch : this.getIncidentCHEdges(cv))
+			weight += ch.getWeight();				
+		
+		cv.setWeight(weight);*/
+		//cv.setWeight(this.getIncidentCHEdges(cv).size());
+		cv.setWeight(1);
 	}
 	
 	// Returns a Compressed Vertex based on the given id
@@ -322,7 +344,7 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 
 	// Returns all compressed hyeredges
-	public Map<CompressedHEdge, Set<CompressedVertex>> getCHEdges() {
+	public Map<CompressedHEdge, Set<CompressedVertex>> getCHEdgeMap() {
 		return this.cHEdges;
 	}
 	
@@ -332,7 +354,7 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	}
 	
 	// Returns all compressed vertices 
-	public Map<CompressedVertex, Set<CompressedHEdge>> getCVertices() {
+	public Map<CompressedVertex, Set<CompressedHEdge>> getCVertexMap() {
 		return this.cVertices;
 	}
 	
@@ -386,5 +408,44 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		}
 		
 		return incidentServers;
+	}
+	
+	public Set<CompressedHEdge> getCHEdges() {
+		return this.cHEdges.keySet();
+	}
+
+	public Set<CompressedVertex> getCVertices() {
+		return this.cVertices.keySet();
+	}
+	
+	public Set<CompressedVertex> getCNeighbors(CompressedVertex cv) {
+		if (!this.getCVertices().contains(cv))
+            return null;
+        
+        Set<CompressedVertex> neighbors = new HashSet<CompressedVertex>();
+        for (CompressedHEdge ch : this.getCVertexMap().get(cv)) {
+            neighbors.addAll(this.getCHEdgeMap().get(ch));
+        }
+        
+        return neighbors;
+	}
+
+	public CompressedHEdge findCEdge(CompressedVertex cv1, CompressedVertex cv2) {
+		if (!this.getCVertices().contains(cv1) || !this.getCVertices().contains(cv2))
+            return null;
+        
+        for (CompressedHEdge ch : this.getIncidentCHEdges(cv1)) {
+            if (this.isCIncident(cv2, ch))
+                return ch;
+        }
+        
+        return null;
+	}
+
+	private boolean isCIncident(CompressedVertex cv, CompressedHEdge ch) {
+		if (!this.getCVertices().contains(cv) || !this.getCHEdges().contains(ch))
+            return false;
+        
+        return this.getCVertexMap().get(cv).contains(ch);
 	}
 }

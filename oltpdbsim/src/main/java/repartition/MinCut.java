@@ -51,7 +51,10 @@ public class MinCut {
 		        }
 		        
 		        arg_list.add(wb.getWrl_file_name());				// Workload file
-				arg_list.add(Integer.toString(partitions));			// Nparts	        	
+				arg_list.add(Integer.toString(partitions));			// Nparts
+				
+				//if(Global.compressionEnabled)
+					//arg_list.add("-ptype=rb");						// ptype -- Multilevel recursive bisectioning. Default is kway -- Multilevel k-way partitioning	
 	        	
 				break;
 				 

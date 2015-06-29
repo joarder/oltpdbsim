@@ -18,7 +18,6 @@ package main.java.utils.graph;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 public class CompressedHEdge extends SimpleHEdge {
 
@@ -35,16 +34,6 @@ public class CompressedHEdge extends SimpleHEdge {
 
 	public void setHESet(Map<Integer, SimpleHEdge> HSet) {
 		this.HSet = HSet;
-	}		
-	
-	public void updateWeight() {
-		int weight = 0;
-		
-		for(Entry<Integer, SimpleHEdge> h : HSet.entrySet()) {
-			weight += h.getValue().getWeight();
-		}
-		
-		this.setWeight(weight);
 	}
 	
 	@Override

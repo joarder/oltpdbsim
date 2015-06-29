@@ -596,8 +596,15 @@ public class DataMigration {
 						break;
 												
 					case "gr":
-						dst_partition_id = keyMap.get(data.getData_metisClusterId());
-						data.setData_metisClusterId(-1);
+						if(Global.compressionEnabled) {
+							dst_partition_id = keyMap.get(data.getData_chmetisClusterId());
+							data.setData_chmetisClusterId(-1);
+							
+						} else {
+							dst_partition_id = keyMap.get(data.getData_metisClusterId());
+							data.setData_metisClusterId(-1);
+						}
+						
 						break;
 				}
 				

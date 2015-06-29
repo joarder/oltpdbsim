@@ -79,13 +79,13 @@ public class Sword {
 		
 		// Calculate the sum of the weights of the compressed hyperedges in the cut
 		double sum_ndt_e = 0.0;
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getCHEdges().entrySet()) {
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getCHEdgeMap().entrySet()) {
 			if(isCHEdgeInCut(wb, ch_entry.getKey()))
 				sum_ndt_e += ch_entry.getKey().getWeight();
 		}
 		
 		// Calculate contribution of each compressed hyperedge toward total number of distributed transactions seen so far
-		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getCHEdges().entrySet()) {
+		for(Entry<CompressedHEdge, Set<CompressedVertex>> ch_entry : wb.hgr.getCHEdgeMap().entrySet()) {
 			
 			if(isCHEdgeInCut(wb, ch_entry.getKey())) {
 				
@@ -320,7 +320,7 @@ public class Sword {
 	public static boolean isCHEdgeInCut(WorkloadBatch wb, CompressedHEdge ch) {
 		Set<Integer> serverSet = new HashSet<Integer>();
 		
-		for(SimpleVertex cv : wb.hgr.getCHEdges().get(ch))
+		for(SimpleVertex cv : wb.hgr.getCHEdgeMap().get(ch))
 			serverSet.add(cv.getServer_id());
 		
 		if(serverSet.size() > 1)
@@ -333,7 +333,7 @@ public class Sword {
 	public static boolean isCHEdgeSpansTwoServers(WorkloadBatch wb, CompressedHEdge ch) {
 		Set<Integer> serverSet = new HashSet<Integer>();
 		
-		for(SimpleVertex cv : wb.hgr.getCHEdges().get(ch))
+		for(SimpleVertex cv : wb.hgr.getCHEdgeMap().get(ch))
 			serverSet.add(cv.getServer_id());
 		
 		if(serverSet.size() == 2)
