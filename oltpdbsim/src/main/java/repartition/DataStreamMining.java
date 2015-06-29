@@ -37,9 +37,9 @@ import main.java.incmine.core.SemiFCI;
 import main.java.incmine.learners.IncMine;
 import main.java.incmine.streams.ZakiFileStream;
 import main.java.utils.Utility;
-import main.java.utils.graph.SimpleHypergraph;
-import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.ISimpleHypergraph;
+import main.java.utils.graph.SimpleHEdge;
+import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
@@ -143,7 +143,13 @@ public class DataStreamMining {
 		//System.out.println(this.dsm_learner);		
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
-		if(Global.associative)
+		if(this.dsm_learner.getFCITable().size() == 0) {
+			Global.isAssociationRequired = false;
+			Global.LOGGER.info("No frequent tuple sets have been identified !!! Nothing to do at this moment.");
+		} else 
+			Global.isAssociationRequired = true;
+		
+		if(Global.associative && Global.isAssociationRequired)
 			this.performARHC(cluster, wb);
 	} 
 	
@@ -160,22 +166,26 @@ public class DataStreamMining {
 		int hEdgeId = 0;
 		
 		for(SemiFCI semiFCI : this.dsm_learner.getFCITable()){
-			//System.out.println("@ "+semiFCI.getItems());
+			//System.out.println("@ "+semiFCI.getItems());			
+			int fci_weight = (int)semiFCI.getApproximateSupport()/Global.streamCollectorSizeFactor;
 			
 			HashSet<Integer> vertexSet = new HashSet<Integer>();
 			
 			if(semiFCI.getItems().size() > 1){					
 				double hEdgeWeight = 0.0;
 				
-				for(int fci : semiFCI.getItems()) {
+				for(int fci : semiFCI.getItems()) {					
 					vertexSet.add(fci);
+					vertexMap.put(fci, fci_weight);
+					
 					hEdgeWeight += semiFCI.getApproximateSupport();
 				}
 		
-				fciHEdgeList.add(new FCIHEdge(++hEdgeId, (int)hEdgeWeight/semiFCI.getItems().size(), vertexSet));
+				fciHEdgeList.add(new FCIHEdge(
+						++hEdgeId, (int)hEdgeWeight/semiFCI.getItems().size(), vertexSet));				
 				
-			} else {				
-				vertexMap.put(semiFCI.getItems().get(0), (int)semiFCI.getApproximateSupport()/Global.streamCollectorSizeFactor);				
+			} else {
+				vertexMap.put(semiFCI.getItems().get(0), fci_weight);
 			}
         } // end-for()
 		
@@ -184,7 +194,7 @@ public class DataStreamMining {
 			// Updating vertex weight
 			for(int v : h.vSet)
 				h.vMap.put(v, vertexMap.get(v));
-						
+				
 			hgr.addHEdge(new SimpleHEdge(h.id, h.weight), wb.getVertices(cluster, h.vMap));
 		} // end-for()
 		

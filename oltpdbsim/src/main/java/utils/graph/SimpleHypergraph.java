@@ -135,18 +135,18 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	public void updateHEdgeWeight(H h, int weight) {
 		h.setWeight(weight);
 				
-		for(V v : this.getIncidentVertices(h))
-        	this.updateVertexWeight(v);
+		/*for(V v : this.getIncidentVertices(h))
+        	this.updateVertexWeight(v);*/
 	}
 	
 	// Updating Vertex weight
 	public void updateVertexWeight(V v) {
-		int weight = 0;
+		//int weight = 0;
 			
-		for(H h : this.getIncidentEdges(v))
-			weight += h.getWeight();		
+		//for(H h : this.getIncidentEdges(v))
+			//weight += h.getWeight();		
 			
-		v.setWeight(weight);	
+		v.setWeight(this.getIncidentEdges(v).size());	
 	}
 
 //===================================================================================================
@@ -235,10 +235,10 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 		if(cv != null) {			
 			if(!cv.getVSet().containsKey(v.getId())) {
 				cv.getVSet().put(v.getId(), v);
-				cv.updateWeight();
+				//this.updateCVertexWeight(cv);
 			}			
 		} else {
-			cv = new CompressedVertex(v.getCid(), v.getWeight(), v.getPartition_id(), v.getServer_id());	        	
+			cv = new CompressedVertex(v.getCid(), 1, v.getPartition_id(), v.getServer_id());	        	
 	        cv.getVSet().put(v.getId(), v);	    
 	        
         	this.cVertices.put(cv, new HashSet<CompressedHEdge>());
@@ -277,6 +277,12 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 			return false;
 		}
 	}*/
+
+	
+	// Updating Vertex weight
+	public void updateCVertexWeight(CompressedVertex cv) {
+		cv.setWeight(this.getIncidentCHEdges(cv).size());	
+	}
 	
 	// Returns a Compressed Vertex based on the given id
 	/*public CompressedVertex getCVertex(int cv_id) {

@@ -30,6 +30,8 @@ import main.java.workload.Workload;
 import main.java.workload.WorkloadConstants;
 import main.java.workload.twitter.TwitterConstants;
 
+import org.apache.commons.math3.distribution.ZipfDistribution;
+
 public class TwitterDatabase extends Database {
 
 	private int num_users;
@@ -98,6 +100,9 @@ public class TwitterDatabase extends Database {
 		
 		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
+		tbl.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
+		tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		
 		int pk = 0;
 		for (pk = 1; pk <= this.num_users; pk++) {
 			++Global.global_tupleSeq;								
@@ -116,6 +121,9 @@ public class TwitterDatabase extends Database {
 		
 		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
 		
+		//tbl.zipfDistribution = new ZipfDistribution(this.num_tweets, TwitterConstants.ZIPF_EXP);
+		//tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		
 		// Foreign Table
 		ArrayList<Integer> ftblList = new ArrayList<Integer>(tbl.getTbl_foreign_tables());
 		Table ftbl = this.getTable(ftblList.get(0));
@@ -125,6 +133,7 @@ public class TwitterDatabase extends Database {
 		int pk = 0, fk = 0;
 		for (pk = 1; pk <= this.num_tweets; pk++) {
 			fk = szGen.nextInt();
+			//fk = ftbl.zipfDistribution.sample();
         	
 			++Global.global_tupleSeq;											
 			Tuple tpl = this.insertTuple(tbl.getTbl_id(), pk);
@@ -168,6 +177,11 @@ public class TwitterDatabase extends Database {
 		Table ftbl_follows = this.getTable(ftblList_follows.get(0));		
 				
 		// Distributions
+		//tbl_followers.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
+		//tbl_followers.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		
+		//tbl_follows.zipfDistribution = new ZipfDistribution(this.num_follows, TwitterConstants.ZIPF_EXP);
+		//tbl_follows.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 		ZipfianGenerator zipfFollowee = new ZipfianGenerator(this.num_users, TwitterConstants.ZIPF_EXP);
 		ZipfianGenerator zipfFollows = new ZipfianGenerator(this.num_follows, TwitterConstants.ZIPF_EXP);
 		
@@ -183,13 +197,15 @@ public class TwitterDatabase extends Database {
             followees.clear();
 
             int time = zipfFollows.nextInt();
+            //int time = tbl_follows.zipfDistribution.sample();
             
             // At least this follower will follow 1 user
             if(time == 0) 
             	time = 1;
             
             for (int f = 0; f < time; ) {
-                followee = zipfFollowee.nextInt()+1;
+                followee = zipfFollowee.nextInt() + 1;
+            	//followee = tbl_followers.zipfDistribution.sample() + 1;
                 
                 if (follower != followee && !followees.contains(followee)) {
                 	followees.add(followee);

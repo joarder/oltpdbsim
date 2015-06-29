@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
@@ -369,7 +368,7 @@ public class WorkloadBatch {
 			SimpleVertex v = this.hgr.getVertex(data.getData_id());
 			
 			if(v == null) {
-				v = new SimpleVertex(d, data.getData_compressed_data_id(), tr_weight,
+				v = new SimpleVertex(d, data.getData_compressed_data_id(), 1,
 					data.getData_partition_id(), data.getData_server_id());
 			}
 			
@@ -381,13 +380,13 @@ public class WorkloadBatch {
 	
 	// Converts a set of transactional data set into a set of vertices
 	public Set<SimpleVertex> getVertices(Cluster cluster, Map<Integer, Integer> trDataMap) {		
-		Set<SimpleVertex> trSet = new TreeSet<SimpleVertex>();
+		Set<SimpleVertex> trSet = new HashSet<SimpleVertex>();
 		
 		for(Entry<Integer, Integer> d : trDataMap.entrySet()) {
 			Data data = cluster.getData(d.getKey());
-			
+
 			trSet.add(new SimpleVertex(d.getKey(), data.getData_compressed_data_id(), d.getValue(),  // Calculated Vertex Weight
-					data.getData_partition_id(), data.getData_server_id()));
+					data.getData_partition_id(), data.getData_server_id()));			
 		}
 		
 		return trSet;		

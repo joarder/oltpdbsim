@@ -65,14 +65,10 @@ public class TpccDatabase extends Database {
 			
 			// Set TPCC table ranks for Warehouse and Item tables
 			if(tbl.getTbl_name().equals(TpccConstants.TBL_WAREHOUSE)) {
-				tbl.setTbl_data_rank(new int[TpccConstants.NUM_WAREHOUSES + 1]);
-				
 				tbl.zipfDistribution = new ZipfDistribution(TpccConstants.NUM_WAREHOUSES, TpccConstants.ZIPF_EXP);
 				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 				
-			} else if(tbl.getTbl_name().equals(TpccConstants.TBL_ITEM)) {
-				tbl.setTbl_data_rank(new int[((int) (TpccConstants.NUM_ITEMS * WorkloadConstants.SCALE_FACTOR)) + 1]);
-				
+			} else if(tbl.getTbl_name().equals(TpccConstants.TBL_ITEM)) {				
 				tbl.zipfDistribution = new ZipfDistribution(((int) (TpccConstants.NUM_ITEMS * WorkloadConstants.SCALE_FACTOR)), TpccConstants.ZIPF_EXP);
 				tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);				
 			}

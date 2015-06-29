@@ -98,8 +98,8 @@ public class WorkloadBatchProcessor {
 		
 		int edges = hgr.getEdgeCount();		
 		int vertices = hgr.getVertexCount();
-		int hasTransactionWeight = 1;
-		int hasDataWeight = 1;
+		int hasHEdgeWeight = 1;
+		//int hasVertexWeight = 0;
 		
 		if(edges <= 1 ) {			
 			Global.LOGGER.info("Only "+edges+" hyperedges present in the workload hypergraph network.");
@@ -120,7 +120,7 @@ public class WorkloadBatchProcessor {
 				try {
 					writer = new BufferedWriter(new OutputStreamWriter(
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
-					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
+					writer.write(edges+" "+vertices+" "+hasHEdgeWeight+"\n");//+""+hasVertexWeight+"\n");
 					
 					// Writing hyperedge weights and incident vertex ids
 					for(SimpleHEdge e : hgr.getEdges()) {
@@ -141,14 +141,14 @@ public class WorkloadBatchProcessor {
 					}
 					
 					// Writing vertex weights
-					Iterator<SimpleVertex> v_itr = hgr.getVertices().iterator();
+					/*Iterator<SimpleVertex> v_itr = hgr.getVertices().iterator();
 					while(v_itr.hasNext()) {
 						String v_weight = Integer.toString(v_itr.next().getWeight());							
 						writer.write(v_weight);
 						
 						if(v_itr.hasNext())
 							writer.write("\n"); 
-					}										
+					}*/							
 					
 				} catch(IOException e) {
 					e.printStackTrace();
@@ -225,8 +225,8 @@ public class WorkloadBatchProcessor {
 			
 		int edges = cHESet.size();
 		int vertices = cVSet.size();
-		int hasTransactionWeight = 1;
-		int hasDataWeight = 1;
+		int hasCHEdgeWeight = 1;
+		//int hasCVertexWeight = 0;
 				
 		// Write in a file		
 		if(edges <= 1) { 
@@ -248,7 +248,7 @@ public class WorkloadBatchProcessor {
 				
 				try {
 					writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(wb.getWrl_file()), "utf-8"));
-					writer.write(edges+" "+vertices+" "+hasTransactionWeight+""+hasDataWeight+"\n");
+					writer.write(edges+" "+vertices+" "+hasCHEdgeWeight+"\n");//+""+hasCVertexWeight+"\n");
 					
 					for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : cHESet.entrySet()) {						
 						// Writing ch's weight
@@ -267,14 +267,14 @@ public class WorkloadBatchProcessor {
 					}
 	
 					// Writing compressed vertices' weight					
-					Iterator<CompressedVertex> cv_itr = cVSet.iterator();
+					/*Iterator<CompressedVertex> cv_itr = cVSet.iterator();
 					while(cv_itr.hasNext()) {
 						String cv_weight = Integer.toString(cv_itr.next().getWeight());
 						writer.write(cv_weight);
 						
 						if(cv_itr.hasNext())
 							writer.write("\n");
-					}
+					}*/
 					
 				} catch(IOException e) {
 					e.printStackTrace();
@@ -306,8 +306,8 @@ public class WorkloadBatchProcessor {
 		
 		int edges = 0;		
 		int vertices = wb.hgr.getVertexCount();
-		int hasTransactionWeight = 1;
-		int hasDataWeight = 1;
+		int hasEdgeWeight = 1;
+		int hasVertexWeight = 0;
 		
 		String content = "";		
 		for(SimpleVertex v : wb.hgr.getVertices()) {
@@ -351,7 +351,7 @@ public class WorkloadBatchProcessor {
 				try {
 					writer = new BufferedWriter(new OutputStreamWriter(
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
-					writer.write(vertices+" "+(edges/2)+" "+hasDataWeight+""+hasTransactionWeight
+					writer.write(vertices+" "+(edges/2)+" 0"+hasVertexWeight+""+hasEdgeWeight
 							+"\n"+content);
 					
 				} catch(IOException e) {
@@ -387,8 +387,8 @@ public class WorkloadBatchProcessor {
 		
 		int edges = 0;		
 		int vertices = wb.hgr.getVertexCount();
-		int hasTransactionWeight = 1;
-		int hasDataWeight = 1;
+		int hasCEdgeWeight = 1;
+		int hasCVertexWeight = 0;
 		
 		String content = "";		
 		for(SimpleVertex v : wb.hgr.getVertices()) {
@@ -432,7 +432,7 @@ public class WorkloadBatchProcessor {
 				try {
 					writer = new BufferedWriter(new OutputStreamWriter(
 							new FileOutputStream(wb.getWrl_file()), "utf-8"));
-					writer.write(vertices+" "+(edges/2)+" "+hasDataWeight+""+hasTransactionWeight
+					writer.write(vertices+" "+(edges/2)+" 0"+hasCVertexWeight+""+hasCEdgeWeight
 							+"\n"+content);
 					
 				} catch(IOException e) {

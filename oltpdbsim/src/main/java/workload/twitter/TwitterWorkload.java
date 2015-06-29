@@ -141,10 +141,11 @@ public class TwitterWorkload extends Workload {
 	private int getUserId(Database db) {
 		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
-		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
-		int rand_tweet = szGen.nextInt();
+		//ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
+		//int rand_user = szGen.nextInt();
+		int rand_user = tbl_user.zipfDistribution.sample();
 		
-		return rand_tweet;
+		return rand_user;
 	}
 	
 	// Returns a randomly selected Tweet id
@@ -182,7 +183,7 @@ public class TwitterWorkload extends Workload {
 				}
 			}
 		} else {
-			// This User doesn't have any follower
+			// This User doesn't have any follower - which is not possible
 		}
 		
 		return trTupleSet;
@@ -243,10 +244,13 @@ public class TwitterWorkload extends Workload {
 		Set<Integer> trTupleSet = new HashSet<Integer>();
 		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
 
-		int tuple_id = 0;
+		/*while(tbl.getIdx_multivalue_secondary().get(user_id) == null) {
+			user_id = this.getUserId(db);
+		}*/
+		
 		for(int tweet_id : tbl.getIdx_multivalue_secondary().get(user_id)) {
 			if(trTupleSet.size() <= TwitterConstants.LIMIT_TWEETS_FOR_UID) {
-				tuple_id = db.getTupleByPk(tbl.getTbl_id(), tweet_id).getTuple_id();
+				int tuple_id = db.getTupleByPk(tbl.getTbl_id(), tweet_id).getTuple_id();
 				trTupleSet.add(tuple_id);
 			}
 		}
@@ -267,6 +271,7 @@ public class TwitterWorkload extends Workload {
 		
 		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(ftbl.getTbl_tuples().size());
 		int fk = szGen.nextInt();
+		//int fk = ftbl.zipfDistribution.sample();
 		
 		// Populating foreign table relationships			
 		if(tpl_tweet.getTuple_fk().containsKey(ftbl.getTbl_id())) {

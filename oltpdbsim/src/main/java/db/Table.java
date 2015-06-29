@@ -36,7 +36,6 @@ public class Table implements Comparable<Table> {
 	private int tbl_init_tuples;
 	private Map<Integer, Tuple> tbl_tuples; // <id, Tuple> pairs
 	private Set<Integer> tbl_foreign_tables;
-	private int[] tbl_tuple_rank;
 	private int tbl_last_entry;
 	public ZipfDistribution zipfDistribution;
 	
@@ -130,14 +129,6 @@ public class Table implements Comparable<Table> {
 
 	public void setIdx_multikey_dependent(MultiKeyMap<Integer, Integer> tbl_tuple_map_d) {
 		this.idx_multikey_dependent = tbl_tuple_map_d;
-	}
-
-	public int[] getTbl_dataRank() {
-		return tbl_tuple_rank;
-	}
-
-	public void setTbl_data_rank(int[] tbl_data_rank) {
-		this.tbl_tuple_rank = tbl_data_rank;
 	}
 
 	public int getTbl_last_entry() {

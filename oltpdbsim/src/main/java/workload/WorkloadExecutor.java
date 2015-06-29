@@ -526,6 +526,10 @@ public class WorkloadExecutor {
 						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
 						Global.dsm.performDSM(cluster, wb);
 						break;
+						
+					default:
+						Global.LOGGER.info("Wrong transaction classification method specified !!!");
+						break;
 				}
 			}
 			
@@ -773,9 +777,9 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 							
-							if(Global.adaptive)
+							if(Global.adaptive && Global.isAssociationRequired)
 								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
-						}						
+						}
 					}					
 					
 				} else { // 2. Static Repartitioning
@@ -811,7 +815,7 @@ class Arrival extends Event {
 			}						
 			
 			// Adaptive ARHC
-			if(Global.associative && Global.adaptive && WorkloadExecutor.isAdaptive) {
+			if(Global.associative && Global.adaptive && WorkloadExecutor.isAdaptive  && Global.isAssociationRequired) {
 				// Redistribute transactional tuples in an adaptive manner using DSM/ARHC
 				SimpleTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
 				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);

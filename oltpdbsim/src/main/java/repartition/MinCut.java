@@ -100,16 +100,15 @@ public class MinCut {
 		ProcessBuilder pb = new ProcessBuilder(arg);
 
 		try {
-			final Process p = pb.start();			
+			final Process p = pb.start();
 			
-			if (waitForResponse) {
-				 
+			if (waitForResponse) {				 
 				// To capture output from the shell
 				InputStream shellIn = p.getInputStream();
 				 
 				// Wait for the shell to finish and get the return code
 				int shellExitStatus = p.waitFor();
-				Global.LOGGER.info("Completing workload clustering ... [Exit status (" + shellExitStatus+")]");
+				Global.LOGGER.info("Completing workload clustering ... [Exit status ("+shellExitStatus+")]");
 				 
 				response = convertStreamToStr(shellIn);				 
 				shellIn.close();

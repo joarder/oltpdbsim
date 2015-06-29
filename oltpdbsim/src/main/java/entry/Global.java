@@ -104,6 +104,7 @@ public final class Global {
     // ARHC and A-ARHC specific
     public static boolean adaptive;	// A-ARHC
     public static boolean associative; // ARHC
+    public static boolean isAssociationRequired = true; // A-ARHC/ARHC
     
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)
