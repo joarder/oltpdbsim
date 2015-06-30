@@ -206,7 +206,6 @@ public class Cluster {
 //====================================================================================================	
 	// Range partitioning based setup
 	private WorkloadBatch setupRange(Database db, Workload wrl) {
-		// Will only be used for SWORD
 		WorkloadBatch wb = null;
 		
 		Global.LOGGER.info("Setting up Cluster ...");
@@ -251,7 +250,7 @@ public class Cluster {
 			this.addPartitionMappingEntry(s_id, p.getPartition_id());
 			
 			Table tbl = db.getTable(tbl_id);
-			Global.LOGGER.info("Partition "+p.getPartition_label()+" of "+tbl.toString()+" is assigned to Server "+s.getServer_label()+".");
+			Global.LOGGER.info("Partition "+p.getPartition_label()+" of Table '"+tbl.getTbl_name()+"' is assigned to Server "+s.getServer_label()+".");
 			
 			++s_id;			
 			if(s_id > this.getServers().size())
@@ -261,7 +260,7 @@ public class Cluster {
 			if(tbl_id > db.getDb_tables().size())
 				tbl_id = 1;
 		}
-				
+		
 		// Determine the number of Compressed Data Nodes to be created
 		if(Global.compressionEnabled)
 			Global.compressedVertices = ((int) db.getDb_tuple_counts() / (int) Global.compressionRatio);
@@ -406,8 +405,7 @@ public class Cluster {
 								s_id = 1;
 							
 							Server s = this.getServer(s_id);
-							int p_id = this.getRangePartition(s, tbl_id);			
-							
+							int p_id = this.getRangePartition(s, tbl_id);
 							this.insertData_RangePartitioning(tpl.getValue().getTuple_id(), s_id, p_id);
 							
 							break;

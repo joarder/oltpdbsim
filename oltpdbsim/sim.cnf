@@ -1,6 +1,6 @@
-simulation.name=C-T-CGR-MSM-FD-Twitter
+simulation.name=R-T-CGR-MSM-FD-Twitter
 
-setup=consistenthash
+setup=range
 
 analysis = false
 
