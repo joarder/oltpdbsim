@@ -55,7 +55,8 @@ public class TwitterWorkload extends Workload {
 			parameters.load(config_file);
 			
 		//Read Twitter scale
-			WorkloadConstants.SCALE_FACTOR = parameters.getDouble("twitter.scale");		    	
+			//WorkloadConstants.SCALE_FACTOR = parameters.getDouble("twitter.scale");
+			WorkloadConstants.SCALE_FACTOR = Global.scale_factor;
 			Global.LOGGER.info("Twitter scale (as the number of users): "+WorkloadConstants.SCALE_FACTOR);	
 			
 		//Read Twitter table types
@@ -201,7 +202,7 @@ public class TwitterWorkload extends Workload {
 		trTupleSet.add(tpl_tweet.getTuple_id());
 		
 		// Tweeted User		
-		Set<Integer> users = tpl_tweet.getTuple_fk().get(tbl_user.getTbl_id());		
+		Set<Integer> users = tpl_tweet.getTuple_fk().get(tbl_user.getTbl_id());
 		for(int u : users) {
 			Tuple tpl_user = db.getTupleByPk(tbl_user.getTbl_id(), u);
 			trTupleSet.add(tpl_user.getTuple_id());
@@ -258,11 +259,11 @@ public class TwitterWorkload extends Workload {
 		return trTupleSet;
 	}
 	
-	// Insert a single Tweet (0.9219% of the Twitter workload)
+	// Insert a single Tweet (0.09219% of the Twitter workload)
 	private Set<Integer> insertTweet(Database db) {
 		Set<Integer> trTupleSet = new HashSet<Integer>();
 		
-		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_ADDED_TWEETS));
+		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
 		Table ftbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
 		++Global.global_tupleSeq;

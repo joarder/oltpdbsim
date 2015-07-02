@@ -50,7 +50,7 @@ public final class Global {
 	
 	// Input parameters
 	public static String wrl;
-	public static String run;
+	public static double scale_factor;
 	public static int repeated_runs;	
 	
 	// Data distribution related parameters
@@ -142,7 +142,7 @@ public final class Global {
 	public static boolean sword_initial = true;
 	
 	// For Analysis
-	public static boolean analysis;
+	public static boolean analysis;	
 		
 	public static String getRunDir() {
 		return ("run"+Global.repeated_runs+Global.dir_sep);

@@ -30,7 +30,7 @@ import main.java.workload.Workload;
 import main.java.workload.WorkloadConstants;
 import main.java.workload.twitter.TwitterConstants;
 
-import org.apache.commons.math3.distribution.ZipfDistribution;
+//import org.apache.commons.math3.distribution.ZipfDistribution;
 
 public class TwitterDatabase extends Database {
 
@@ -55,8 +55,7 @@ public class TwitterDatabase extends Database {
 				TwitterConstants.TBL_USER,
 				TwitterConstants.TBL_FOLLOWERS,
 				TwitterConstants.TBL_FOLLOWS,
-				TwitterConstants.TBL_TWEETS,
-				TwitterConstants.TBL_ADDED_TWEETS
+				TwitterConstants.TBL_TWEETS
 		};
 		
 		this.num_users = (int)Math.round(TwitterConstants.NUM_USERS * WorkloadConstants.SCALE_FACTOR);
@@ -100,8 +99,8 @@ public class TwitterDatabase extends Database {
 		
 		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
-		tbl.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
-		tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		//tbl.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
+		//tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 		
 		int pk = 0;
 		for (pk = 1; pk <= this.num_users; pk++) {

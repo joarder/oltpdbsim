@@ -32,7 +32,10 @@ public class ReadConfig {
 		Global.wrl = args[0];
 		Global.LOGGER.info("Workload type: "+Global.wrl);
 		
-		Global.repeated_runs = Integer.parseInt(args[1]);
+		Global.scale_factor = Double.parseDouble(args[1]);
+		Global.LOGGER.info("'"+Global.wrl+"' Workload Scale Factor: "+Global.scale_factor);
+		
+		Global.repeated_runs = Integer.parseInt(args[2]);
 		Global.LOGGER.info("Targeted number of repeated runs: "+Global.repeated_runs);		
 		
 		// Setting directory name and structure according to OS

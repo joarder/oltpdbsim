@@ -175,7 +175,7 @@ public class Sword {
 		}
 		
 		// Testing
-		System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
+		/*System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
 		System.out.println("@ Vertices = "+wb.hgr.getVertexCount());
 		System.out.println("@ Total Data = "+Global.global_dataCount);
 		System.out.println("@ CHEdges = "+wb.hgr.getCHEdges().size());
@@ -185,7 +185,7 @@ public class Sword {
 		System.out.println("@ VS size = "+VS.size());//+" | "+VS.get(1).size()+","+VS.get(2).size()+","+VS.get(3).size()+","+VS.get(4).size());
 		System.out.println("@ pCut size = "+pCut.size());
 		System.out.println("@ sCut size = "+sCut.size());
-		System.out.println("@ PQ size = "+pq.size());
+		System.out.println("@ PQ size = "+pq.size());*/
 	}
 		
 	// Migration

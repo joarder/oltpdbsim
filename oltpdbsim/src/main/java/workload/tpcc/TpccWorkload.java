@@ -55,7 +55,8 @@ public class TpccWorkload extends Workload {
 			parameters.load(config_file);
 			
 		//Read TPCC scale
-			WorkloadConstants.SCALE_FACTOR = parameters.getDouble("tpcc.scale");		    	
+			//WorkloadConstants.SCALE_FACTOR = parameters.getDouble("tpcc.scale");
+			WorkloadConstants.SCALE_FACTOR = Global.scale_factor;
 			Global.LOGGER.info("TPCC scale: "+WorkloadConstants.SCALE_FACTOR);
 		 
 		//Read TPCC warehouses
