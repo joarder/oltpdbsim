@@ -43,16 +43,14 @@ public class Cluster {
 	private Set<Integer> serverSet;
 	
 	private Map<Integer, ArrayList<Integer>> partition_map;
-	private Map<Integer, HashSet<Integer>> data_map;
-	
-	private Map<Integer, CompressedData> cDataSet;
+	private Map<Integer, HashSet<Integer>> data_map;	
+	private Map<Integer, CompressedData> cData_map;
 	
 	private ConsistentHashRing<Long> cluster_ring;
 	private Map<Long, Integer> ring_map;
 	private Map<Integer, ArrayList<Long>> partition_keyRange;
 	
 	private Map<Integer, String> data_uid_map;
-	private Map<Integer, Integer> cData_pid_map;
 	private Map<Integer, String> cData_uid_map;
 	
 	public Cluster() {
@@ -80,9 +78,8 @@ public class Cluster {
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		
 		if(Global.compressionBeforeSetup) {
-			this.setCDataSet(new HashMap<Integer, CompressedData>());
-			this.setCData_pid_map(new HashMap<Integer, Integer>());
-			this.setCData_uid_map(new HashMap<Integer, String>()); // For consistent hashing
+			this.setCDataMap(new HashMap<Integer, CompressedData>());
+			this.setCData_uid_map(new HashMap<Integer, String>());
 		}
 	}
 	
@@ -110,12 +107,12 @@ public class Cluster {
 		this.serverSet = serverSet;
 	}
 
-	public Map<Integer, CompressedData> getCDataSet() {
-		return cDataSet;
+	public Map<Integer, CompressedData> getCDataMap() {
+		return cData_map;
 	}
 
-	public void setCDataSet(Map<Integer, CompressedData> cDataSet) {
-		this.cDataSet = cDataSet;
+	public void setCDataMap(Map<Integer, CompressedData> cDataSet) {
+		this.cData_map = cDataSet;
 	}
 
 	public ConsistentHashRing<Long> getRing() {
@@ -166,14 +163,6 @@ public class Cluster {
 		this.data_uid_map = data_uid_map;
 	}
 
-	public Map<Integer, Integer> getCData_pid_map() {
-		return cData_pid_map;
-	}
-
-	public void setCData_pid_map(Map<Integer, Integer> cData_pid_map) {
-		this.cData_pid_map = cData_pid_map;
-	}
-
 	public Map<Integer, String> getCData_uid_map() {
 		return cData_uid_map;
 	}
@@ -211,10 +200,14 @@ public class Cluster {
 		Global.LOGGER.info("Setting up Cluster ...");
 		
 		// Add Partitions
+		int db_tables = db.getDb_tables().size();
+		int range_partitions = db_tables * Global.servers;
+		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
-	    Global.LOGGER.info("Creating "+Global.partitions+" fixed number of logical Partitions ...");
+		Global.LOGGER.info("Creating "+range_partitions/db_tables+" logical Partitions for each range partitioned database table ...");
+	    Global.LOGGER.info("Creating a total "+range_partitions+" logical Partitions for "+db.getDb_tables().size()+" database tables ...");
 	    
-		for(int i = 1; i <= db.getDb_tables().size()*Global.servers; i++)
+		for(int i = 1; i <= range_partitions; i++)
 			this.getPartitions().add(new Partition(i));
 		
 		// Add Servers and fixed amount of Partitions
@@ -253,12 +246,10 @@ public class Cluster {
 			Global.LOGGER.info("Partition "+p.getPartition_label()+" of Table '"+tbl.getTbl_name()+"' is assigned to Server "+s.getServer_label()+".");
 			
 			++s_id;			
-			if(s_id > this.getServers().size())
+			if(s_id > Global.servers) {
 				s_id = 1;
-			
-			++tbl_id;
-			if(tbl_id > db.getDb_tables().size())
-				tbl_id = 1;
+				++tbl_id;
+			}
 		}
 		
 		// Determine the number of Compressed Data Nodes to be created
@@ -369,9 +360,8 @@ public class Cluster {
 	}
 
 //====================================================================================================
-	public int getRangePartition(Server s, int tbl_id) {
-		for(Integer p_id : s.getServer_partitions()) {
-			
+	public int getRangePartition(Server s, int tbl_id) {		
+		for(int p_id : s.getServer_partitions()) {			
 			Partition p = this.getPartition(p_id);
 			
 			if(p.getPartition_table_id() == tbl_id)
@@ -434,10 +424,9 @@ public class Cluster {
 		int cData_id = -1;
 		
 		Data d = null;
-		CompressedData c = null;
 
 		// Break up the Data id to extract the Tuple's primary key and Table id
-		String[] parts = this.breakDataId(_id);
+		String[] parts = breakDataIdWithoutReplicaId(_id);
 		int tpl_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
@@ -448,43 +437,15 @@ public class Cluster {
 		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
+			// Create the new Data
+			d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
+			d.setData_uid(null);
+			
+			// Assign Data to Partition
+			p.getPartition_dataSet().put(d.getData_id(), d);
+			
 			if(Global.compressionEnabled)
-				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);	
-			
-			if(Global.compressionBeforeSetup) {
-				// Create a Compressed Data if required
-				if(!this.cDataSet.containsKey(cData_id)) {					
-					c = new CompressedData(cData_id, null);
-					this.cDataSet.put(cData_id, c);
-					
-				} else {
-					c = this.cDataSet.get(cData_id);
-				}
-			
-				// Create an entry in the cData---Partition map
-				this.getCData_pid_map().put(cData_id, p_id);
-				
-				// Create the new Data
-				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
-				d.setData_uid(null);
-				
-				// Set Partition, and Server id for the Compressed Data Node
-				c.setCData_partition_id(p.getPartition_id());
-				c.setCData_server_id(p.getPartition_serverId());
-				
-				// Add the corresponding Data id into the Compressed Data Node
-				c.getCData_set().add(d.getData_id());
-				
-				// Assign Data to Partition
-				p.getPartition_dataSet().put(d.getData_id(), d);
-				
-			} else {
-				
-				d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());				
-				
-				// Assign Data to Partition
-				p.getPartition_dataSet().put(d.getData_id(), d);
-			}
+				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
 			
 			// Insert into data map to create index
 			if(this.getData_map().containsKey(p_id))
@@ -518,28 +479,16 @@ public class Cluster {
 		Server s = null;
 		
 		// Break up the Data id to extract the Tuple's primary key and Table id
-		String[] parts = this.breakDataId(_id);
+		String[] parts = breakDataIdWithoutReplicaId(_id);
 		int tpl_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
 		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
-			if(Global.compressionBeforeSetup) {
-				int cd_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
-				int p_id = this.getCData_pid_map().get(cd_id);
-
-				// Find the corresponding Partition from the Consistent Hash Ring
-				p = this.getPartition(p_id);
-				
-				CompressedData cd = this.cDataSet.get(cd_id);
-				cd.getCData_set().remove(Integer.parseInt(d_id));
-				
-			} else {				
-				// Find the corresponding Partition from the Consistent Hash Ring
-				int p_id = this.dataPartitionId(Integer.parseInt(d_id));
-				p = this.getPartition(p_id);
-			}
+			// Find the corresponding Partition from the lookup table
+			int p_id = this.getDataPartitionId(Integer.parseInt(d_id));
+			p = this.getPartition(p_id);			
 			
 			// Delete Data from Partition
 			d = p.getData(this, Integer.parseInt(d_id));
@@ -569,7 +518,7 @@ public class Cluster {
 		Server s = null;
 
 		// Break up the Data id to extract the Tuple's primary key and Table id
-		String[] parts = this.breakDataId(_id);
+		String[] parts = breakDataIdWithoutReplicaId(_id);
 		int tpl_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
@@ -585,16 +534,16 @@ public class Cluster {
 				String c_uid = null;				
 
 				// Create a compressed data if required
-				if(!this.cDataSet.containsKey(cData_id)) {
+				if(!this.getCDataMap().containsKey(cData_id)) {
 					
 					c_uid = Utility.getRandomAlphanumericString();						
 					cData_uid_map.put(cData_id, c_uid);
 					
 					c = new CompressedData(cData_id, c_uid);
-					this.cDataSet.put(cData_id, c);
+					this.getCDataMap().put(cData_id, c);
 					
 				} else {
-					c = this.cDataSet.get(cData_id);
+					c = this.getCDataMap().get(cData_id);
 					c_uid = this.cData_uid_map.get(cData_id);
 				}
 				
@@ -653,7 +602,7 @@ public class Cluster {
 		Server s = null;
 		
 		// Break up the Data id to extract the Tuple's primary key and Table id
-		String[] parts = this.breakDataId(_id);
+		String[] parts = breakDataIdWithoutReplicaId(_id);
 		int tpl_pk = Integer.parseInt(parts[0]);
 		int tbl_id = Integer.parseInt(parts[1]);
 		
@@ -668,7 +617,7 @@ public class Cluster {
 				// Find the corresponding Partition from the Consistent Hash Ring
 				p = this.getPartition(cd_uid);
 				
-				CompressedData cd = this.cDataSet.get(cd_id);
+				CompressedData cd = this.getCDataMap().get(cd_id);
 				cd.getCData_set().remove(Integer.parseInt(d_id));
 				
 			} else {				
@@ -694,14 +643,12 @@ public class Cluster {
 	}
 
 //====================================================================================================
-	private int dataPartitionId(int d_id) {
-		for(Entry<Integer, HashSet<Integer>> entry : this.getData_map().entrySet()) {
-			for(Integer d : entry.getValue())
-				if(d == d_id)
-					return entry.getKey();
-		}
+	private int getDataPartitionId(int d_id) {
+		for(Entry<Integer, HashSet<Integer>> entry : this.getData_map().entrySet())
+			if(entry.getValue().contains(d_id))			
+				return entry.getKey();		
 		
-		return 0;
+		return -1;
 	}	
 
 	//====================================================================================================	
@@ -710,35 +657,24 @@ public class Cluster {
 		
 		Partition p = null;
 		
+		// Break up the Data id to extract the Tuple's primary key and Table id
+		String[] parts = Cluster.breakDataIdWithReplicaId(d_id);
+		int tpl_pk = Integer.parseInt(parts[0]);		
+		
 		switch(Global.setup) {
 			case "range":
-				if(Global.compressionBeforeSetup) {
-					// Break up the Data id to extract the Tuple's primary key and Table id
-					String[] parts = Cluster.getTplIdFromDataId(d_id);
-					int tpl_pk = Integer.parseInt(parts[0]);
-					
-					int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
-					int p_id = this.getCData_pid_map().get(v_id);
-					p = this.getPartition(p_id);
-					
-				} else {
-					int p_id = this.dataPartitionId(d_id);
-					p = this.getPartition(p_id);
-				}
+				int p_id = this.getDataPartitionId(d_id);
+				p = this.getPartition(p_id);				
 				
 				break;
 		
 			case "consistenthash":
-				if(Global.compressionBeforeSetup) {	
-					// Break up the Data id to extract the Tuple's primary key and Table id
-					String[] parts = Cluster.getTplIdFromDataId(d_id);
-					int tpl_pk = Integer.parseInt(parts[0]);
-					
-					int v_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
-					String v_uid = this.getCData_uid_map().get(v_id);
+				if(Global.compressionBeforeSetup) {
+					int cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);				
+					String cData_uid = this.getCData_uid_map().get(cData_id);
 
 					// Find the corresponding Partition from the Consistent Hash Ring
-					p = this.getPartition(v_uid);			
+					p = this.getPartition(cData_uid);			
 								
 				} else {			
 					// Find the corresponding Partition from the Consistent Hash Ring
@@ -776,30 +712,7 @@ public class Cluster {
 		
 		return null;
 	}
-	
-	// Constructs data id with Tupple id, Table id, and Replica id
-	// Unused
-	public int getDataIdFromTupleId(int tpl_id) {
 		
-		String[] parts = this.breakDataId(tpl_id);
-		
-		int d_pk = Integer.parseInt(parts[0]);
-		int tbl_id = Integer.parseInt(parts[1]);
-		
-		// Randomly returns a replica
-		int randRepl = Global.rand.nextInt(Global.replicas) + 1;
-		return Integer.parseInt((Integer.toString(d_pk)+Integer.toString(randRepl)+Integer.toString(tbl_id)));
-	}
-	
-	// Unused
-	public int inPartition(int x) {
-		for(Entry<Integer, ArrayList<Long>> e : this.getPartition_keyRange().entrySet())
-			if(Utility.inRange(e.getValue().get(0), e.getValue().get(1), x))
-				return e.getKey();
-		
-		return -1;
-	}
-	
 	// Update statistic for the Servers
 	public void updateLoad() {
 		for(Server s : this.getServers())
@@ -873,8 +786,8 @@ public class Cluster {
 		return null;
 	}	
 	
-	// Extract actual Tuple id and Table id from a given Data id
-	public String[] breakDataId(int _id) {
+	// Extract actual Tuple primary key and corresponding Table id from a given Data id without its replica id
+	public static String[] breakDataIdWithoutReplicaId(int _id) {
 		String[] parts = new String[2];
 		
 		// Extract the last part from tuple id
@@ -890,7 +803,7 @@ public class Cluster {
 	
 	// Extract actual Tuple id, Replica id, and Table id from a given Data id
 	// Only applicable where number of replicas and tables are less than 10
-	public static String[] getTplIdFromDataId(int _id) {
+	public static String[] breakDataIdWithReplicaId(int _id) {
 		String[] parts = new String[3];
 		
 		// Extract the last part from tuple id
@@ -898,13 +811,25 @@ public class Cluster {
 		int length = d_id.length();
 		
 		// Extract primary key and table id from the tuple id string
-		parts[0] = StringUtils.substring(d_id, 0, (length - 2));
-		parts[1] = StringUtils.substring(d_id, (length - 2), (length - 1));		
-		parts[2] = StringUtils.substring(d_id, (length - 1), length);
+		parts[0] = StringUtils.substring(d_id, 0, (length - 2)); // Tuple Primary Key
+		parts[1] = StringUtils.substring(d_id, (length - 2), (length - 1));	// Replica Id
+		parts[2] = StringUtils.substring(d_id, (length - 1), length); // Table Id
 		
 		return parts;
 	}
 	
+	// Constructs data id with Tupple id, Table id, and Replica id	
+	public static int getDataIdFromTupleId(int tpl_id) {		
+		String[] parts = breakDataIdWithoutReplicaId(tpl_id);
+		
+		int d_pk = Integer.parseInt(parts[0]);
+		int tbl_id = Integer.parseInt(parts[1]);
+		
+		// Randomly returns a replica
+		int randRepl = Global.rand.nextInt(Global.replicas) + 1;
+		return Integer.parseInt((Integer.toString(d_pk)+Integer.toString(randRepl)+Integer.toString(tbl_id)));
+	}
+		
 	public void show() {
 		Global.LOGGER.info("<-- Cluster Status -->");
 		Global.LOGGER.info("Number of Servers: "+this.getServers().size());

@@ -36,11 +36,7 @@ import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.WorkloadBatch;
 
-public class Sword {	
-	
-	// <v_id, <s_id, sum of weights of transactions incident of v_id>> -- <v_id, <s_id, nh>>
-	public static HashMap<Integer, HashMap<Integer, Integer>> dt_cnSet; 	
-	public static HashMap<Integer, HashMap<Integer, Integer>> ndt_cnSet;
+public class Sword {
 	
 	public static Set<SwordCHEdge> hCut; // Set of Compressed Hyperedges in the Cut
 	public static PriorityQueue<SwordCHEdge> pq; 	// Priority Queue of Compressed Hyperedges in Cut
@@ -52,30 +48,28 @@ public class Sword {
 	public static Map<Integer, HashMap<Integer, SwordCVertex>> vCut; // Union set of Compressed Vertices covered by all Hyperedges in the Cut
 	// Second set of candidate Compressed Vertices for migration
 	public static Map<Integer, HashMap<Integer, SwordCVertex>> VS; // Set of Compressed Vertices that are covered only by the Hyperedges that are not Cut
-	
-	static ArrayList<IntPair> candidatePairList;
+		
 	static Set<Integer> swapped;
 	
-	public static void init() {
-		dt_cnSet = new HashMap<Integer, HashMap<Integer, Integer>>();
-		ndt_cnSet = new HashMap<Integer, HashMap<Integer, Integer>>();
-		
+	public static void init() {		
 		hCut = new HashSet<SwordCHEdge>();
 		pCut = new HashSet<Integer>();
-		sCut = new HashSet<Integer>();
-		
+		sCut = new HashSet<Integer>();		
 		vCut = new HashMap<Integer, HashMap<Integer, SwordCVertex>>();
-		VS = new HashMap<Integer, HashMap<Integer, SwordCVertex>>();
-		
-		candidatePairList = new ArrayList<IntPair>();
+		VS = new HashMap<Integer, HashMap<Integer, SwordCVertex>>();				
 		swapped = new HashSet<Integer>();
 	}
 	
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
+		// Initialization
 		init();
+				
+		// Compressing current workload hypergraph
+		wb.compression(true);
 		
-		pq = new PriorityQueue<SwordCHEdge>(wb.hgr.getEdges().size(), SwordCHEdge.by_MAX_C_e());		
+		// Initializing priority queue of compressed hyperedges
+		pq = new PriorityQueue<SwordCHEdge>(wb.hgr.getEdges().size(), SwordCHEdge.by_MAX_C_e());
 		
 		// Calculate the sum of the weights of the compressed hyperedges in the cut
 		double sum_ndt_e = 0.0;
@@ -165,7 +159,7 @@ public class Sword {
 			VS.get(scv.server_id).remove(scv);
 		
 		// Adding more compressed data nodes to VS to produce more swapping candidates
-		for(Entry<Integer, CompressedData> cd_entry : cluster.getCDataSet().entrySet()) {
+		for(Entry<Integer, CompressedData> cd_entry : cluster.getCDataMap().entrySet()) {
 			
 			CompressedData cd = cd_entry.getValue();
 			
@@ -181,22 +175,21 @@ public class Sword {
 		}
 		
 		// Testing
-		/*System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
+		System.out.println("@ HEdges = "+wb.hgr.getEdgeCount());
 		System.out.println("@ Vertices = "+wb.hgr.getVertexCount());
 		System.out.println("@ Total Data = "+Global.global_dataCount);
-		System.out.println("@ CHEdges = "+wb.hgr.getcHEdges().size());
-		System.out.println("@ CVertices = "+wb.hgr.getcVertices().size());
+		System.out.println("@ CHEdges = "+wb.hgr.getCHEdges().size());
+		System.out.println("@ CVertices = "+wb.hgr.getCVertices().size());
 		System.out.println("@ hCut size = "+hCut.size());
 		System.out.println("@ vCut size = "+vCut.size()+" | "+vCut.get(1).size()+","+vCut.get(2).size()+","+vCut.get(3).size()+","+vCut.get(4).size());
-		System.out.println("@ VS size = "+VS.size()+" | "+VS.get(1).size()+","+VS.get(2).size()+","+VS.get(3).size()+","+VS.get(4).size());
+		System.out.println("@ VS size = "+VS.size());//+" | "+VS.get(1).size()+","+VS.get(2).size()+","+VS.get(3).size()+","+VS.get(4).size());
 		System.out.println("@ pCut size = "+pCut.size());
 		System.out.println("@ sCut size = "+sCut.size());
-		System.out.println("@ PQ size = "+pq.size());*/
-
+		System.out.println("@ PQ size = "+pq.size());
 	}
 		
 	// Migration
-	public static void swapCandidatePair(Cluster cluster, WorkloadBatch wb, SwordCHEdge sch) {
+	public static int swapCandidatePair(Cluster cluster, WorkloadBatch wb, SwordCHEdge sch) {
 		//System.out.println("--> "+sch.toString());
 		ArrayList<Integer> serverSet = new ArrayList<Integer>(sch.serverSet);
 		
@@ -213,17 +206,24 @@ public class Sword {
 		//System.out.println("\t--> SG2 = "+SG2+" | ndt_e = "+sch.ndt_e+" | nh2 = "+nh2);
 		
 		// Comparing swapping gain and select a possible swapping candidate pair
+		ArrayList<IntPair> candidatePairList = null;
+		
 		if(SG1 >= SG2 && SG1 > 0) { // Migrate s1 --> s2
 			//System.out.println("\t>> SG1 = "+SG1);
-			getSwappingPair(sch, s1, s2);		
+			candidatePairList = getSwappingPair(sch, s1, s2);		
 					
 		} else if(SG2 >= SG1 && SG2 > 0) { // Migrate s2 --> s1
 			//System.out.println("\t>> SG2 = "+SG2);
-			getSwappingPair(sch, s2, s1);
+			candidatePairList = getSwappingPair(sch, s2, s1);
 		}
 		
 		// Actual data migration
-		migrate(cluster);
+		if(candidatePairList != null) {
+			migrate(cluster, candidatePairList);
+		
+			return candidatePairList.size();
+		} else
+			return 0;
 	}
 		
 	// Calculate swapping gain
@@ -236,7 +236,9 @@ public class Sword {
 	}
 	
 	// Selecting swapping pair
-	private static void getSwappingPair(SwordCHEdge sch, int src_server_id, int dst_server_id) {
+	private static ArrayList<IntPair> getSwappingPair(SwordCHEdge sch, int src_server_id, int dst_server_id) {
+		
+		ArrayList<IntPair> candidatePairList = new ArrayList<IntPair>();
 		
 		for(Entry<Integer, SwordCVertex> scv_entry : sch.sCVertexSet.get(src_server_id).entrySet()) {
 			int vs_id = getVSSwappingCandidate(dst_server_id);
@@ -244,6 +246,8 @@ public class Sword {
 			if(vs_id != -1)
 				candidatePairList.add(new IntPair(scv_entry.getValue().id, vs_id));
 		}
+		
+		return candidatePairList;
 	}		
 	
 	// Returns a swapping candidate from VS
@@ -273,7 +277,7 @@ public class Sword {
 	}
 	
 	// Data migration
-	private static void migrate(Cluster cluster) {
+	private static void migrate(Cluster cluster, ArrayList<IntPair> candidatePairList) {
 		// Testing
 		/*System.out.println(swappingPairList.size()+" | "+swappingPairList);		
 		System.out.println(">> "+VS.size());
@@ -285,8 +289,8 @@ public class Sword {
 		}*/
 		
 		for(IntPair p : candidatePairList) {			
-			CompressedData cd1 = cluster.getCDataSet().get(p.x);
-			CompressedData cd2 = cluster.getCDataSet().get(p.y);
+			CompressedData cd1 = cluster.getCDataMap().get(p.x);
+			CompressedData cd2 = cluster.getCDataMap().get(p.y);
 
 			// First compressed data
 			int dst_server_id1 = cd2.getVdata_server_id();

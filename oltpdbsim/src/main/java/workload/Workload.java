@@ -101,7 +101,8 @@ public class Workload {
 	    this.schema = new HashMap<Integer, ArrayList<Integer>>();
 	    this.tr_proportions = new HashMap<Integer, Double>();
 	    this.tr_tuple_distributions = new HashMap<Integer, ArrayList<Integer>>();	    
-	    this.tr_changes = new HashMap<Integer, ArrayList<Integer>>();	    
+	    this.tr_changes = new HashMap<Integer, ArrayList<Integer>>();
+	    
 	    this._cache = new HashMap<Integer, ArrayList<Integer>>();
 		this._cache_keys = new ArrayList<Integer>();
 		this._cache_id = 0;
@@ -123,7 +124,7 @@ public class Workload {
 			
 			if(!deletedTuples.contains(tpl_id)) {
 			
-				String[] parts = cluster.breakDataId(tpl_id);					
+				String[] parts = Cluster.breakDataIdWithoutReplicaId(tpl_id);					
 				int tpl_pk = Integer.parseInt(parts[0]);
 				int tbl_id = Integer.parseInt(parts[1]);
 				
@@ -134,15 +135,13 @@ public class Workload {
 					
 					tpl.setTuple_action(WorkloadConstants.TPL_INITIAL);
 					
-					// Insert into Cluster, already in the Database
-					
+					// Insert into Cluster, already in the Database					
 					switch(Global.setup) {
 						case "range":					
 							Server s = cluster.getServer(s_id);
 							int p_id = cluster.getRangePartition(s, tbl_id);
 							
-							_id = cluster.insertData_RangePartitioning(tpl_id, s_id, p_id);
-							
+							_id = cluster.insertData_RangePartitioning(tpl_id, s_id, p_id);							
 							
 							++s_id;
 							if(s_id > Global.servers)
@@ -180,7 +179,7 @@ public class Workload {
 					 // Remove from Database
 					db.deleteTupleByPk(tbl_id, tpl_pk);
 										
-					_id = cluster.getDataIdFromTupleId(tpl_id);
+					_id = Cluster.getDataIdFromTupleId(tpl_id);
 					
 					// Remove from Workload Batch												
 					// Removing vertex in Workload Batch graph and hypergraph						
@@ -189,16 +188,13 @@ public class Workload {
 					SimpleVertex v = wb.hgr.getVertex(_id);
 					if(v != null) {
 						wb.hgr.removeVertex(v);
-						
-						/*if(Global.compressionEnabled)
-			        		wb.hgr.removeCVertex(v);*/
 					}
 					
 					deletedTuples.add(tpl_id);
 									
 				} else {
 					
-					_id = cluster.getDataIdFromTupleId(tpl_id);
+					_id = Cluster.getDataIdFromTupleId(tpl_id);
 					trDataSet.add(_id);
 				}				
 			} // end--if()

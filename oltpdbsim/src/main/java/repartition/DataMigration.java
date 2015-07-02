@@ -339,12 +339,15 @@ public class DataMigration {
 			Global.LOGGER.info("-----------------------------------------------------------------------------------------------------------------------");
 			Global.LOGGER.info("Swapping candidate compressed vertices ...");
 			
+			int swaps = 0;
 			while(!Sword.pq.isEmpty()) {
 				//System.out.println(Sword.pq.poll().toString());
 				SwordCHEdge sch = Sword.pq.peek();
-				Sword.swapCandidatePair(cluster, wb, sch);				
+				swaps += Sword.swapCandidatePair(cluster, wb, sch);				
 				Sword.pq.remove();
 			}
+			
+			Global.LOGGER.info("Total "+swaps+" compressed vertices have been swapped ...");
 			
 			wb.set_intra_dmv(intra_server_dmgr);
 			wb.set_inter_dmv(inter_server_dmgr);
@@ -495,7 +498,7 @@ public class DataMigration {
 	public static void migrateCompressedData(Cluster cluster, Data data,  
 			int dst_partition_id, int dst_server_id) {
 		
-		CompressedData cd = cluster.getCDataSet().get(data.getData_compressed_data_id());
+		CompressedData cd = cluster.getCDataMap().get(data.getData_compressed_data_id());
 		
 		if(!migratedCDataSet.contains(cd)) {
 			migratedCDataSet.add(cd);

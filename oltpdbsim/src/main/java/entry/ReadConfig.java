@@ -60,6 +60,18 @@ public class ReadConfig {
 			Global.metis_hgr_exec = "khmetis";
 			Global.metis_gr_exec = "gpmetis";
 			
+		} else if (Utility.isOSX()) { // Not fully tested yet
+			Global.dir_sep = "/";
+			
+			Global.wrl_dir = System.getProperty("user.dir")+"/workload"+"/"+Global.wrl+"/";
+			Global.metis_dir = System.getProperty("user.dir")+"/metis/osx/";
+			Global.part_dir = System.getProperty("user.dir")+"/part/";
+			Global.mining_dir = System.getProperty("user.dir")+"/mining/";
+			Global.metric_dir = System.getProperty("user.dir")+"/metric/";
+			
+			Global.metis_hgr_exec = "khmetis";
+			Global.metis_gr_exec = "gpmetis";
+			
 		} else {
 			Global.LOGGER.error("Your OS is not supported !!");
 		}

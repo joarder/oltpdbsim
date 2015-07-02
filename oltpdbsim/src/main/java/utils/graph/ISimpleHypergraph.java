@@ -46,6 +46,7 @@ public interface ISimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge
 	void setCHEMap(Map<Integer, CompressedHEdge> cHEMap);
 	void setCVMap(Map<Integer, CompressedVertex> cVMap);
 	
+	Map<Integer, CompressedHEdge> getCHEMap();
 	Map<Integer, CompressedVertex> getCVMap();
 	
 	CompressedHEdge addCHEdge(H h);

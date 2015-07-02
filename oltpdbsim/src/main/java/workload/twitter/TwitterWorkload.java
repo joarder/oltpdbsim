@@ -141,9 +141,9 @@ public class TwitterWorkload extends Workload {
 	private int getUserId(Database db) {
 		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
-		//ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
-		//int rand_user = szGen.nextInt();
-		int rand_user = tbl_user.zipfDistribution.sample();
+		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
+		int rand_user = szGen.nextInt();
+		//int rand_user = tbl_user.zipfDistribution.sample();
 		
 		return rand_user;
 	}

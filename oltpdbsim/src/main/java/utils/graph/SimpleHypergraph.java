@@ -366,7 +366,12 @@ public class SimpleHypergraph<V extends SimpleVertex, H extends SimpleHEdge>
 	// Setter
 	public void setCHEMap(Map<Integer, CompressedHEdge> cHEMap) {
 		this.cHEMap = cHEMap;
-	}	
+	}
+	
+	// Getter
+	public Map<Integer, CompressedHEdge> getCHEMap() {
+		return this.cHEMap;
+	}
 
 	// Setter
 	public void setCVMap(Map<Integer, CompressedVertex> cVMap) {

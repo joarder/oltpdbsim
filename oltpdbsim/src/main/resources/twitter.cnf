@@ -1,6 +1,6 @@
 tables=5
 transaction.types=5
-twitter.scale=10
+twitter.scale=500
 twitter.tbl.type=0,1,1,1,1
 twitter.schema=0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0
 twitter.trs.proportions=0.0007,0.0007,0.076725,0.912656,0.009219

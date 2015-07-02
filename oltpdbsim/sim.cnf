@@ -1,10 +1,10 @@
-simulation.name=R-T-CGR-MSM-FD-Twitter
+simulation.name=C-T-SWORD-TPCC
 
-setup=range
+setup=consistenthash
 
 analysis = false
 
-static.repartitioning=false
+static.repartitioning=true
 hourly.repartitioning=false
 threshold.repartitioning=true
 
@@ -14,26 +14,26 @@ workload.aware=true
 incremental.repartitioning=true
 graphcutbased.repartitioning=true
 
-workload.representation=gr
+workload.representation=hgr
 
-stream.collection=true
+stream.collection=false
 stream.collector.size.factor=3
 
 associative=false
 adaptive=false
 
-transaction.classification=true
-transaction.classification.strategy=fd
+transaction.classification=false
+transaction.classification.strategy=base
 
-data.migration.strategy=msm
+data.migration.strategy=sword
 
 compression.enabled=true
-compression.before.setup=false
+compression.before.setup=true
 compression.ratio=6
 
 initial.servers=4
 server.capacity=100000
-fixed.partitions=32
+fixed.partitions=64
 number.of.replicas=1
 
 simulation.period=97200

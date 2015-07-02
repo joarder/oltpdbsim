@@ -345,6 +345,10 @@ public class Utility {
 	public static boolean isUnix() {
 		return (Global.OS.indexOf("nix") >= 0 || Global.OS.indexOf("nux") >= 0 || Global.OS.indexOf("aix") > 0 );
 	}
+	 
+	public static boolean isOSX() {
+		return (Global.OS.indexOf("osx") >= 0);
+	}	
 	
 	/**
 	 * Added from SO: http://stackoverflow.com/questions/109383/how-to-sort-a-mapkey-value-on-the-values-in-java

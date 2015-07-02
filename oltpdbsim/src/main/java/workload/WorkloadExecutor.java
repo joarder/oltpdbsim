@@ -538,7 +538,7 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-				if(Global.graphcutBasedRepartitioning || Global.sword_initial)
+				if(Global.graphcutBasedRepartitioning && Global.sword_initial)
 					WorkloadExecutor.runRepartitioner(cluster, wb);
 								
 				// Perform data migrations
@@ -803,6 +803,15 @@ class Arrival extends Event {
 						if(Global.compressionBeforeSetup)
 							Global.sword_initial = false;
 						
+						// Only for Sword
+						if(Global.repartThreshold) {
+							WorkloadExecutor.repartitioningCoolingOff = true;
+							WorkloadExecutor.RepartitioningCoolingOffPeriod = Sim.time() + Global.observationWindow; // Wait W period to reset the threshold
+
+							Global.LOGGER.info("-----------------------------------------------------------------------------");
+							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
+							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
+						}						
 					} else { 						
 						// Hourly statistic collection
 						WorkloadExecutor.collectHourlyStatistics(cluster, wb);

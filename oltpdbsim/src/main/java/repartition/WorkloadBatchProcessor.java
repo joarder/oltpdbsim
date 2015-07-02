@@ -169,28 +169,7 @@ public class WorkloadBatchProcessor {
 	private static boolean generateCHGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) {
 		
 		// Compressing workload hypergraph
-		Global.LOGGER.info("Compressing current workload hypergrah ...");
-		
-		// Compressed hypergraph initialization
-		wb.hgr.setCHEdges(new HashMap<CompressedHEdge, Set<CompressedVertex>>());
-		wb.hgr.setCVertices(new HashMap<CompressedVertex, Set<CompressedHEdge>>());				
-		wb.hgr.setCHEMap(new HashMap<Integer, CompressedHEdge>());
-		wb.hgr.setCVMap(new HashMap<Integer, CompressedVertex>());
-		
-		// Compressing hypergraph vertices
-		/*for(SimpleVertex v : wb.hgr.getVertices())
-			wb.hgr.addCVertex(v);*/		
-				
-		//Global.LOGGER.info(wb.hgr.getCVertices().size()+" compressed vertices are retrieved from "+wb.hgr.getVertexCount()+" hypergraph vertices.");
-		
-		// Compressing hyperedges
-		Global.cHEdgeSeq = 0;
-		for(SimpleHEdge h : wb.hgr.getEdges())
-			wb.hgr.addCHEdge(h);
-		
-		Global.LOGGER.info(wb.hgr.getCHEdgeMap().size()+" compressed hyperedges "
-				+ "containing "+wb.hgr.getCVertexMap().size()+" compressed vertices"
-				+ "are created from "+wb.hgr.getEdgeCount()+" hyperedges.");
+		wb.compression(false);
 
 		// Only selecting compressed hyperedges having at least two compressed vertices
 		Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");
@@ -375,28 +354,7 @@ public class WorkloadBatchProcessor {
 	private static boolean generateCGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) throws IOException {
 
 		// Compressing workload hypergraph
-		Global.LOGGER.info("Compressing current workload hypergrah ...");
-		
-		// Compressed hypergraph initialization
-		wb.hgr.setCHEdges(new HashMap<CompressedHEdge, Set<CompressedVertex>>());
-		wb.hgr.setCVertices(new HashMap<CompressedVertex, Set<CompressedHEdge>>());				
-		wb.hgr.setCHEMap(new HashMap<Integer, CompressedHEdge>());
-		wb.hgr.setCVMap(new HashMap<Integer, CompressedVertex>());
-		
-		// Compressing hypergraph vertices
-		/*for(SimpleVertex v : wb.hgr.getVertices())
-			wb.hgr.addCVertex(v);*/		
-				
-		//Global.LOGGER.info(wb.hgr.getCVertices().size()+" compressed vertices are retrieved from "+wb.hgr.getVertexCount()+" hypergraph vertices.");		
-				
-		// Compressing hyperedges
-		Global.cHEdgeSeq = 0;
-		for(SimpleHEdge h : wb.hgr.getEdges())
-			wb.hgr.addCHEdge(h);
-		
-		Global.LOGGER.info(wb.hgr.getCHEdgeMap().size()+" compressed hyperedges "
-				+ "containing "+wb.hgr.getCVertexMap().size()+" compressed vertices"
-				+ "are created from "+wb.hgr.getEdgeCount()+" hyperedges.");
+		wb.compression(false);
 
 		// Only selecting compressed hyperedges having at least two compressed vertices
 		Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");

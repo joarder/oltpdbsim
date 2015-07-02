@@ -28,6 +28,8 @@ import java.util.Set;
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.entry.Global;
+import main.java.utils.graph.CompressedHEdge;
+import main.java.utils.graph.CompressedVertex;
 import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleHypergraph;
 import main.java.utils.graph.SimpleHEdge;
@@ -427,7 +429,7 @@ public class WorkloadBatch {
 	
 	// Add the incident transaction id
 	public void addIncidentTrId(Cluster cluster, Set<Integer> trDataSet, int tr_id) {		
-		for(int d : trDataSet) {		
+		for(int d : trDataSet) {
 			Data data = cluster.getData(d);
 			data.getData_incidentTr().add(tr_id);
 		}
@@ -456,6 +458,53 @@ public class WorkloadBatch {
 			//System.out.println("@ Removing "+data_id+" from T"+tr_id);
 			Transaction tr = this.getTransaction(tr_id);
 			tr.getTr_dataSet().remove(data_id);
+		}
+	}
+	
+	// Compressing workload hypergraph
+	public void compression(boolean remove) {
+		// Compressing workload hypergraph
+		Global.LOGGER.info("Compressing current workload hypergrah ...");
+		
+		// Compressed hypergraph initialization
+		this.hgr.setCHEdges(new HashMap<CompressedHEdge, Set<CompressedVertex>>());
+		this.hgr.setCVertices(new HashMap<CompressedVertex, Set<CompressedHEdge>>());				
+		this.hgr.setCHEMap(new HashMap<Integer, CompressedHEdge>());
+		this.hgr.setCVMap(new HashMap<Integer, CompressedVertex>());
+		
+		// Compressing hypergraph vertices
+		/*for(SimpleVertex v : wb.hgr.getVertices())
+			wb.hgr.addCVertex(v);*/		
+				
+		//Global.LOGGER.info(wb.hgr.getCVertices().size()+" compressed vertices are retrieved from "+wb.hgr.getVertexCount()+" hypergraph vertices.");
+		
+		// Compressing hyperedges
+		Global.cHEdgeSeq = 0;
+		for(SimpleHEdge h : this.hgr.getEdges())
+			this.hgr.addCHEdge(h);
+		
+		Global.LOGGER.info(this.hgr.getCHEdgeMap().size()+" compressed hyperedges "
+				+ "containing "+this.hgr.getCVertexMap().size()+" compressed vertices"
+				+ "are created from "+this.hgr.getEdgeCount()+" hyperedges.");
+		
+		if(remove) {
+			// Only selecting compressed hyperedges having at least two compressed vertices
+			Global.LOGGER.info("Only selecting the compressed hyperedges having at least two compressed vertices ...");
+			
+			Set<Integer> toBeRemoved = new HashSet<Integer>();						
+			for(Entry<CompressedHEdge, Set<CompressedVertex>> entry : this.hgr.getCHEdgeMap().entrySet())
+				if(entry.getValue().size() < 2)
+					toBeRemoved.add(entry.getKey().getId());			
+			
+			for(int i : toBeRemoved) {
+				CompressedHEdge ch = this.hgr.getCHEMap().get(i);
+				
+				for(CompressedVertex cv : this.hgr.getIncidentCVertices(ch))
+					this.hgr.getCVertexMap().get(cv).remove(ch);	
+				
+				this.hgr.getCHEMap().remove(i);
+				this.hgr.getCHEdgeMap().remove(ch);
+			}
 		}
 	}
 	
