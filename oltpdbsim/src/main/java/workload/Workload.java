@@ -56,6 +56,9 @@ public class Workload {
 	public int[] trTypes = null;
 	public double[] trProbabilities = null;
 	
+	protected static double timer = Global.observationWindow;//.warmupPeriod;
+	protected static int seed = 0; 
+	
 	// Cache
 	protected HashMap<Integer, ArrayList<Integer>> _cache;
 	protected ArrayList<Integer> _cache_keys;

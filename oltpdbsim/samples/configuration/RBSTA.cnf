@@ -1,8 +1,9 @@
-simulation.name=C-T-RBSTA-IDT-0.9
+simulation.name=C-T-RBSTA-IDT
 
 setup=consistenthash
 
 analysis = false
+
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
@@ -11,17 +12,18 @@ workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=true
+graphcutbased.repartitioning=false
 
 workload.representation=hgr
 
 stream.collection=false
 stream.collector.size.factor=3
 
+associative=false
 adaptive=false
 
 transaction.classification=false
-transaction.classification.strategy=fcimining
+transaction.classification.strategy=basic
 
 data.migration.strategy=rbsta
 
@@ -47,5 +49,7 @@ unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
 span.reduction=1
-idt.priority=0.9
+idt.priority=1.0
+lb.priority=0.0
+
 idt.threshold=0.5

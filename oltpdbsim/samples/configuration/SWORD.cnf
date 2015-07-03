@@ -23,7 +23,7 @@ associative=false
 adaptive=false
 
 transaction.classification=false
-transaction.classification.strategy=base
+transaction.classification.strategy=basic
 
 data.migration.strategy=sword
 

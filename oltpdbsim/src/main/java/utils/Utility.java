@@ -42,14 +42,14 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
 
-	//private static final Random rand = new Random(); 
+	private static final Random rand = new Random(); 
 	private static final ThreadLocal<Random> rng = new ThreadLocal<Random>();
 
 	public static Random random() {
 		Random ret = rng.get();
 	    
 	    if(ret == null) {
-	    	ret = new Random(Global.rand.nextLong());
+	    	ret = new Random(rand.nextLong());
 	    	rng.set(ret);
 	    }
 	    

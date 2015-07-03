@@ -195,6 +195,13 @@ public class TpccWorkload extends Workload {
 									
 								case TpccConstants.TBL_ITEM:
 									_i = tbl.zipfDistribution.sample();
+									
+									// Re-seeding to change Items' popularity
+									/*if(Sim.time() >= timer) {			
+										timer += timer;
+										tbl.zipfDistribution.reseedRandomGenerator(++seed);
+									}*/
+									
 									tupleList = new ArrayList<Integer>();
 									tupleList.add(_i);
 									

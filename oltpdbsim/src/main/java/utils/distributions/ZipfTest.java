@@ -10,6 +10,11 @@ public class ZipfTest {
 		ScrambledZipfianGenerator z3 = new ScrambledZipfianGenerator(10);
 		
 		for(int i = 0; i < 20; i++)
-			System.out.println("--> z1="+z1.sample()+" | z2="+(z2.nextInt()+1)+" | z3="+(z3.nextInt()+1));		
+			System.out.println("--> z1="+z1.sample()+" | z2="+(z2.nextInt()+1)+" | z3="+(z3.nextInt()+1));
+		
+		z1.reseedRandomGenerator(1);
+		
+		for(int i = 0; i < 20; i++)
+			System.out.println(">> z1="+z1.sample()+" | z2="+(z2.nextInt()+1)+" | z3="+(z3.nextInt()+1));
 	}
 }

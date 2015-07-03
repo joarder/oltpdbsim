@@ -175,11 +175,11 @@ public class TwitterDatabase extends Database {
 		Table ftbl_follows = this.getTable(ftblList_follows.get(0));		
 				
 		// Distributions
-		//tbl_followers.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
-		//tbl_followers.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl_followers.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
+		tbl_followers.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 		
-		//tbl_follows.zipfDistribution = new ZipfDistribution(this.num_follows, TwitterConstants.ZIPF_EXP);
-		//tbl_follows.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl_follows.zipfDistribution = new ZipfDistribution(this.num_follows, TwitterConstants.ZIPF_EXP);
+		tbl_follows.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
 		
 		ZipfianGenerator zipfFollowee = new ZipfianGenerator(this.num_users, TwitterConstants.ZIPF_EXP);
 		ZipfianGenerator zipfFollows = new ZipfianGenerator(this.num_follows, TwitterConstants.ZIPF_EXP);
@@ -195,8 +195,8 @@ public class TwitterDatabase extends Database {
         	
             followees.clear();
 
-            int time = zipfFollows.nextInt() + 1;
-            //int time = tbl_follows.zipfDistribution.sample();
+            int time = zipfFollows.nextInt() + 1;            
+            //time = tbl_follows.zipfDistribution.sample();
             
             // At least this follower will follow 1 user
             if(time == 0) 
@@ -204,7 +204,7 @@ public class TwitterDatabase extends Database {
             
             for (int f = 0; f < time; ) {
                 followee = zipfFollowee.nextInt() + 1;
-            	//followee = tbl_followers.zipfDistribution.sample() + 1;
+            	//followee = tbl_followers.zipfDistribution.sample();
                 
                 if (follower != followee && !followees.contains(followee)) {
                 	followees.add(followee);

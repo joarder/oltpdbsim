@@ -35,6 +35,8 @@ import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
+import umontreal.iro.lecuyer.simevents.Sim;
+
 public class TwitterWorkload extends Workload {
 	
 	public TwitterWorkload(String file) {	
@@ -142,9 +144,14 @@ public class TwitterWorkload extends Workload {
 	private int getUserId(Database db) {
 		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 				
-		//ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
-		//int rand_user = szGen.nextInt() + 1;
-		int rand_user = tbl_user.zipfDistribution.sample();
+		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
+		int rand_user = szGen.nextInt() + 1;
+		rand_user = tbl_user.zipfDistribution.sample();
+		
+		if(Sim.time() >= timer) {			
+			timer += timer;
+			tbl_user.zipfDistribution.reseedRandomGenerator(++seed);
+		}
 		
 		return rand_user;
 	}
@@ -272,7 +279,7 @@ public class TwitterWorkload extends Workload {
 		
 		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(ftbl.getTbl_tuples().size());
 		int fk = szGen.nextInt();
-		//int fk = ftbl.zipfDistribution.sample();
+		fk = ftbl.zipfDistribution.sample();
 		
 		// Populating foreign table relationships			
 		if(tpl_tweet.getTuple_fk().containsKey(ftbl.getTbl_id())) {

@@ -37,7 +37,7 @@ package main.java.utils.distributions;
  * Collected from https://github.com/oltpbenchmark/ 
  */
 
-import main.java.utils.Utility;
+import main.java.entry.Global;
 
 public class ZipfianGenerator extends IntegerGenerator {
 	
@@ -271,8 +271,8 @@ public class ZipfianGenerator extends IntegerGenerator {
 			}
 		}
 
-		//double u = Global.rand.nextDouble();
-		double u = Utility.random().nextDouble();
+		double u = Global.rand.nextDouble();
+		//double u = Utility.random().nextDouble();
 		double uz = u*zetan;
 
 		if (uz<1.0)
