@@ -3,6 +3,7 @@ simulation.name=C-T-HGR-MC-ARHC-COM-0.5
 setup=consistenthash
 
 analysis = false
+
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true

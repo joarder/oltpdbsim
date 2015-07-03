@@ -1,8 +1,9 @@
-simulation.name=C-T-HGR-MSM-FDFND
+simulation.name=C-T-HGR-MSM-FDFND-Twitter
 
 setup=consistenthash
 
 analysis = false
+
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
@@ -14,6 +15,12 @@ incremental.repartitioning=true
 graphcutbased.repartitioning=true
 
 workload.representation=hgr
+
+stream.collection=true
+stream.collector.size.factor=3
+
+associative=false
+adaptive=false
 
 transaction.classification=true
 transaction.classification.strategy=fdfnd
@@ -43,4 +50,6 @@ exponential.Avg.Weight=0.4
 
 span.reduction=1
 idt.priority=1.0
+lb.priority=0.0
+
 idt.threshold=0.5

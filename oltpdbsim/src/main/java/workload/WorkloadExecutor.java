@@ -538,7 +538,7 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-				if(Global.graphcutBasedRepartitioning && Global.sword_initial)
+				if(Global.graphcutBasedRepartitioning || Global.sword_initial)
 					WorkloadExecutor.runRepartitioner(cluster, wb);
 								
 				// Perform data migrations
@@ -800,8 +800,10 @@ class Arrival extends Event {
 						Global.repartStatic = false;
 						
 						// Sword single repartitioning is completed
-						if(Global.compressionBeforeSetup)
-							Global.sword_initial = false;
+						if(Global.compressionBeforeSetup) {
+							Global.sword_initial = false;	
+							Global.graphcutBasedRepartitioning = false;
+						}
 						
 						// Only for Sword
 						if(Global.repartThreshold) {

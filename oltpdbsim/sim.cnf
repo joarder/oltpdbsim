@@ -1,10 +1,10 @@
-simulation.name=C-T-SWORD-TPCC
+simulation.name=C-T-HGR-MC-A-ARHC-IDT-Twitter
 
 setup=consistenthash
 
 analysis = false
 
-static.repartitioning=true
+static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
 
@@ -16,24 +16,24 @@ graphcutbased.repartitioning=true
 
 workload.representation=hgr
 
-stream.collection=false
+stream.collection=true
 stream.collector.size.factor=3
 
-associative=false
-adaptive=false
+associative=true
+adaptive=true
 
 transaction.classification=false
-transaction.classification.strategy=base
+transaction.classification.strategy=fcimining
 
-data.migration.strategy=sword
+data.migration.strategy=improved_mc
 
-compression.enabled=true
-compression.before.setup=true
+compression.enabled=false
+compression.before.setup=false
 compression.ratio=6
 
 initial.servers=4
 server.capacity=100000
-fixed.partitions=64
+fixed.partitions=32
 number.of.replicas=1
 
 simulation.period=97200

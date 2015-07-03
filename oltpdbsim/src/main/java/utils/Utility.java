@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
@@ -41,6 +42,20 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 public class Utility {
 
+	//private static final Random rand = new Random(); 
+	private static final ThreadLocal<Random> rng = new ThreadLocal<Random>();
+
+	public static Random random() {
+		Random ret = rng.get();
+	    
+	    if(ret == null) {
+	    	ret = new Random(Global.rand.nextLong());
+	    	rng.set(ret);
+	    }
+	    
+	    return ret;
+	}
+	
 	// Returns the Base
 	public static int getBase(int x) { 
 		int value = Math.abs(x);

@@ -35,7 +35,7 @@ import org.apache.commons.configuration.AbstractFileConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
-public class TwitterWorkload extends Workload {	
+public class TwitterWorkload extends Workload {
 	
 	public TwitterWorkload(String file) {	
 		super(file);				
@@ -141,10 +141,10 @@ public class TwitterWorkload extends Workload {
 	// Returns a randomly selected User id
 	private int getUserId(Database db) {
 		Table tbl_user = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
-		
-		ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
-		int rand_user = szGen.nextInt();
-		//int rand_user = tbl_user.zipfDistribution.sample();
+				
+		//ScrambledZipfianGenerator szGen = new ScrambledZipfianGenerator(tbl_user.getTbl_tuples().size());
+		//int rand_user = szGen.nextInt() + 1;
+		int rand_user = tbl_user.zipfDistribution.sample();
 		
 		return rand_user;
 	}
@@ -245,9 +245,9 @@ public class TwitterWorkload extends Workload {
 		Set<Integer> trTupleSet = new HashSet<Integer>();
 		Table tbl = db.getTable(db.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
 
-		/*while(tbl.getIdx_multivalue_secondary().get(user_id) == null) {
+		while(tbl.getIdx_multivalue_secondary().get(user_id) == null) {
 			user_id = this.getUserId(db);
-		}*/
+		}
 		
 		for(int tweet_id : tbl.getIdx_multivalue_secondary().get(user_id)) {
 			if(trTupleSet.size() <= TwitterConstants.LIMIT_TWEETS_FOR_UID) {

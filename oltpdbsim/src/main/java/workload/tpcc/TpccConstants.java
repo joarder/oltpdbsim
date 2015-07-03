@@ -29,7 +29,7 @@ public abstract class TpccConstants {
 
     public static int NUM_WAREHOUSES = 1; // TPC-C Scale Factor - Number of Warehouses
     
-    public static final double ZIPF_EXP = 2.0; // 1.75
+    public static final double ZIPF_EXP = 2.0; // 1.75 ~ 2.0
     
     public static final int NUM_ITEMS = 100000;
     public static final int DISTRICTS_PER_WAREHOUSE = 10;

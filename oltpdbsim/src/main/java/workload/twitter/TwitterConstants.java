@@ -29,5 +29,5 @@ public abstract class TwitterConstants {
     public static final int LIMIT_TWEETS_FOR_UID = 10;
     public static final int LIMIT_FOLLOWERS = 20;
     
-	public static final double ZIPF_EXP = 2.0; // 1.75
+	public static final double ZIPF_EXP = 1.75; // 1.75 ~ 2.0
 }
