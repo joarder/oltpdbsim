@@ -57,7 +57,17 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	static double max_idt_reduction_improvement;
 	static double max_lb_improvement;
 	static double max_association_improvement;
+		
+	@SuppressWarnings("rawtypes")
+	static TreeSet idtRank;
 	
+	@SuppressWarnings("rawtypes")
+	static TreeSet lbRank;	
+	
+	@SuppressWarnings("rawtypes")
+	static TreeSet associationRank;
+	
+	@SuppressWarnings("rawtypes")
 	SimpleTr(int id, double period) {
 		this.id = id;
 		this.min_data_mgr = Integer.MAX_VALUE;
@@ -68,6 +78,10 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.isAssociated = false;
 		this.isProcessed = false;
+		
+		idtRank = new TreeSet();
+		lbRank = new TreeSet();
+		associationRank = new TreeSet();
 	}
 	
 	void populateServerSet(Cluster cluster, Transaction tr) {
@@ -85,16 +99,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		}
 	}
 	
-	@SuppressWarnings("rawtypes")
-	static TreeSet idtRank;
-	
-	@SuppressWarnings("rawtypes")
-	static TreeSet lbRank;
-	
-	@SuppressWarnings("rawtypes")
-	static TreeSet associationRank;
-	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings("unchecked")
 	void populateMigrationList(Cluster cluster, WorkloadBatch wb) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
@@ -108,8 +113,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		HashMap<Integer, HashSet<Integer>> dataMap;
 		
 		// Sets for preserving the ranks
-		idtRank = new TreeSet();
-		lbRank = new TreeSet();
+		idtRank.clear();;
+		lbRank.clear();;
 		
 		for (ICombinatoricsVector<Integer> permutations : permutationGen) {
 			HashSet<Integer> fromSet = new HashSet<Integer>();		
@@ -166,14 +171,88 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		}*/
 	}
 	
+	@SuppressWarnings("unchecked")
+	void populateMigrationList(Cluster cluster, WorkloadBatch wb, int span_reduce) {
+		// Based on: https://code.google.com/p/combinatoricslib/
+		// Create the initial vector
+		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.dataMap.keySet());
+
+		// Create a simple permutation generator to generate N-permutations of the initial vector
+		Generator<Integer> permutationGen = Factory.createPermutationWithRepetitionGenerator(initialVector, this.dataMap.size());		
+		HashMap<HashSet<Integer>, Integer> uniqueFromSet = new HashMap<HashSet<Integer>, Integer>();
+		
+		// Get all possible N-permutations		
+		HashMap<Integer, HashSet<Integer>> dataMap;
+		
+		// Sets for preserving the ranks
+		idtRank.clear();
+		lbRank.clear();
+		
+		for (ICombinatoricsVector<Integer> permutations : permutationGen) {
+			HashSet<Integer> fromSet = new HashSet<Integer>();		
+			
+			for(int i = 0; i < permutations.getSize()-1; i++)
+				fromSet.add(permutations.getValue(i));			
+						
+			int to = permutations.getValue(permutations.getSize() - 1);
+			
+			if(!fromSet.contains(to)) {
+				if(!uniqueFromSet.containsKey(fromSet)
+						|| (uniqueFromSet.containsKey(fromSet) && !uniqueFromSet.get(fromSet).equals(to))) {
+					
+					dataMap = new HashMap<Integer, HashSet<Integer>>();
+					int req_data_mgr = 0;
+					
+					if(fromSet.size() <= Global.spanReduce) {						
+						for(int from : fromSet) {						
+							req_data_mgr += this.dataMap.get(from).size();
+							dataMap.put(from, this.dataMap.get(from));
+						}
+					}
+					
+					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
+					this.migrationPlanList.add(m); // From Source Server
+					
+					m.idt_gain_per_data_mgr = getIdtGain(wb, this, m);						
+					m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);					
+					
+					idtRank.add(m.idt_gain_per_data_mgr);
+					lbRank.add(m.lb_gain_per_data_mgr);	
+					
+					if(fromSet.size() > 1)
+						uniqueFromSet.put(fromSet, to);
+				} //end-if()
+			} //end-if()	
+		} // end-for(
+
+		// Get the maximum Idt and Lb gains for this transaction for normalization purpose
+		max_idt_reduction_improvement = (double) idtRank.last();
+		max_lb_improvement = (double) lbRank.last();
+		
+		// Sorting migration list
+		sortMigrationList();
+		
+		this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_data_mgr;
+		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
+		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
+		
+		// Testing
+		/*System.out.println("-------------------------------------------------------------------------");
+		System.out.println("Sorting based on combined ranking ...");
+		System.out.println("--> "+this.toString());
+		for(MigrationPlan m : this.migrationPlanList) {
+			System.out.println("\t"+m.toString());
+		}*/
+	}	
+	
 	// Calculate the similarity/association of each transaction and the derived clusters
-	@SuppressWarnings({"unchecked", "rawtypes"})
+	@SuppressWarnings("unchecked")
 	public void populateAssociationList(Cluster cluster, WorkloadBatch wb, 
 			HashMap<Integer, FCICluster> fci_clusters) {
 		
 		// Sets for preserving the ranks
-		associationRank = new TreeSet();
-		lbRank = new TreeSet();
+		associationRank.clear();
+		lbRank.clear();
 		
 		for(Entry<Integer, HashSet<Integer>> entry : this.dataMap.entrySet()) {
 			HashMap<Integer, HashSet<Integer>> dataMap;

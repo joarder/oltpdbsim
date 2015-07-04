@@ -113,7 +113,7 @@ public class DataStreamMining {
 	private void prepareDSMDumpFile() {
 		++this.dsm_dump_serial;
 		
-		this.dsm_dumpfilename = Global.mining_dir+"run"+Global.repeated_runs+"/"
+		this.dsm_dumpfilename = Global.mining_dir+"run"+Global.repeatedRuns+"/"
 									+Global.simulation+"-dump-"+this.dsm_dump_serial+".txt";
 		
 		this.dsm_dumpfile = new File(this.dsm_dumpfilename);

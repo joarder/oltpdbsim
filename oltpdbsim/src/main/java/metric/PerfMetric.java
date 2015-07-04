@@ -56,14 +56,14 @@ public class PerfMetric {
 		Response = new  HashMap<Integer, Double>();
 		
 		// Creating a metric files
-		file1 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+		file1 = new File(Global.metric_dir+"run"+Global.repeatedRuns+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf1.out");
 		
-		file2 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+		file2 = new File(Global.metric_dir+"run"+Global.repeatedRuns+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf2.out");
 		
 		if(Global.analysis)
-			file3 = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+			file3 = new File(Global.metric_dir+"run"+Global.repeatedRuns+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+"-perf3.out");
 		
 		/*try {			

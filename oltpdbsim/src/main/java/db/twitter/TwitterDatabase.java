@@ -100,7 +100,7 @@ public class TwitterDatabase extends Database {
 		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
 		
 		tbl.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
-		tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl.zipfDistribution.reseedRandomGenerator(Global.repeatedRuns);
 		
 		int pk = 0;
 		for (pk = 1; pk <= this.num_users; pk++) {
@@ -121,7 +121,7 @@ public class TwitterDatabase extends Database {
 		Table tbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_TWEETS));
 		
 		tbl.zipfDistribution = new ZipfDistribution(this.num_tweets, TwitterConstants.ZIPF_EXP);
-		tbl.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl.zipfDistribution.reseedRandomGenerator(Global.repeatedRuns);
 		
 		// Foreign Table
 		Table ftbl = this.getTable(this.getDb_tbl_name_id_map().get(TwitterConstants.TBL_USER));
@@ -176,10 +176,10 @@ public class TwitterDatabase extends Database {
 				
 		// Distributions
 		tbl_followers.zipfDistribution = new ZipfDistribution(this.num_users, TwitterConstants.ZIPF_EXP);
-		tbl_followers.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl_followers.zipfDistribution.reseedRandomGenerator(Global.repeatedRuns);
 		
 		tbl_follows.zipfDistribution = new ZipfDistribution(this.num_follows, TwitterConstants.ZIPF_EXP);
-		tbl_follows.zipfDistribution.reseedRandomGenerator(Global.repeated_runs);
+		tbl_follows.zipfDistribution.reseedRandomGenerator(Global.repeatedRuns);
 		
 		ZipfianGenerator zipfFollowee = new ZipfianGenerator(this.num_users, TwitterConstants.ZIPF_EXP);
 		ZipfianGenerator zipfFollows = new ZipfianGenerator(this.num_follows, TwitterConstants.ZIPF_EXP);

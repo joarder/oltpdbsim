@@ -58,7 +58,7 @@ public class TwitterWorkload extends Workload {
 			
 		//Read Twitter scale
 			//WorkloadConstants.SCALE_FACTOR = parameters.getDouble("twitter.scale");
-			WorkloadConstants.SCALE_FACTOR = Global.scale_factor;
+			WorkloadConstants.SCALE_FACTOR = Global.scaleFactor;
 			Global.LOGGER.info("Twitter scale (as the number of users): "+WorkloadConstants.SCALE_FACTOR);	
 			
 		//Read Twitter table types

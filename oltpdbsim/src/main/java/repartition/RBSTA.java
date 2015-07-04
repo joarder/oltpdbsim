@@ -67,9 +67,12 @@ public class RBSTA {
 
 		t.populateServerSet(cluster, tr);
 				
-		if(t.dataMap.size() > 1)	 // DTs
-			t.populateMigrationList(cluster, wb);			
-		else {						 // Movable non-DTs
+		if(t.dataMap.size() > 1) {	 // DTs
+			if(Global.spanReduction)
+				t.populateMigrationList(cluster, wb, Global.spanReduce);
+			else
+				t.populateMigrationList(cluster, wb);
+		} else {						 // Movable non-DTs
 			t.min_data_mgr = 0;
 			t.max_idt_gain = 0.0;
 			t.isProcessed = true;

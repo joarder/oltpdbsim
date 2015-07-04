@@ -65,7 +65,7 @@ public class Server implements Comparable<Server> {
 	}
 	
 	public void updateServer_load() {
-		double load = Math.round((double) this.getServer_total_data()/Global.server_capacity * 100.0) / 100.0;
+		double load = Math.round((double) this.getServer_total_data()/Global.serverCapacity * 100.0) / 100.0;
 		this.setServer_load(load);
 	}
 

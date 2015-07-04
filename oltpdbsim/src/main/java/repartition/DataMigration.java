@@ -129,7 +129,7 @@ public class DataMigration {
 		}
 		
 		//System.out.println(">> "+mapping.getN()+"|"+arr.length);		
-		if(!Global.sword_initial)
+		if(!Global.swordInitial)
 			Utility.shuffleArray(arr);
 		
 		// Create Key-Value (Destination PID-Cluster ID) Mappings from Mapping Matrix
@@ -326,7 +326,7 @@ public class DataMigration {
 	
 	// Sword - incremental repartitioning	
 	private static void strategySword(Cluster cluster, WorkloadBatch wb, String partitioner) {		
-		if(Global.sword_initial) {
+		if(Global.swordInitial) {
 			// Initial data migration
 			Global.LOGGER.info("Applying Random Cluster-to-Partition (Random) Strategy ...");
 			migratedCDataSet = new HashSet<CompressedData>();
@@ -644,7 +644,7 @@ public class DataMigration {
 				migrateSingleData(cluster, data, dst_server_id, dst_partition_id);
 				
 				// Sword specific -- Migrate the entire corresponding Compressed Data
-				if(Global.compressionBeforeSetup && Global.sword_initial)
+				if(Global.compressionBeforeSetup && Global.swordInitial)
 					DataMigration.migrateCompressedData(cluster, data, dst_partition_id, dst_server_id);
 				
 				data.setData_inUse(false);

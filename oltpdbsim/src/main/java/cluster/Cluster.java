@@ -305,7 +305,7 @@ public class Cluster {
 		long p_size = (long)((p_max/Global.partitions)+1)*2;
 		
 		ArrayList<Long> p_keyRange = null;		
-		Global.partition_capacity = p_size;
+		Global.partitionCapacity = p_size;
 		Global.LOGGER.info("Define a partition size of "+p_size);	
 		
 		// Define Partition range

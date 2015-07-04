@@ -122,7 +122,7 @@ public class Metric {
 		edges_in_cut = new ArrayList<Integer>();
 		
 		// Creating a metric file
-		file = new File(Global.metric_dir+"run"+Global.repeated_runs+"/"
+		file = new File(Global.metric_dir+"run"+Global.repeatedRuns+"/"
 				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
 		
 		prWriter = Utility.getPrintWriter(Global.metric_dir, file);		

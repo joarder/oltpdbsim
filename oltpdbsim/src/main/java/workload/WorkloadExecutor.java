@@ -372,9 +372,9 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Streaming transactional workloads ...");
 		
 		trDistribution = new EnumeratedIntegerDistribution(wrl.trTypes, wrl.trProbabilities);		
-		trDistribution.reseedRandomGenerator(seed[Global.repeated_runs - 1]); 
+		trDistribution.reseedRandomGenerator(seed[Global.repeatedRuns - 1]); 
 				
-		wb = new WorkloadBatch(Global.repeated_runs);
+		wb = new WorkloadBatch(Global.repeatedRuns);
 		
 		// RBPTA specific -- will be removed
 		if(Global.dataMigrationStrategy.equals("rbpta"))
@@ -538,7 +538,7 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
-				if(Global.graphcutBasedRepartitioning || Global.sword_initial)
+				if(Global.graphcutBasedRepartitioning || Global.swordInitial)
 					WorkloadExecutor.runRepartitioner(cluster, wb);
 								
 				// Perform data migrations
@@ -726,7 +726,7 @@ class Arrival extends Event {
 			
 			if(Global.workloadAware) {
 				
-				if(Global.incrementalRepartitioning && !Global.sword_initial) { // 3. Incremental Repartitioning
+				if(Global.incrementalRepartitioning && !Global.swordInitial) { // 3. Incremental Repartitioning
 					
 					if(isRepartRequired()) { // Checks for both Hourly and Threshold-based repartitioning						
 						++Global.repartitioningCycle;
@@ -801,7 +801,7 @@ class Arrival extends Event {
 						
 						// Sword single repartitioning is completed
 						if(Global.compressionBeforeSetup) {
-							Global.sword_initial = false;	
+							Global.swordInitial = false;	
 							Global.graphcutBasedRepartitioning = false;
 						}
 						

@@ -32,11 +32,11 @@ public class ReadConfig {
 		Global.wrl = args[0];
 		Global.LOGGER.info("Workload type: "+Global.wrl);
 		
-		Global.scale_factor = Double.parseDouble(args[1]);
-		Global.LOGGER.info("'"+Global.wrl+"' Workload Scale Factor: "+Global.scale_factor);
+		Global.scaleFactor = Double.parseDouble(args[1]);
+		Global.LOGGER.info("'"+Global.wrl+"' Workload Scale Factor: "+Global.scaleFactor);
 		
-		Global.repeated_runs = Integer.parseInt(args[2]);
-		Global.LOGGER.info("Targeted number of repeated runs: "+Global.repeated_runs);		
+		Global.repeatedRuns = Integer.parseInt(args[2]);
+		Global.LOGGER.info("Targeted number of repeated runs: "+Global.repeatedRuns);		
 		
 		// Setting directory name and structure according to OS
 		if (Utility.isWindows()) {
@@ -107,13 +107,13 @@ public class ReadConfig {
 			//Read the number of servers, partitions and replicas
 			Global.setup = (String) config_param.getProperty("setup");
 			Global.servers = Integer.parseInt((String) config_param.getProperty("initial.servers"));
-			Global.server_capacity = Integer.parseInt((String) config_param.getProperty("server.capacity"));
+			Global.serverCapacity = Integer.parseInt((String) config_param.getProperty("server.capacity"));
 			Global.partitions = Integer.parseInt((String) config_param.getProperty("fixed.partitions"));
 			Global.replicas = Integer.parseInt((String) config_param.getProperty("number.of.replicas"));			
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Initial number of servers: "+Global.servers);
-			Global.LOGGER.info("Individual server's capacity: "+Global.server_capacity/1024+" GB");
+			Global.LOGGER.info("Individual server's capacity: "+Global.serverCapacity/1024+" GB");
 			Global.LOGGER.info("Fixed number of partitions: "+Global.partitions);
 			Global.LOGGER.info("Replication value: "+Global.replicas);			
 			
@@ -176,11 +176,15 @@ public class ReadConfig {
 				Global.compressionBeforeSetup = Boolean.parseBoolean((String) config_param.getProperty("compression.before.setup"));
 				
 				if(!Global.compressionBeforeSetup)
-					Global.sword_initial = false;
+					Global.swordInitial = false;
 				
 				if(Global.incrementalRepartitioning) {
-					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));					
-					Global.span_reduction = Integer.parseInt((String) config_param.getProperty("span.reduction"));
+					Global.userDefinedIDtThreshold = Double.parseDouble((String) config_param.getProperty("idt.threshold"));
+					
+					Global.spanReduction = Boolean.parseBoolean((String) config_param.getProperty("span.reduction"));
+					
+					if(Global.spanReduction)
+						Global.spanReduce = Integer.parseInt((String) config_param.getProperty("span.reduce"));
 					
 					Global.idt_priority = Double.parseDouble((String) config_param.getProperty("idt.priority"));
 					Global.lb_priority = Double.parseDouble((String) config_param.getProperty("lb.priority"));

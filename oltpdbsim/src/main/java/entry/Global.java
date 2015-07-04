@@ -50,15 +50,15 @@ public final class Global {
 	
 	// Input parameters
 	public static String wrl;
-	public static double scale_factor;
-	public static int repeated_runs;	
+	public static double scaleFactor;
+	public static int repeatedRuns;	
 	
 	// Data distribution related parameters
 	public static String setup;
 	public static int servers;
-	public static int server_capacity;
+	public static int serverCapacity;
 	public static int partitions;
-	public static long partition_capacity;
+	public static long partitionCapacity;
 	public static int replicas;
 	
 	// OS name
@@ -133,18 +133,20 @@ public final class Global {
 	// Logger
 	public static Logger LOGGER = LoggerFactory.getLogger(Global.class);	
 
-	public static int span_reduction;
+	public static boolean spanReduction;
+	public static int spanReduce;	
+	
 	public static double idt_priority;
 	public static double lb_priority;
 
 	// For Sword
 	public static int compressedVertices;
-	public static boolean sword_initial = true;
+	public static boolean swordInitial = true;
 	
 	// For Analysis
 	public static boolean analysis;	
 		
 	public static String getRunDir() {
-		return ("run"+Global.repeated_runs+Global.dir_sep);
+		return ("run"+Global.repeatedRuns+Global.dir_sep);
 	}
 }

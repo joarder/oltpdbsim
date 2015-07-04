@@ -46,14 +46,14 @@ public class Main {
 		// Reading simulation aspects
 		ReadConfig.readConfigFile("./sim.cnf");
 		
-		while(Global.repeated_runs != 0) {
+		while(Global.repeatedRuns != 0) {
 
 			Global.LOGGER.info("=============================================================================");
-			Global.LOGGER.info("Starting simulation for run "+Global.repeated_runs+" ...");									
+			Global.LOGGER.info("Starting simulation for run "+Global.repeatedRuns+" ...");									
 			
 			// Re-seed the Random Data Generator
-			Global.rand.setSeed(Global.repeated_runs);
-			Global.rdg.reSeed(Global.repeated_runs);
+			Global.rand.setSeed(Global.repeatedRuns);
+			Global.rdg.reSeed(Global.repeatedRuns);
 			
 			// Database initialization and population
 			Database db = null;
@@ -97,8 +97,8 @@ public class Main {
 			Metric.close();
 			
 			// Proceed for the next iterative simulation run
-			Global.LOGGER.info("Simulation ended for iterative run-"+Global.repeated_runs+".");
-			--Global.repeated_runs;																
+			Global.LOGGER.info("Simulation ended for iterative run-"+Global.repeatedRuns+".");
+			--Global.repeatedRuns;																
 		}		
 				
 		Global.LOGGER.info("Simulation ended.");		
