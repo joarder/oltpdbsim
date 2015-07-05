@@ -27,6 +27,7 @@ public class Partition implements Comparable<Partition> {
 	private String partition_label;
 	
 	private int partition_table_id;
+	private int partition_server_ssd_id;
 	private int partition_server_id;	
 	
 	private long partition_start_key;
@@ -48,6 +49,7 @@ public class Partition implements Comparable<Partition> {
 		this.setPartition_label("P"+p_id);
 		
 		this.setPartition_table_id(0);
+		this.setPartition_server_ssd_id(0);
 		this.setPartition_serverId(0);		
 		
 		this.setPartition_dataSet(new HashMap<Integer, Data>());
@@ -91,6 +93,14 @@ public class Partition implements Comparable<Partition> {
 
 	public void setPartition_table_id(int partition_table_id) {
 		this.partition_table_id = partition_table_id;
+	}
+
+	public int getPartition_server_ssd_id() {
+		return partition_server_ssd_id;
+	}
+
+	public void setPartition_server_ssd_id(int partition_server_ssd_id) {
+		this.partition_server_ssd_id = partition_server_ssd_id;
 	}
 
 	public int getPartition_serverId() {
@@ -324,7 +334,7 @@ public class Partition implements Comparable<Partition> {
 
 	@Override
 	public int compareTo(Partition partition) {		
-		return (((int)this.getPartition_id() < (int)partition.getPartition_id()) ? -1 : 
-			((int)this.getPartition_id() > (int)partition.getPartition_id()) ? 1 : 0);		
+		return ((this.getPartition_id() < partition.getPartition_id()) ? -1 : 
+			(this.getPartition_id() > partition.getPartition_id()) ? 1 : 0);		
 	}
 }

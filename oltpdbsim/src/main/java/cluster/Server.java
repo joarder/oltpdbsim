@@ -16,28 +16,39 @@
 
 package main.java.cluster;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 
+import main.java.cluster.SSD.SSD_STATE;
 import main.java.entry.Global;
 
 public class Server implements Comparable<Server> {		
 	private int server_id;
-	private String server_label;	
+	private String server_label;
+	private Map<Integer, SSD> server_SSDs;
 	private Set<Integer> server_partitions;	
 	private double server_load;
 	private int server_inflow;
 	private int server_outflow;
-	private int server_total_data;	
+	private int server_total_data;
+	private int server_last_assigned_ssd;
 	
 	public Server(int id) {
 		this.setServer_id(id);
-		this.setServer_label("S"+id);		
-		this.setServer_partitions(new TreeSet<Integer>());
+		this.setServer_label("S"+id);
+		this.setServer_SSDs(new HashMap<Integer, SSD>());
+		this.setServer_partitions(new HashSet<Integer>());
 		this.setServer_load(0.0d);
 		this.setServer_inflow(0);
 		this.setServer_outflow(0);
-		this.setServer_total_data(0);		
+		this.setServer_total_data(0);
+		this.setServer_last_assigned_ssd(0);
+		
+		for(int i = 1; i <= Global.serverSSD; ++i) 
+			this.getServer_SSDs().put(i, new SSD(i, id));
 	}
 	
 	public int getServer_id() {
@@ -63,18 +74,21 @@ public class Server implements Comparable<Server> {
 	public void setServer_load(double server_load) {
 		this.server_load = server_load;
 	}
-	
-	public void updateServer_load() {
-		double load = Math.round((double) this.getServer_total_data()/Global.serverCapacity * 100.0) / 100.0;
-		this.setServer_load(load);
+
+	public Map<Integer, SSD> getServer_SSDs() {
+		return server_SSDs;
+	}
+
+	public void setServer_SSDs(Map<Integer, SSD> server_SSDs) {
+		this.server_SSDs = server_SSDs;
+	}
+
+	public void setServer_partitions(Set<Integer> server_partitions) {
+		this.server_partitions = server_partitions;
 	}
 
 	public Set<Integer> getServer_partitions() {
 		return server_partitions;
-	}
-
-	public void setServer_partitions(TreeSet<Integer> treeSet) {
-		this.server_partitions = treeSet;
 	}
 	
 	public int getServer_inflow() {
@@ -101,6 +115,14 @@ public class Server implements Comparable<Server> {
 		this.server_total_data = server_total_data;
 	}
 	
+	public int getServer_last_assigned_ssd() {
+		return server_last_assigned_ssd;
+	}
+
+	public void setServer_last_assigned_ssd(int server_last_assigned_ssd) {
+		this.server_last_assigned_ssd = server_last_assigned_ssd;
+	}
+
 	public void incServer_totalData(int val){		
 		this.setServer_total_data((this.getServer_total_data() + val));
 	}
@@ -155,10 +177,42 @@ public class Server implements Comparable<Server> {
 		this.setServer_outflow(--val);
 	}
 	
-	public void show(Cluster c) {
+	private void updateSSDLoad(Cluster cluster, SSD ssd) {
+		double load = 0.0;
+		
+		for(int p_id : ssd.getSSD_partitions()) {
+			Partition p = cluster.getPartition(p_id);
+			load += (double) p.getPartition_dataSet().size();
+		}
+		
+		load = Math.round((load/Global.serverSSDCapacity) * 100.0) / 100.0;
+		ssd.setSSD_load(load);
+		
+		if(ssd.getSSD_load() > 80.0)
+			ssd.setSSD_state(SSD_STATE.Overloaded);
+		else if(ssd.getSSD_load() >= 90.0)
+			ssd.setSSD_state(SSD_STATE.Critical);
+		else if(ssd.getSSD_load() >= 100.0)
+			ssd.setSSD_state(SSD_STATE.Faulty);
+	}
+	
+	public void updateServer_load(Cluster cluster) {
+		
+		// Updating individual SSD load
+		for(Entry<Integer, SSD> ssd_entry : this.getServer_SSDs().entrySet())
+			this.updateSSDLoad(cluster, ssd_entry.getValue());
+		
+		double load = Math.round((double) this.getServer_total_data()/(Global.serverSSD * Global.serverSSDCapacity) * 100.0) / 100.0;
+		this.setServer_load(load);
+	}
+		
+	public void show(Cluster cluster) {
+		for(Entry<Integer, SSD> ssd_entry : this.getServer_SSDs().entrySet())
+			Global.LOGGER.info("\t----"+ssd_entry.getValue().toString());
+		
 		for(int p_id : this.getServer_partitions()) {				
-			Partition p = c.getPartition(p_id);				
-			Global.LOGGER.info("    ----"+p.toString());
+			Partition p = cluster.getPartition(p_id);				
+			Global.LOGGER.info("\t\t----"+p.toString());
 			//p.show();				
 		}
 	}
@@ -166,18 +220,15 @@ public class Server implements Comparable<Server> {
 	@Override
 	public String toString() {
 		return (this.getServer_label()
-				+"[Partition: "+this.getServer_partitions().size()
-				+"| Data: "+this.getServer_total_data()
-				+"| Load: "+this.getServer_load()+"%"
-				+"]"
-				);
+				+" - Partitions["+this.getServer_partitions().size()+"] "
+				+"| Data["+this.getServer_total_data()+"]"
+				+"| Load("+this.getServer_load()+"%)");
 	}
 
 	@Override
 	public boolean equals(Object object) {
-		if (!(object instanceof Server)) {
+		if (!(object instanceof Server))
 			return false;
-		}
 		
 		Server server = (Server) object;
 		return (this.getServer_label().equals(server.getServer_label()));
@@ -190,7 +241,6 @@ public class Server implements Comparable<Server> {
 	
 	@Override
 	public int compareTo(Server server) {		
-		return ((int)this.server_id < (int)server.server_id) ? -1 : 
-			((int)this.server_id > (int)server.server_id) ? 1 : 0;		
+		return (this.server_id < server.server_id) ? -1 : (this.server_id > server.server_id) ? 1 : 0;		
 	}
 }

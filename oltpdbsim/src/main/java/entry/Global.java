@@ -48,15 +48,16 @@ public final class Global {
 	// Random number generator
 	public static RandomDataGenerator rdg;
 	
-	// Input parameters
+	// Input arugments from console
 	public static String wrl;
 	public static double scaleFactor;
 	public static int repeatedRuns;	
 	
-	// Data distribution related parameters
+	// Cluster related parameters
 	public static String setup;
 	public static int servers;
-	public static int serverCapacity;
+	public static int serverSSD;
+	public static int serverSSDCapacity;
 	public static int partitions;
 	public static long partitionCapacity;
 	public static int replicas;
@@ -78,8 +79,7 @@ public final class Global {
 	public static String wrl_fixfile_name = "fixfile.tr";
 	
 	// Usage and abort message
-	public static String wrl_usage = "Example usage: \"java -jar ddbmssim.jar wrl tpcc 1000 10\" or \"wrl twitter 2000 10\" to generate the desire workload";
-	public static String run_usage = "Example usage: \"java -jar ddbmssim.jar run tpcc 1000 10 hgr\" or \"wrl twitter 2000 10 gr\" to run the simulation";
+	public static String run_usage = "Example usage: \"java -jar oltpdbsim-4.3.5 tpcc 0.01 1\" or \"java -jar oltpdbsim-4.3.5 twitter 10 1\" to run the simulation";
 	public static String abort = "Aborting ...";
 	
 	// Workload execution

@@ -236,20 +236,25 @@ public class Cluster {
 			p.setPartition_table_id(tbl_id);
 			
 			// Add Partition id in the corresponding Server's list 
-			Server s = this.getServer(s_id);
-			s.getServer_partitions().add(p.getPartition_id());		
+			Server s = this.getServer(s_id);	
+			
+			int ssd_id = this.getPartitionSSD(s);
+			p.setPartition_server_ssd_id(ssd_id);
+			
+			s.getServer_SSDs().get(ssd_id).getSSD_partitions().add(p.getPartition_id());			
+			s.getServer_partitions().add(p.getPartition_id());
 			
 			// Add an entry in the Cluster's Server-Partition Mapping Table
 			this.addPartitionMappingEntry(s_id, p.getPartition_id());
 			
 			Table tbl = db.getTable(tbl_id);
-			Global.LOGGER.info("Partition "+p.getPartition_label()+" of Table '"+tbl.getTbl_name()+"' is assigned to Server "+s.getServer_label()+".");
+			Global.LOGGER.info("Partition "+p.getPartition_label()+" of Table '"+tbl.getTbl_name()+"' is assigned to Server "+s.getServer_label()+" in SSD"+ssd_id+".");
 			
 			++s_id;			
 			if(s_id > Global.servers) {
 				s_id = 1;
 				++tbl_id;
-			}
+			}			
 		}
 		
 		// Determine the number of Compressed Data Nodes to be created
@@ -716,7 +721,7 @@ public class Cluster {
 	// Update statistic for the Servers
 	public void updateLoad() {
 		for(Server s : this.getServers())
-			s.updateServer_load();
+			s.updateServer_load(this);
 		
 		//for(Partition p : this.getPartitions())
 			//p.updatePartition_load();
@@ -743,22 +748,36 @@ public class Cluster {
 			this.assignPartitionConsistentHash(p);
 	}
 	
-	private void assignPartitionConsistentHash(Partition p) {
-		int s_id = 0;
+	private int getPartitionSSD(Server s) {
+		int ssd_id = s.getServer_last_assigned_ssd();
+		++ssd_id;
 		
+		if(ssd_id > Global.serverSSD)
+			ssd_id = 1;
+		
+		s.setServer_last_assigned_ssd(ssd_id);
+		
+		return ssd_id;
+	}
+	
+	private void assignPartitionConsistentHash(Partition p) {		
 		// Assign Server id to the Partition
-		s_id = (p.getPartition_id() % Global.servers)+1;
+		int s_id = (p.getPartition_id() % Global.servers)+1;
 		p.setPartition_serverId(s_id);
 		
 		// Add Partition id in the corresponding Server's list 
 		Server s = this.getServer(s_id);
-		s.getServer_partitions().add(p.getPartition_id());		
+		
+		int ssd_id = this.getPartitionSSD(s);
+		p.setPartition_server_ssd_id(ssd_id);
+		
+		s.getServer_SSDs().get(ssd_id).getSSD_partitions().add(p.getPartition_id());		
+		s.getServer_partitions().add(p.getPartition_id());
 		
 		// Add an entry in the Cluster's Server-Partition Mapping Table
 		this.addPartitionMappingEntry(s_id, p.getPartition_id());
 		
-		Global.LOGGER.info("Partition "+p.getPartition_label()
-				+" is assigned to Server "+s.getServer_label()+".");
+		Global.LOGGER.info("Partition "+p.getPartition_label()+" is assigned to Server "+s.getServer_label()+" in SSD"+ssd_id+".");
 	}
 	
 	// Add an entry in the Cluster's Server-Partition Mapping Table
@@ -771,7 +790,8 @@ public class Cluster {
 			this.getPartition_map().put(s_id, p_list);
 		}
 		
-		Global.LOGGER.info("Server-Partition mapping has updated.");
+		Global.LOGGER.info("Partition P"+p_id+" is assigned to Server S"+s_id+".");
+		Global.LOGGER.info("Server-Partition mapping in the central lookup table has been updated.");		
 	}
 	
 	public void removeServer(Server server) {
@@ -838,7 +858,7 @@ public class Cluster {
 		
 		// Server Details
 		for(Server s : this.getServers()) {						
-			Global.LOGGER.info("    --"+s.toString());
+			Global.LOGGER.info("--"+s.toString());
 			s.show(this);
 		}		
 		

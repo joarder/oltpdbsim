@@ -32,8 +32,10 @@ compression.before.setup=false
 compression.ratio=6
 
 initial.servers=4
-server.capacity=100000
-fixed.partitions=32
+server.ssd=2
+server.ssd.capacity=40000
+fixed.partitions=64
+fixed.partition.capacity=100000
 number.of.replicas=1
 
 simulation.period=97200

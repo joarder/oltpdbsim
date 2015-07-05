@@ -105,16 +105,21 @@ public class ReadConfig {
 			config_param.load(config_file);
 
 			//Read the number of servers, partitions and replicas
+			Global.simulation = (String) config_param.getProperty("simulation.name");
 			Global.setup = (String) config_param.getProperty("setup");
 			Global.servers = Integer.parseInt((String) config_param.getProperty("initial.servers"));
-			Global.serverCapacity = Integer.parseInt((String) config_param.getProperty("server.capacity"));
+			Global.serverSSD = Integer.parseInt((String) config_param.getProperty("server.ssd"));
+			Global.serverSSDCapacity = Integer.parseInt((String) config_param.getProperty("server.ssd.capacity"));
 			Global.partitions = Integer.parseInt((String) config_param.getProperty("fixed.partitions"));
+			Global.partitionCapacity = Integer.parseInt((String) config_param.getProperty("fixed.partition.capacity"));
 			Global.replicas = Integer.parseInt((String) config_param.getProperty("number.of.replicas"));			
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Initial number of servers: "+Global.servers);
-			Global.LOGGER.info("Individual server's capacity: "+Global.serverCapacity/1024+" GB");
+			Global.LOGGER.info("Number of SSD in each server: "+Global.serverSSD+" "+Global.serverSSDCapacity+"GB");
+			Global.LOGGER.info("Individual server's capacity: "+((Global.serverSSD * Global.serverSSDCapacity)/1000)+"GB");
 			Global.LOGGER.info("Fixed number of partitions: "+Global.partitions);
+			Global.LOGGER.info("Individual partition's capacity: "+(Global.partitionCapacity/1000)+"GB");
 			Global.LOGGER.info("Replication value: "+Global.replicas);			
 			
 			// Workload execution parameters --  will be used in Workload Executor
@@ -140,7 +145,6 @@ public class ReadConfig {
 	    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);			
 						
 			// Read configuration parameters			
-			Global.simulation = (String) config_param.getProperty("simulation.name");
 			Global.analysis = Boolean.parseBoolean((String) config_param.getProperty("analysis"));
 			Global.workloadVariation = Boolean.parseBoolean((String) config_param.getProperty("workload.variation"));
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
