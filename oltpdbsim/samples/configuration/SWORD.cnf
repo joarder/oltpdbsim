@@ -1,4 +1,4 @@
-simulation.name=C-T-SWORD
+simulation.name=C-T-Sword-TPCC
 
 setup=consistenthash
 
@@ -12,7 +12,7 @@ workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=true
+graphcutbased.repartitioning=false
 
 workload.representation=hgr
 
@@ -31,9 +31,11 @@ compression.enabled=true
 compression.before.setup=true
 compression.ratio=6
 
-initial.servers=4
-server.capacity=100000
-fixed.partitions=32
+initial.servers=8
+server.ssd=2
+server.ssd.capacity=40000
+fixed.partitions=64
+fixed.partition.capacity=100000
 number.of.replicas=1
 
 simulation.period=97200
@@ -48,8 +50,10 @@ observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
-span.reduction=1
+span.reduction=true
+span.reduce=2
+
 idt.priority=1.0
 lb.priority=0.0
 
-idt.threshold=0.5
+idt.threshold=0.25

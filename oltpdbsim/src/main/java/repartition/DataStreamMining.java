@@ -166,8 +166,18 @@ public class DataStreamMining {
 		int hEdgeId = 0;
 		
 		for(SemiFCI semiFCI : this.dsm_learner.getFCITable()){
-			//System.out.println("@ "+semiFCI.getItems());			
-			int fci_weight = (int)semiFCI.getApproximateSupport()/Global.streamCollectorSizeFactor;
+			System.out.println("\t-- "+semiFCI.getItems());
+			System.out.println("\t-- Current Support = "+semiFCI.currentSupport());
+			System.out.println("\t-- Approximate Support = "+semiFCI.getApproximateSupport());
+			
+			int fci_support = semiFCI.getApproximateSupport();
+			int fci_weight = 0;
+			
+			if(fci_support < 1) {
+				fci_support = 1;
+				fci_weight = 1;
+			} else
+				fci_weight = (int)(fci_support/Global.streamCollectorSizeFactor);
 			
 			HashSet<Integer> vertexSet = new HashSet<Integer>();
 			
@@ -178,7 +188,7 @@ public class DataStreamMining {
 					vertexSet.add(fci);
 					vertexMap.put(fci, fci_weight);
 					
-					hEdgeWeight += semiFCI.getApproximateSupport();
+					hEdgeWeight += fci_support;
 				}
 		
 				fciHEdgeList.add(new FCIHEdge(

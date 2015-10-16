@@ -470,13 +470,13 @@ public class WorkloadBatch {
 		this.hgr.setCHEdges(new HashMap<CompressedHEdge, Set<CompressedVertex>>());
 		this.hgr.setCVertices(new HashMap<CompressedVertex, Set<CompressedHEdge>>());				
 		this.hgr.setCHEMap(new HashMap<Integer, CompressedHEdge>());
-		this.hgr.setCVMap(new HashMap<Integer, CompressedVertex>());
+		this.hgr.setCVMap(new HashMap<Integer, CompressedVertex>());		
 		
 		// Compressing hypergraph vertices
-		/*for(SimpleVertex v : wb.hgr.getVertices())
-			wb.hgr.addCVertex(v);*/		
+		/*for(SimpleVertex v : this.hgr.getVertices())
+			this.hgr.addCVertex(v);*/		
 				
-		//Global.LOGGER.info(wb.hgr.getCVertices().size()+" compressed vertices are retrieved from "+wb.hgr.getVertexCount()+" hypergraph vertices.");
+		//Global.LOGGER.info(this.hgr.getCVertices().size()+" compressed vertices are retrieved from "+this.hgr.getVertexCount()+" hypergraph vertices.");
 		
 		// Compressing hyperedges
 		Global.cHEdgeSeq = 0;
@@ -484,7 +484,7 @@ public class WorkloadBatch {
 			this.hgr.addCHEdge(h);
 		
 		Global.LOGGER.info(this.hgr.getCHEdgeMap().size()+" compressed hyperedges "
-				+ "containing "+this.hgr.getCVertexMap().size()+" compressed vertices"
+				+ "containing "+this.hgr.getCVertexMap().size()+" compressed vertices "
 				+ "are created from "+this.hgr.getEdgeCount()+" hyperedges.");
 		
 		if(remove) {

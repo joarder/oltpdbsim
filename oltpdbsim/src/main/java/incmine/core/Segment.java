@@ -81,8 +81,7 @@ public class Segment {
         AlgoCharm_Bitset charmBitset = new AlgoCharm_Bitset();        
         Itemsets closedItemsets = charmBitset.runAlgorithm(context, minSupport, 1000000);
         
-        //System.out.println("Compute FCIs:"+charmBitset.getExecTime()+"ms\n (CHARM-BITSET)");
-        Global.LOGGER.info("Computing FCIs ...");
+        Global.LOGGER.info("Computed FCIs in "+charmBitset.getExecTime()+"ms.");
         Global.LOGGER.info("Total "+closedItemsets.getItemsetsCount()+" frequent closed data tuple sets have been found in the last segment using CHARM-BITSET.");
         
         List<SemiFCI> fciSet = new ArrayList<SemiFCI>();

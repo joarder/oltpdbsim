@@ -74,7 +74,7 @@ public class Cluster {
 		
 	    this.setPartitions(new TreeSet<Partition>());
 		this.setServers(new TreeSet<Server>());	
-		this.serverSet = new HashSet<Integer>();
+		this.setServerSet(new HashSet<Integer>());
 		this.setPartition_map(new HashMap<Integer, ArrayList<Integer>>());
 		
 		if(Global.compressionBeforeSetup) {
@@ -442,15 +442,15 @@ public class Cluster {
 		for(int repl = 1; repl <= Global.replicas; repl++) {			
 			String d_id = Integer.toString(tpl_pk)+Integer.toString(repl)+Integer.toString(tbl_id);
 			
+			if(Global.compressionEnabled)
+				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
+			
 			// Create the new Data
 			d = new Data(Integer.parseInt(d_id), tbl_id, cData_id, p.getPartition_id(), p.getPartition_serverId());
 			d.setData_uid(null);
 			
 			// Assign Data to Partition
 			p.getPartition_dataSet().put(d.getData_id(), d);
-			
-			if(Global.compressionEnabled)
-				cData_id = Utility.simpleHash(tpl_pk, Global.compressedVertices);
 			
 			// Insert into data map to create index
 			if(this.getData_map().containsKey(p_id))

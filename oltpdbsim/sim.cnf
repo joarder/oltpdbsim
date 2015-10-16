@@ -1,8 +1,8 @@
-simulation.name=C-T-RBSTA-IDT
+simulation.name=C-T-TLDR-Twitter-COM-0.5
 
 setup=consistenthash
 
-analysis = false
+analysis=false
 
 static.repartitioning=false
 hourly.repartitioning=false
@@ -23,7 +23,7 @@ associative=false
 adaptive=false
 
 transaction.classification=false
-transaction.classification.strategy=basic
+transaction.classification.strategy=fcimining
 
 data.migration.strategy=rbsta
 
@@ -50,10 +50,10 @@ observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4
 
-span.reduction=true
-span.reduce=2
+span.reduction=false
+span.reduce=1
 
-idt.priority=1.0
-lb.priority=0.0
+idt.priority=0.5
+lb.priority=0.5
 
 idt.threshold=0.5

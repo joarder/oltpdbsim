@@ -352,7 +352,6 @@ public class WorkloadBatchProcessor {
 	
 	// Generates Workload File for Graph partitioning
 	private static boolean generateCGraphWorkloadFile(Cluster cluster, WorkloadBatch wb) throws IOException {
-
 		// Compressing workload hypergraph
 		wb.compression(false);
 

@@ -461,9 +461,9 @@ public class WorkloadExecutor {
 			int k_clusters = 0;
 			
 			if(Global.associative)
-				k_clusters = Global.servers;
+				k_clusters = cluster.getServers().size();
 			else
-				k_clusters = Global.partitions;
+				k_clusters = cluster.getPartitions().size();
 			
 			Global.LOGGER.info("Starting partitioner to repartition the workload into "+k_clusters+" clusters ...");	
 			
@@ -776,6 +776,10 @@ class Arrival extends Event {
 							Global.LOGGER.info("-----------------------------------------------------------------------------");
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
+							
+							// Added 17/10/2015
+							// Hourly statistic collection
+							WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 							
 							if(Global.adaptive && Global.isAssociationRequired)
 								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
