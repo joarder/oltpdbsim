@@ -22,8 +22,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.Map.Entry;
+import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
@@ -44,44 +44,47 @@ import com.google.common.collect.Sets;
 
 public class SimpleTr implements Comparable<SimpleTr> {
 	int id;		
+	double period;
+	
 	int min_data_mgr;
-	double period;	
+	int max_span_reduction;
+	
 	double max_idt_gain; // Higher is better
 	double max_lb_gain; // Lower is better
-	double max_association_gain; // Higher is better
-	HashMap<Integer, HashSet<Integer>> dataMap;
-	public List<MigrationPlan> migrationPlanList;
-	public boolean isAssociated;
+	double max_association_gain; // Higher is better	
+	
 	boolean isProcessed;
 	
+	static double max_span_reduction_improvement;
 	static double max_idt_reduction_improvement;
 	static double max_lb_improvement;
 	static double max_association_improvement;
-		
-	@SuppressWarnings("rawtypes")
-	static TreeSet idtRank;
 	
-	@SuppressWarnings("rawtypes")
-	static TreeSet lbRank;	
+	static TreeSet<Double> spanReductionGainRank;
+	static TreeSet<Double> idtGainRank;
+	static TreeSet<Double> lbGainRank;
+	static TreeSet<Double> associationRank;
 	
-	@SuppressWarnings("rawtypes")
-	static TreeSet associationRank;
+	HashMap<Integer, HashSet<Integer>> dataMap;
+	public List<MigrationPlan> migrationPlanList;
+	public boolean isAssociated;
 	
-	@SuppressWarnings("rawtypes")
 	SimpleTr(int id, double period) {
 		this.id = id;
-		this.min_data_mgr = Integer.MAX_VALUE;
 		this.period = period;
-		this.max_idt_gain = 0;
+		
+		this.min_data_mgr = Integer.MAX_VALUE;
+		this.max_span_reduction = 0;
+		
+		this.max_idt_gain = 0.0d;
 		this.max_lb_gain = Integer.MAX_VALUE;
+		this.max_association_gain = 0.0d;
+				
+		this.isProcessed = false;
+		
 		this.dataMap = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.isAssociated = false;
-		this.isProcessed = false;
-		
-		idtRank = new TreeSet();
-		lbRank = new TreeSet();
-		associationRank = new TreeSet();
 	}
 	
 	void populateServerSet(Cluster cluster, Transaction tr) {
@@ -99,7 +102,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
+	// Used for heuristic based algorithms
 	void populateMigrationList(Cluster cluster, WorkloadBatch wb) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
@@ -112,9 +115,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		// Get all possible N-permutations		
 		HashMap<Integer, HashSet<Integer>> dataMap;
 		
-		// Sets for preserving the ranks
-		idtRank.clear();;
-		lbRank.clear();;
+		idtGainRank = new TreeSet<Double>();
+		lbGainRank = new TreeSet<Double>();
 		
 		for (ICombinatoricsVector<Integer> permutations : permutationGen) {
 			HashSet<Integer> fromSet = new HashSet<Integer>();		
@@ -142,8 +144,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					m.idt_gain_per_data_mgr = getIdtGain(wb, this, m);						
 					m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);					
 					
-					idtRank.add(m.idt_gain_per_data_mgr);
-					lbRank.add(m.lb_gain_per_data_mgr);	
+					idtGainRank.add(m.idt_gain_per_data_mgr);
+					lbGainRank.add(m.lb_gain_per_data_mgr);	
 					
 					if(fromSet.size() > 1)
 						uniqueFromSet.put(fromSet, to);
@@ -152,11 +154,11 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		} // end-for(
 
 		// Get the maximum Idt and Lb gains for this transaction for normalization purpose
-		max_idt_reduction_improvement = (double) idtRank.last();
-		max_lb_improvement = (double) lbRank.last();
+		max_idt_reduction_improvement = idtGainRank.last();
+		max_lb_improvement = lbGainRank.last();
 		
 		// Sorting migration list
-		sortMigrationList();
+		sortMigrationPlanList();
 		
 		this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_data_mgr;
 		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
@@ -171,7 +173,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		}*/
 	}
 	
-	@SuppressWarnings("unchecked")
+	// Only used for heuristic based span reduction algorithm
 	void populateMigrationList(Cluster cluster, WorkloadBatch wb, int span_reduce) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
@@ -182,11 +184,9 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		HashMap<HashSet<Integer>, Integer> uniqueFromSet = new HashMap<HashSet<Integer>, Integer>();
 		
 		// Get all possible N-permutations		
-		HashMap<Integer, HashSet<Integer>> dataMap;
+		HashMap<Integer, HashSet<Integer>> dataMap;	
 		
-		// Sets for preserving the ranks
-		idtRank.clear();
-		lbRank.clear();
+		spanReductionGainRank = new TreeSet<Double>();
 		
 		for (ICombinatoricsVector<Integer> permutations : permutationGen) {
 			HashSet<Integer> fromSet = new HashSet<Integer>();		
@@ -208,33 +208,29 @@ public class SimpleTr implements Comparable<SimpleTr> {
 							req_data_mgr += this.dataMap.get(from).size();
 							dataMap.put(from, this.dataMap.get(from));
 						}
-					}
 					
-					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
-					this.migrationPlanList.add(m); // From Source Server
+						MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
+						this.migrationPlanList.add(m); // From Source Server
+						
+						m.span_reduction_per_data_mgr = getSpanReductionGain(wb, this, m);						
+						spanReductionGainRank.add(m.span_reduction_per_data_mgr);
+						
+						if(fromSet.size() > 1)
+							uniqueFromSet.put(fromSet, to);
 					
-					m.idt_gain_per_data_mgr = getIdtGain(wb, this, m);						
-					m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);					
-					
-					idtRank.add(m.idt_gain_per_data_mgr);
-					lbRank.add(m.lb_gain_per_data_mgr);	
-					
-					if(fromSet.size() > 1)
-						uniqueFromSet.put(fromSet, to);
+					} //end inner-if()
 				} //end-if()
 			} //end-if()	
 		} // end-for(
 
-		// Get the maximum Idt and Lb gains for this transaction for normalization purpose
-		max_idt_reduction_improvement = (double) idtRank.last();
-		max_lb_improvement = (double) lbRank.last();
+		// Get the maximum span reduction gain for this transaction for normalization purpose
+		max_span_reduction_improvement = spanReductionGainRank.last();
 		
 		// Sorting migration list
-		sortMigrationList();
+		sortMigrationPlanList();				
 		
-		this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_data_mgr;
-		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
+		this.max_span_reduction = this.migrationPlanList.get(0).dataMap.size();
 		
 		// Testing
 		/*System.out.println("-------------------------------------------------------------------------");
@@ -246,13 +242,12 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}	
 	
 	// Calculate the similarity/association of each transaction and the derived clusters
-	@SuppressWarnings("unchecked")
 	public void populateAssociationList(Cluster cluster, WorkloadBatch wb, 
 			HashMap<Integer, FCICluster> fci_clusters) {
 		
 		// Sets for preserving the ranks
-		associationRank.clear();
-		lbRank.clear();
+		associationRank = new TreeSet<Double>();
+		lbGainRank = new TreeSet<Double>();
 		
 		for(Entry<Integer, HashSet<Integer>> entry : this.dataMap.entrySet()) {
 			HashMap<Integer, HashSet<Integer>> dataMap;
@@ -276,19 +271,19 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			MigrationPlan m = new MigrationPlan(fromSet,to, dataMap, req_dmgr);
 			this.migrationPlanList.add(m); // From Source Server
 			
-			m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, req_dmgr);						
+			m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, m);						
 			m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);						
 						
 			associationRank.add(m.association_gain_per_data_mgr);
-			lbRank.add(m.lb_gain_per_data_mgr);			
+			lbGainRank.add(m.lb_gain_per_data_mgr);			
 		} //end-for()
 		
 		// Get the maximum Association and Lb gains for this transaction for normalization purpose
 		max_association_improvement = (double) associationRank.last();
-		max_lb_improvement = (double) lbRank.last();
+		max_lb_improvement = (double) lbGainRank.last();
 		
 		// Sort the migration list based on the given weight
-		sortMigrationList();
+		sortMigrationPlanList();
 				
 		this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_data_mgr;
 		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
@@ -304,13 +299,23 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		for(MigrationPlan m : this.migrationPlanList) {
 			System.out.println("\t"+m.toString());
 		}*/
-	}	
+	}
+	
+	// Returns the span reduction gain per data migration
+	static double getSpanReductionGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
+		int original_span = t.dataMap.size();
+		int expected_span = t.dataMap.size() - m.fromSet.size();
+		
+		int expected_span_reduction = original_span - expected_span;		
+		return ((double)expected_span_reduction/m.req_data_mgr);
+	}
 
 	// Returns the Idt gain per data movement 
 	static double getIdtGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
-		
-		double new_idt = (t.dataMap.size() - m.fromSet.size())*(1/t.period);		
-		double incident_idt = 0.0;			
+	
+		double original_idt = t.dataMap.size() * (1/t.period);
+		double expected_idt = (t.dataMap.size() - m.fromSet.size()) * (1/t.period);		
+		double expected_incident_idt = 0.0;			
 		
 		for(Entry<Integer, HashSet<Integer>> entry : t.dataMap.entrySet()) {
 			
@@ -324,7 +329,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					
 					if(incident_tr.getTr_id() != t.id) {
 						if(!unique_trSet.contains(incident_tr.getTr_id())) 
-							incident_idt += getIdt(incident_tr, m);						
+							expected_incident_idt += getExpectedIdtChange(incident_tr, m);						
 											
 						unique_trSet.add(incident_tr.getTr_id());
 					}
@@ -332,11 +337,15 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			}
 		}		
 						
-		return ((new_idt + incident_idt)/m.req_data_mgr);
+		// Calculate expected Idt change per data migration
+		double new_idt = expected_idt + expected_incident_idt;
+		double expected_idt_change = original_idt - new_idt;
+		
+		return ((double)expected_idt_change/m.req_data_mgr);
 	}
 	
 	// Returns the expected Idt for a Transaction if a data migration plan would have been executed
-	static double getIdt(Transaction tr, MigrationPlan m) {
+	static double getExpectedIdtChange(Transaction tr, MigrationPlan m) {
 		
 		double original_idt = tr.getTr_serverSet().size()*(1/tr.getTr_period());
 		
@@ -364,110 +373,145 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			}
 		}
 			
-		double new_idt = t.dataMap.size()*(1/t.period);
+		double expected_idt_change = t.dataMap.size()*(1/t.period);
 		
-		if(new_idt > original_idt)
-			new_idt *= -1;
+		if(expected_idt_change > original_idt)
+			expected_idt_change *= -1;
 		
 		// Return the expected Idt gain
-		return new_idt;
+		return expected_idt_change;
 	}
 	
 	// Returns the lb gain
-	static double getLbGain(Cluster cluster, SimpleTr t, MigrationPlan m) {		
-		DescriptiveStatistics new_server_data = new DescriptiveStatistics();
+	static double getLbGain(Cluster cluster, SimpleTr t, MigrationPlan m) {	
+
+		// Calculate original variance
+		DescriptiveStatistics original_server_data = new DescriptiveStatistics();
+
+		for(Server s : cluster.getServers()) {
+			if(t.dataMap.containsKey(s.getServer_id())) {
+				
+				if(m.fromSet.contains(s.getServer_id())) 
+					original_server_data.addValue(s.getServer_total_data());
+				
+				else if(m.to == s.getServer_id())
+					original_server_data.addValue(s.getServer_total_data());					
+			}
+		}						
+				
+		double original_variance = original_server_data.getVariance();
+		
+		// Calculate expected variance
+		DescriptiveStatistics expected_server_data = new DescriptiveStatistics();
 		
 		for(Server s : cluster.getServers()) {
 			if(t.dataMap.containsKey(s.getServer_id())) {
 				
 				if(m.fromSet.contains(s.getServer_id())) {
 					int data_count = s.getServer_total_data() - t.dataMap.get(s.getServer_id()).size();
-					new_server_data.addValue(data_count);
+					expected_server_data.addValue(data_count);
 					
 				} else if(m.to == s.getServer_id()) {
 					int data_count = s.getServer_total_data() + t.dataMap.get(s.getServer_id()).size();
-					new_server_data.addValue(data_count);
+					expected_server_data.addValue(data_count);
 				}
 			}
 		}
 
-		return (new_server_data.getVariance()/m.req_data_mgr);
+		// Calculate expected variance change per data migration
+		double expected_variance_change = original_variance - expected_server_data.getVariance(); 		
+		return ((double)expected_variance_change/m.req_data_mgr);
 	}	
 	
 	// Returns the association gain
 	private double getAssociationGain(HashMap<Integer, FCICluster> fci_clusters, 
-			Entry<Integer, HashSet<Integer>> entry, int req_dmgr) {
+			Entry<Integer, HashSet<Integer>> entry, MigrationPlan m) {
 		
-		double association = 0.0;
+		// Calculate association gain per data migration
+		double expected_association_gain = 0.0;
 		
 		if(fci_clusters.containsKey(entry.getKey())) {
 			double C_i = fci_clusters.get(entry.getKey()).fci.size();
 			double T_C_i = Sets.intersection(fci_clusters.get(entry.getKey()).fci, entry.getValue()).size();		
-			association = (double) (fci_clusters.get(entry.getKey()).weight * (T_C_i/C_i));
-			association /= req_dmgr;
+			expected_association_gain = (double) (fci_clusters.get(entry.getKey()).weight * (T_C_i/C_i));			
 		}
 			
-		return association;
+		return ((double)expected_association_gain/m.req_data_mgr);
 	}
 	
-	// Sorting migration lists
-	private void sortMigrationList() {
-		if(Global.idt_priority > Global.lb_priority) {
-			// Always take the one with maximum difference
-			// Sort in descending order
+	// Sorting migration plans
+	private void sortMigrationPlanList() {
+		if(Global.spanReduction) {
+			// Descending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
 					
-					double m1_left = 0.0;
-					double m2_left = 0.0;
-					
-					if(Global.associative) {
-						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-					} else {
-						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-					}
-					
-					m1.combined_weight = Math.abs(m1_left - (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);
-					m2.combined_weight = Math.abs(m2_left - (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority);					
+					m1.combined_weight = (m1.span_reduction_per_data_mgr/max_span_reduction_improvement) * m1.fromSet.size();
+					m2.combined_weight = (m2.span_reduction_per_data_mgr/max_span_reduction_improvement) * m2.fromSet.size();
 		            
 					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
 						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
 				}
 			});			
-		} else {
 			
-			/*If all are negative then take the largest one (sort in descending order)
-			If all are positive then take the smallest one (sort in ascending order)
-			If there is a mix of positives and negatives then take the one closest to zero*/
-			 			
-			// Sort in ascending order
+		} else {
+			// Sort in descending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
 					
-					double m1_left = 0.0;
-					double m2_left = 0.0;
+					double m1_left = 0.0d;
+					double m2_left = 0.0d;
 					
+					double m1_right = 0.0d;
+					double m2_right = 0.0d;
+					
+					// Calculations for left part (Association or Idt)				
 					if(Global.associative) {
-						m1_left = (m1.association_gain_per_data_mgr/max_association_improvement)*Global.idt_priority;
-						m2_left = (m2.association_gain_per_data_mgr/max_association_improvement)*Global.idt_priority;
+						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_improvement) * Global.idt_priority;
+						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_improvement) * Global.idt_priority;
+						
 					} else {
-						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
-						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement)*Global.idt_priority;
+						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_improvement) * Global.idt_priority;
+						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_improvement) * Global.idt_priority;
+						
+						if(m1.idt_gain_per_data_mgr < 0 && max_idt_reduction_improvement < 0)
+							m1_left *= -1;
+						if(m2.idt_gain_per_data_mgr < 0 && max_idt_reduction_improvement < 0)
+							m2_left *= -1;
 					}
 					
-					m1.combined_weight = m1_left - (m1.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority;
-					m2.combined_weight = m2_left - (m2.lb_gain_per_data_mgr/max_lb_improvement)*Global.lb_priority;
+					// Calculations for right part (Lb)
+					m1_right = (m1.lb_gain_per_data_mgr/max_lb_improvement) * Global.lb_priority;
+					m2_right = (m2.lb_gain_per_data_mgr/max_lb_improvement) * Global.lb_priority;
+					
+					if(m1.lb_gain_per_data_mgr < 0 && max_lb_improvement < 0)
+						m1_right *= -1;
+					if(m2.lb_gain_per_data_mgr < 0 && max_lb_improvement < 0)
+						m2_right *= -1;
+					
+					// Combining left and right parts
+					m1.combined_weight = m1_left + m1_right;					
+					m2.combined_weight = m2_left + m2_right;					
 					
 					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
 						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
 				}
-			});
-		}	
+			});				
+		} // end--outer if-else()	
 	}
+	
+	// Descending order
+	static Comparator<SimpleTr> by_MAX_SPAN_REDUCTION() {
+		return new Comparator<SimpleTr>() {
+			@Override
+			public int compare(SimpleTr t1, SimpleTr t2) {
+				return ((t1.max_span_reduction > t2.max_span_reduction) ? -1 : 
+					(t1.max_span_reduction < t2.max_span_reduction) ? 1 : 0);
+			}			
+		};
+	}	
 	
 	// Descending order
 	static Comparator<SimpleTr> by_MAX_IDT_REDUCTION_IMPROVEMENT() {
@@ -521,7 +565,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	
 	@Override
 	public String toString() {
-		return (">> T"+this.id+": Min required data migrations ("+this.min_data_mgr+") "
+		return (">> T"+this.id+": Min data migrations require ("+this.min_data_mgr+") "
+				+ "| Max span reduction ("+this.max_span_reduction+") "
 				+ "| Max Idt gain ("+this.max_idt_gain+") "
 				+ "| Max Association gain ("+this.max_association_gain+") "
 				+ "| Max Lb gain ("+this.max_lb_gain+") "

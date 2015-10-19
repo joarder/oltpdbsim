@@ -43,16 +43,23 @@ public class RBSTA {
 	public static HashMap<Integer, SimpleTr> tMap;
 	
 	// Populates a priority queue to keep the potential transactions 
-	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		if(Global.idt_priority >= Global.lb_priority)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
-		else
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());		
+	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
+		
+		if(Global.spanReduction) {
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION());
+			
+		} else {
+			if(Global.idt_priority >= Global.lb_priority)
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
+			else
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
+		}
 		
 		tMap = new HashMap<Integer, SimpleTr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
-			SimpleTr t = prepare(cluster, wb, h);			
+			SimpleTr t = prepare(cluster, wb, h);
+			
 			tMap.put(t.id, t);
 			
 			if(!t.isProcessed)
@@ -69,7 +76,7 @@ public class RBSTA {
 				
 		if(t.dataMap.size() > 1) {	 // DTs
 			if(Global.spanReduction)
-				t.populateMigrationList(cluster, wb, Global.spanReduce);
+				t.populateMigrationList(cluster, wb, Global.spanReduce);			
 			else
 				t.populateMigrationList(cluster, wb);
 		} else {						 // Movable non-DTs
@@ -77,7 +84,7 @@ public class RBSTA {
 			t.max_idt_gain = 0.0;
 			t.isProcessed = true;
 		}
-		
+				
 		return t;
 	}
 	

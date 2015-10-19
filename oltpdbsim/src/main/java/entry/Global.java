@@ -144,7 +144,11 @@ public final class Global {
 	public static boolean swordInitial = true;
 	
 	// For Analysis
-	public static boolean analysis;	
+	public static boolean analysis;
+	
+	// For dynamic partitioning 
+	public static boolean dynamicPartitioning;
+	public static int dynamicPartitions;
 		
 	public static String getRunDir() {
 		return ("run"+Global.repeatedRuns+Global.dir_sep);

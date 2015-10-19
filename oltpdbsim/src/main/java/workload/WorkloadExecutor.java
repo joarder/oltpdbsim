@@ -405,10 +405,11 @@ public class WorkloadExecutor {
 			wb.setIdt(currentIDt);
 			wb.calculateDTI(cluster);		
 			wb.calculateThroughput(Global.total_transactions);
-				
+			
 			Metric.collect(cluster, wb);			
 			Metric.report();
-			Metric.write();						
+			Metric.write();
+			Metric.reInitServerSet();
 			
 			// Reset each time	
 			wb.set_intra_dmv(0);
@@ -460,10 +461,17 @@ public class WorkloadExecutor {
 			
 			int k_clusters = 0;
 			
-			if(Global.associative)
+			if(Global.associative) {
 				k_clusters = cluster.getServers().size();
-			else
-				k_clusters = cluster.getPartitions().size();
+				
+			} else {
+				if(Global.dynamicPartitioning) {
+					k_clusters = Global.dynamicPartitions;
+					// Logics to be implemented in the upcoming version 4.5.1
+					
+				} else 
+					k_clusters = cluster.getPartitions().size();
+			}
 			
 			Global.LOGGER.info("Starting partitioner to repartition the workload into "+k_clusters+" clusters ...");	
 			
@@ -777,13 +785,13 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 							
-							// Added 17/10/2015
-							// Hourly statistic collection
-							WorkloadExecutor.collectHourlyStatistics(cluster, wb);
-							
 							if(Global.adaptive && Global.isAssociationRequired)
 								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
 						}
+					} else {						
+						// Added 17/10/2015
+						// Hourly statistic collection
+						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
 					}					
 					
 				} else { // 2. Static Repartitioning
@@ -860,8 +868,7 @@ class Arrival extends Event {
 				return true;
 			
 		} else 
-			Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");
-			
+			Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");			
 		
 		return false;
 	}

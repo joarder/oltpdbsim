@@ -158,6 +158,9 @@ public class ReadConfig {
 				Global.incrementalRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("incremental.repartitioning"));
 				Global.graphcutBasedRepartitioning = Boolean.parseBoolean((String) config_param.getProperty("graphcutbased.repartitioning"));
 				
+				Global.dynamicPartitioning = Boolean.parseBoolean((String) config_param.getProperty("dynamic.partitioning"));
+				Global.dynamicPartitions = Global.partitions; // Initialisation
+				
 				Global.repartStatic = Boolean.parseBoolean((String) config_param.getProperty("static.repartitioning"));
 				Global.repartHourly = Boolean.parseBoolean((String) config_param.getProperty("hourly.repartitioning"));
 				Global.repartThreshold = Boolean.parseBoolean((String) config_param.getProperty("threshold.repartitioning"));

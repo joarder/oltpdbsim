@@ -123,7 +123,7 @@ public class Metric {
 		
 		// Creating a metric file
 		file = new File(Global.metric_dir+"run"+Global.repeatedRuns+"/"
-				+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
+					+Global.simulation+"-s"+Global.servers+"-p"+Global.partitions+".out");
 		
 		prWriter = Utility.getPrintWriter(Global.metric_dir, file);		
 	}
@@ -379,7 +379,7 @@ public class Metric {
 		
 		++Metric.metricCollectionCycle;
 	}
-	
+		
 	public static void close() {
 		prWriter.close();
 	}

@@ -23,25 +23,37 @@ public class MigrationPlan {
 	public HashSet<Integer> fromSet;	// From Server's Ids (for 1, 2, 3,  ..., (N-1) span reductions)
 	public int to;		// To Server Id
 	public int req_data_mgr;
+	
+	public double span_reduction_per_data_mgr;
 	public double idt_gain_per_data_mgr;
-	public double association_gain_per_data_mgr;
 	public double lb_gain_per_data_mgr;
+	public double association_gain_per_data_mgr;	
+	
+	public double combined_weight;	
 	public HashMap<Integer, HashSet<Integer>> dataMap;	
-	public double combined_weight;
 	
 	public MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_data_mgr) {
 		this.fromSet = new HashSet<Integer>(fromSet);
 		this.to = to;
 		this.req_data_mgr = req_data_mgr;
+		
+		this.span_reduction_per_data_mgr = 0.0;
 		this.idt_gain_per_data_mgr = 0.0;
-		this.association_gain_per_data_mgr = 0.0;
 		this.lb_gain_per_data_mgr = 0.0;
-		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);
-		this.combined_weight = 0.0;
+		this.association_gain_per_data_mgr = 0.0;		
+		
+		this.combined_weight = 0.0;		
+		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);		
 	}	
 	
 	@Override
 	public String toString() {
-		return ("-- From("+this.fromSet+") | To("+this.to+") | Required DMs("+this.req_data_mgr+") | Idt gain("+this.idt_gain_per_data_mgr+") | Association gain("+this.association_gain_per_data_mgr+") | Lb gain("+this.lb_gain_per_data_mgr+") | Combined Weight ("+this.combined_weight+")");
+		return ("-- From("+this.fromSet+") | To("+this.to+") "
+				+ "| Required DMs("+this.req_data_mgr+") "
+					+ "| Span reduction gain("+this.span_reduction_per_data_mgr+") "
+						+ "| Idt gain("+this.idt_gain_per_data_mgr+") "								
+							+ "| Lb gain("+this.lb_gain_per_data_mgr+") "
+								+ "| Association gain("+this.association_gain_per_data_mgr+") "
+									+ "| Combined Weight ("+this.combined_weight+")");
 	}
 }
