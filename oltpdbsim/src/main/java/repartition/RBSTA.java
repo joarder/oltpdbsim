@@ -46,13 +46,13 @@ public class RBSTA {
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
 		
 		if(Global.spanReduction) {
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION());
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION_GAIN());
 			
 		} else {
 			if(Global.idt_priority >= Global.lb_priority)
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_IMPROVEMENT());
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_GAIN());
 			else
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());
+				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_GAIN());
 		}
 		
 		tMap = new HashMap<Integer, SimpleTr>();
@@ -79,7 +79,8 @@ public class RBSTA {
 				t.populateMigrationList(cluster, wb, Global.spanReduce);			
 			else
 				t.populateMigrationList(cluster, wb);
-		} else {						 // Movable non-DTs
+			
+		} else {					// Non-DTs
 			t.min_data_mgr = 0;
 			t.max_idt_gain = 0.0;
 			t.isProcessed = true;

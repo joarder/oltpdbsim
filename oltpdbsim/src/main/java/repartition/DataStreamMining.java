@@ -263,9 +263,9 @@ public class DataStreamMining {
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
 		if(Global.idt_priority >= Global.lb_priority)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_IMPROVEMENT());
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_GAIN());
 		else
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_IMPROVEMENT());		
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_GAIN());		
 		
 		tMap = new HashMap<Integer, SimpleTr>();
 				
