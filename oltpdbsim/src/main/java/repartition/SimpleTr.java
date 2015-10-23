@@ -424,7 +424,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	// Sorting migration plans
 	private void sortMigrationPlanList() {
 		if(Global.spanReduction) {
-			// Descending order
+			// Sort in descending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
@@ -439,7 +439,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			
 		} else {
 			if(Global.idt_priority >= Global.lb_priority) {
-				// Always take the one with maximum difference
+				// Case: All positives, all negatives, and mixed - always take the one with maximum difference [DSC]
 				// Sort in descending order
 				Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 					@Override
@@ -456,10 +456,10 @@ public class SimpleTr implements Comparable<SimpleTr> {
 							m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
 						}
 						
-						m1.combined_weight = Math.abs(m1_left
-								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority);
-						m2.combined_weight = Math.abs(m2_left
-								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority);					
+						m1.combined_weight = m1_left
+								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
+						m2.combined_weight = m2_left
+								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;					
 			            
 						return ((m1.combined_weight > m2.combined_weight) ? -1 : 
 							(m1.combined_weight < m2.combined_weight) ? 1 : 0);
@@ -467,11 +467,10 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				});			
 			} else {
 				/*
-				 * If all are negative then take the largest one (sort in descending order)
-				 * If all are positive then take the smallest one (sort in ascending order)
-				 * If there is a mix of positives and negatives then take the one closest to zero
+				 * Case-1: If all are negative then take the largest one (sort in descending order) [DSC]
+				 * Case-2: If all are positive then take the smallest one (sort in ascending order) [ABS-ASC]
+				 * Case-3: If there is a mix of positives and negatives then take the one closest to zero [ABS-ASC]
 				 */			
-				// Sort in ascending order
 				Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 					@Override
 					public int compare(MigrationPlan m1, MigrationPlan m2) {
@@ -487,13 +486,25 @@ public class SimpleTr implements Comparable<SimpleTr> {
 							m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
 						}
 						
-						m1.combined_weight = Math.abs(m1_left
-								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority);
-						m2.combined_weight = Math.abs(m2_left
-								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority);
+						m1.combined_weight = m1_left
+								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
+						m2.combined_weight = m2_left
+								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
 						
-						return ((m2.combined_weight > m1.combined_weight) ? -1 : 
-							(m2.combined_weight < m1.combined_weight) ? 1 : 0);
+						// Added on 23/10/2015
+						if(m1.combined_weight < 0 && m2.combined_weight < 0) { // Case-1
+							// Sort in descending order
+							return ((m1.combined_weight > m2.combined_weight) ? -1 : 
+								(m1.combined_weight < m2.combined_weight) ? 1 : 0);
+							
+						} else {	// Case-2 & 3
+							m1.combined_weight = Math.abs(m1.combined_weight);
+							m2.combined_weight = Math.abs(m2.combined_weight);
+						
+							// Sort in ascending order
+							return ((m2.combined_weight > m1.combined_weight) ? -1 : 
+								(m2.combined_weight < m1.combined_weight) ? 1 : 0);
+						}
 					}
 				});
 			}				
