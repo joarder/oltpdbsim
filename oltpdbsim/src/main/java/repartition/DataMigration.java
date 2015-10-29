@@ -288,9 +288,6 @@ public class DataMigration {
 			SimpleTr t = RBSTA.pq.poll();
 			MigrationPlan m = t.migrationPlanList.get(0);
 			
-			System.out.println("--> "+t.toString());
-			System.out.println("\t >> "+m.toString());
-			
 			// Check whether processing this transaction may increase the impact of any other already processed transactions
 			if(!RBSTA.isAffected(wb, t, m))
 				RBSTA.processTransaction(cluster, wb, t, m);

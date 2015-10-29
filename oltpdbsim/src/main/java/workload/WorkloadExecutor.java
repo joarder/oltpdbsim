@@ -126,8 +126,11 @@ public class WorkloadExecutor {
         
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
-		
-		uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
+
+		if(Global.uniqueEnabled)
+			uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
+		else
+			uniqueMax = Global.observationWindow;
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 

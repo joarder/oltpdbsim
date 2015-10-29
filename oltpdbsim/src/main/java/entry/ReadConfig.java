@@ -134,6 +134,7 @@ public class ReadConfig {
 			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("observation.window.size"));
 			Global.uniqueMaxFixed = Integer.parseInt((String) config_param.getProperty("unique.max.fixed"));
 			Global.expAvgWt = Double.parseDouble((String) config_param.getProperty("exponential.Avg.Weight"));
+			Global.uniqueEnabled = Boolean.parseBoolean((String) config_param.getProperty("unique.enable"));
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");
 			Global.LOGGER.info("Simulation name: "+Global.simulation);

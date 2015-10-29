@@ -94,6 +94,7 @@ public final class Global {
 	public static double expAvgWt; // Defines how far we need to look back while repeating transactions
 	public static int observationWindow;
 	public static int uniqueMaxFixed;
+	public static boolean uniqueEnabled;
 	
     // Workload mining
     public static int mining_serial = 0;
