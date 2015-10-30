@@ -52,7 +52,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	double max_span_reduction_gain; // Higher is better
 	double max_idt_gain; // Higher is better
 	double max_lb_gain; // Lower is better
-	double max_association_gain; // Higher is better	
+	double max_association_gain; // Higher is better
+	double max_combined_weight; // Higher is better
 	
 	boolean isProcessed;
 	
@@ -69,7 +70,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	
 	HashMap<Integer, HashSet<Integer>> dataMap;
 	public List<MigrationPlan> migrationPlanList;
-	public boolean isAssociated;
+	public boolean isAssociated;	
 	
 	SimpleTr(int id, double period) {
 		this.id = id;
@@ -82,6 +83,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.max_idt_gain = 0.0d;
 		this.max_lb_gain = Integer.MAX_VALUE;
 		this.max_association_gain = 0.0d;
+		this.max_combined_weight = 0.0d;
 				
 		this.isProcessed = false;
 		
@@ -165,7 +167,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		
 		this.max_idt_gain = this.migrationPlanList.get(0).idt_gain_per_data_mgr;
 		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
-		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
+		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;	
+		this.max_combined_weight = this.migrationPlanList.get(0).combined_weight;
 		
 		// Testing
 		/*System.out.println("-------------------------------------------------------------------------");
@@ -236,7 +239,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
 		this.max_span_reduction = this.migrationPlanList.get(0).dataMap.size();
-		this.max_span_reduction_gain = this.migrationPlanList.get(0).span_reduction_per_data_mgr;
+		this.max_span_reduction_gain = this.migrationPlanList.get(0).span_reduction_per_data_mgr;		
 		
 		// Testing
 		/*System.out.println("-------------------------------------------------------------------------");
@@ -294,6 +297,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.max_association_gain = this.migrationPlanList.get(0).association_gain_per_data_mgr;
 		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
+		this.max_combined_weight = this.migrationPlanList.get(0).combined_weight;
 				
 		if(this.max_association_gain > 0)
 			this.isAssociated = true;
@@ -437,79 +441,45 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				}
 			});			
 			
-		} else {
-			if(Global.idt_priority >= Global.lb_priority) {
-				// Case: All positives, all negatives, and mixed - always take the one with maximum difference [DSC]
-				// Sort in descending order
-				Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
-					@Override
-					public int compare(MigrationPlan m1, MigrationPlan m2) {
-						
-						double m1_left = 0.0;
-						double m2_left = 0.0;
-						
-						if(Global.associative) {
-							m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-							m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						} else {
-							m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-							m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						}
-						
-						m1.combined_weight = m1_left
-								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
-						m2.combined_weight = m2_left
-								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;					
-			            
-						return ((m1.combined_weight > m2.combined_weight) ? -1 : 
-							(m1.combined_weight < m2.combined_weight) ? 1 : 0);
+		} else {			
+			// Sort in descending order
+			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
+				@Override
+				public int compare(MigrationPlan m1, MigrationPlan m2) {
+					
+					double m1_left = 0.0d;
+					double m2_left = 0.0d;
+					
+					if(Global.associative) {
+						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
+						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
+					} else {
+						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
+						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
 					}
-				});			
-			} else {
-				/*
-				 * Case-1: If all are negative then take the largest one (sort in descending order) [DSC]
-				 * Case-2: If all are positive then take the smallest one (sort in ascending order) [ABS-ASC]
-				 * Case-3: If there is a mix of positives and negatives then take the one closest to zero [ABS-ASC]
-				 */			
-				Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
-					@Override
-					public int compare(MigrationPlan m1, MigrationPlan m2) {
-						
-						double m1_left = 0.0;
-						double m2_left = 0.0;
-						
-						if(Global.associative) {
-							m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-							m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						} else {
-							m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-							m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						}
-						
-						m1.combined_weight = m1_left
-								- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
-						m2.combined_weight = m2_left
-								- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
-						
-						// Added on 23/10/2015
-						if(m1.combined_weight < 0 && m2.combined_weight < 0) { // Case-1
-							// Sort in descending order
-							return ((m1.combined_weight > m2.combined_weight) ? -1 : 
-								(m1.combined_weight < m2.combined_weight) ? 1 : 0);
-							
-						} else {	// Case-2 & 3
-							m1.combined_weight = Math.abs(m1.combined_weight);
-							m2.combined_weight = Math.abs(m2.combined_weight);
-						
-							// Sort in ascending order
-							return ((m2.combined_weight > m1.combined_weight) ? -1 : 
-								(m2.combined_weight < m1.combined_weight) ? 1 : 0);
-						}
-					}
-				});
-			}				
-		} // end--outer if-else()	
+					
+					m1.combined_weight = m1_left
+							- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
+					m2.combined_weight = m2_left
+							- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;					
+		            
+					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
+						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
+				}
+			});
+		} 	
 	}
+	
+	// Descending order
+	static Comparator<SimpleTr> by_MAX_COMBINED_WEIGHT() {
+		return new Comparator<SimpleTr>() {
+			@Override
+			public int compare(SimpleTr t1, SimpleTr t2) {
+				return ((t1.max_combined_weight > t2.max_combined_weight) ? -1 : 
+					(t1.max_combined_weight < t2.max_combined_weight) ? 1 : 0);
+			}			
+		};
+	}	
 	
 	// Descending order
 	static Comparator<SimpleTr> by_MAX_SPAN_REDUCTION_GAIN() {

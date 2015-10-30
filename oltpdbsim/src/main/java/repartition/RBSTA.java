@@ -45,16 +45,12 @@ public class RBSTA {
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
 		
-		if(Global.spanReduction) {
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION_GAIN());
-			
-		} else {
-			if(Global.idt_priority >= Global.lb_priority)
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_IDT_REDUCTION_GAIN());
-			else
-				pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_GAIN());
-		}
+		if(Global.spanReduction)
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION_GAIN());			
+		else
+			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_COMBINED_WEIGHT());		
 		
+
 		tMap = new HashMap<Integer, SimpleTr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
