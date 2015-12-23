@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
@@ -68,7 +69,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	static TreeSet<Double> lbGainRank;
 	static TreeSet<Double> associationRank;
 	
-	HashMap<Integer, HashSet<Integer>> dataMap;
+	HashMap<Integer, HashSet<Integer>> serverDataSet;
 	public List<MigrationPlan> migrationPlanList;
 	public boolean isAssociated;	
 	
@@ -87,7 +88,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				
 		this.isProcessed = false;
 		
-		this.dataMap = new HashMap<Integer, HashSet<Integer>>();
+		this.serverDataSet = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.isAssociated = false;
 	}
@@ -97,12 +98,12 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			Data d = cluster.getData(d_id);			
 			int s_id = d.getData_server_id();
 			
-			if(this.dataMap.containsKey(s_id)) {
-				this.dataMap.get(s_id).add(d.getData_id());
+			if(this.serverDataSet.containsKey(s_id)) {
+				this.serverDataSet.get(s_id).add(d.getData_id());
 			} else {
 				HashSet<Integer> dataSet = new HashSet<Integer>();
 				dataSet.add(d.getData_id());
-				this.dataMap.put(s_id, dataSet);
+				this.serverDataSet.put(s_id, dataSet);
 			}
 		}
 	}
@@ -111,10 +112,10 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	void populateMigrationList(Cluster cluster, WorkloadBatch wb) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
-		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.dataMap.keySet());
+		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.serverDataSet.keySet());
 
 		// Create a simple permutation generator to generate N-permutations of the initial vector
-		Generator<Integer> permutationGen = Factory.createPermutationWithRepetitionGenerator(initialVector, this.dataMap.size());		
+		Generator<Integer> permutationGen = Factory.createPermutationWithRepetitionGenerator(initialVector, this.serverDataSet.size());		
 		HashMap<HashSet<Integer>, Integer> uniqueFromSet = new HashMap<HashSet<Integer>, Integer>();
 		
 		// Get all possible N-permutations		
@@ -135,25 +136,28 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				if(!uniqueFromSet.containsKey(fromSet)
 						|| (uniqueFromSet.containsKey(fromSet) && !uniqueFromSet.get(fromSet).equals(to))) {
 					
-					dataMap = new HashMap<Integer, HashSet<Integer>>();
-					int req_data_mgr = 0;
-					
-					for(int from : fromSet) {						
-						req_data_mgr += this.dataMap.get(from).size();
-						dataMap.put(from, this.dataMap.get(from));
-					}										
-					
-					MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
-					this.migrationPlanList.add(m); // From Source Server
-					
-					m.idt_gain_per_data_mgr = getIdtGain(wb, this, m);						
-					m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);					
-					
-					idtGainRank.add(m.idt_gain_per_data_mgr);
-					lbGainRank.add(m.lb_gain_per_data_mgr);	
-					
-					if(fromSet.size() > 1)
-						uniqueFromSet.put(fromSet, to);
+					if(fromSet.size() <= Global.spanReduce) {
+						
+						dataMap = new HashMap<Integer, HashSet<Integer>>();
+						int req_data_mgr = 0;
+						
+						for(int from : fromSet) {						
+							req_data_mgr += this.serverDataSet.get(from).size();
+							dataMap.put(from, this.serverDataSet.get(from));
+						}										
+						
+						MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
+						this.migrationPlanList.add(m); // From Source Server
+						
+						m.idt_gain_per_data_mgr = getIdtGain(wb, this, m);						
+						m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);					
+						
+						idtGainRank.add(m.idt_gain_per_data_mgr);
+						lbGainRank.add(m.lb_gain_per_data_mgr);	
+						
+						if(fromSet.size() > 1)
+							uniqueFromSet.put(fromSet, to);
+					}
 				} //end-if()
 			} //end-if()	
 		} // end-for(
@@ -180,13 +184,13 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}
 	
 	// Only used for heuristic based span reduction algorithm
-	void populateMigrationList(Cluster cluster, WorkloadBatch wb, int span_reduce) {
+/*	void populateMigrationList(Cluster cluster, WorkloadBatch wb, int span_reduce) {
 		// Based on: https://code.google.com/p/combinatoricslib/
 		// Create the initial vector
-		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.dataMap.keySet());
+		ICombinatoricsVector<Integer> initialVector = Factory.createVector(this.serverDataSet.keySet());
 
 		// Create a simple permutation generator to generate N-permutations of the initial vector
-		Generator<Integer> permutationGen = Factory.createPermutationWithRepetitionGenerator(initialVector, this.dataMap.size());		
+		Generator<Integer> permutationGen = Factory.createPermutationWithRepetitionGenerator(initialVector, this.serverDataSet.size());		
 		HashMap<HashSet<Integer>, Integer> uniqueFromSet = new HashMap<HashSet<Integer>, Integer>();
 		
 		// Get all possible N-permutations		
@@ -213,8 +217,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 						int req_data_mgr = 0;
 						
 						for(int from : fromSet) {						
-							req_data_mgr += this.dataMap.get(from).size();
-							dataMap.put(from, this.dataMap.get(from));
+							req_data_mgr += this.serverDataSet.get(from).size();
+							dataMap.put(from, this.serverDataSet.get(from));
 						}
 					
 						MigrationPlan m = new MigrationPlan(fromSet, to, dataMap, req_data_mgr);
@@ -238,17 +242,17 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		sortMigrationPlanList();				
 		
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
-		this.max_span_reduction = this.migrationPlanList.get(0).dataMap.size();
+		this.max_span_reduction = this.migrationPlanList.get(0).serverDataSet.size();
 		this.max_span_reduction_gain = this.migrationPlanList.get(0).span_reduction_per_data_mgr;		
 		
 		// Testing
-		/*System.out.println("-------------------------------------------------------------------------");
+		System.out.println("-------------------------------------------------------------------------");
 		System.out.println("Sorting based on combined ranking ...");
 		System.out.println("--> "+this.toString());
 		for(MigrationPlan m : this.migrationPlanList) {
 			System.out.println("\t"+m.toString());
-		}*/
-	}	
+		}
+	}*/	
 	
 	// Calculate the similarity/association of each transaction and the derived clusters
 	public void populateAssociationList(Cluster cluster, WorkloadBatch wb, 
@@ -258,14 +262,14 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		associationRank = new TreeSet<Double>();
 		lbGainRank = new TreeSet<Double>();
 		
-		for(Entry<Integer, HashSet<Integer>> entry : this.dataMap.entrySet()) {
+		for(Entry<Integer, HashSet<Integer>> entry : this.serverDataSet.entrySet()) {
 			HashMap<Integer, HashSet<Integer>> dataMap;
 			HashSet<Integer> fromSet = new HashSet<Integer>();			
 			int to = entry.getKey();
 			int req_dmgr = 0;
 			
 			// Get the 'from' server set 
-			for(int from : this.dataMap.keySet()) {
+			for(int from : this.serverDataSet.keySet()) {
 				if(from !=  to)
 					fromSet.add(from);
 			}
@@ -273,8 +277,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			dataMap = new HashMap<Integer, HashSet<Integer>>();
 			// Get the tuple id from the 'from' server set
 			for(int from : fromSet) {						
-				req_dmgr += this.dataMap.get(from).size();
-				dataMap.put(from, this.dataMap.get(from));
+				req_dmgr += this.serverDataSet.get(from).size();
+				dataMap.put(from, this.serverDataSet.get(from));
 			}
 			
 			MigrationPlan m = new MigrationPlan(fromSet,to, dataMap, req_dmgr);
@@ -312,21 +316,21 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}
 	
 	// Returns the span reduction gain per data migration
-	static double getSpanReductionGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
-		int original_span = t.dataMap.size();
-		int expected_span = t.dataMap.size() - m.fromSet.size();
+	/*static double getSpanReductionGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
+		int original_span = t.serverDataSet.size();
+		int expected_span = t.serverDataSet.size() - m.fromSet.size();
 		
 		int expected_span_reduction = original_span - expected_span;		
 		return ((double)expected_span_reduction/m.req_data_mgr);
-	}
+	}*/
 
 	// Returns the expected Idt gain per data migration 
 	static double getIdtGain(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
-			
-		double expected_idt = (t.dataMap.size() - m.fromSet.size()) * (1/t.period);		
-		double expected_incident_idt = 0.0;			
+					
+		int span_reduction = m.fromSet.size();
+		int incident_span_reduction = 0;			
 		
-		for(Entry<Integer, HashSet<Integer>> entry : t.dataMap.entrySet()) {
+		for(Entry<Integer, HashSet<Integer>> entry : t.serverDataSet.entrySet()) {
 			
 			HashSet<Integer> unique_trSet = new HashSet<Integer>();
 			
@@ -338,7 +342,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					
 					if(incident_tr.getTr_id() != t.id) {
 						if(!unique_trSet.contains(incident_tr.getTr_id())) 
-							expected_incident_idt += getExpectedIdtChange(incident_tr, m);						
+							incident_span_reduction += getIncidentSpanReduction(incident_tr, m);						
 											
 						unique_trSet.add(incident_tr.getTr_id());
 					}
@@ -346,68 +350,67 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			}
 		}		
 						
-		double expected_idt_gain = expected_idt + expected_incident_idt;	
-		return ((double)expected_idt_gain/m.req_data_mgr);
+		return ((double)(span_reduction + incident_span_reduction)/m.req_data_mgr); // Expected Net Improvement (ENI)			
 	}
 	
-	// Returns the expected Idt change for a Transaction if a data migration plan would have been executed
-	static double getExpectedIdtChange(Transaction tr, MigrationPlan m) {
+	// Returns the net span improvement for an incident transaction t for a migration plan m
+	static int getIncidentSpanReduction(Transaction j, MigrationPlan m) {
+		// Construct A -- for target transaction i
+		Set<Integer> delta_i_A = new HashSet<Integer>();
+		for(Integer s : m.fromSet)
+			delta_i_A.addAll(m.serverDataSet.get(s));				
+
+		// Construct B -- for incident transaction j
+		Set<Integer> delta_j_A = new HashSet<Integer>();		
+		for(Integer s : m.fromSet)
+			if(j.getTr_serverSet().containsKey(s))
+				delta_j_A.addAll(j.getTr_serverSet().get(s));				
 		
-		double original_idt = tr.getTr_serverSet().size()*(1/tr.getTr_period());
+		// Set difference, delta = delta_j_A \ delta_i_A
+		Set<Integer> delta = new HashSet<Integer>(delta_j_A);
+		delta.removeAll(delta_i_A);
 		
-		// Execute a dummy data migration plan to determine the expected server-span
-		SimpleTr t = new SimpleTr(tr.getTr_id(), tr.getTr_period());
-		for(Entry<Integer, HashSet<Integer>> entry : tr.getTr_serverSet().entrySet()) {
-			t.dataMap.put(entry.getKey(), entry.getValue());
-		}
+		HashSet<Integer> psi_delta = new HashSet<Integer>();
+		for(Entry<Integer, HashSet<Integer>> entry : j.getTr_serverSet().entrySet())
+			if(!Collections.disjoint(delta, entry.getValue())) // Returns true if the two specified collections have no elements in common.
+				psi_delta.add(entry.getKey());
 		
-		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
-			if(t.dataMap.containsKey(entry.getKey())) {
-				for(Integer d_id : entry.getValue()) {
-					if(t.dataMap.containsValue(d_id)) {
-						t.dataMap.get(entry.getKey()).remove(d_id);
-						
-						if(t.dataMap.containsKey(m.to))
-							t.dataMap.get(m.to).add(d_id);
-						else {
-							HashSet<Integer> dataSet = new HashSet<Integer>();
-							dataSet.add(d_id);
-							t.dataMap.put(m.to, dataSet);
-						}
-					}
-				}
-			}
-		}
-			
-		double expected_idt_change = t.dataMap.size()*(1/t.period);
+		// Calculate net span improvement for incident transaction t
+		int gain = m.fromSet.size() - psi_delta.size();
 		
-		if(expected_idt_change > original_idt)
-			expected_idt_change *= -1;
+		if(!j.getTr_serverSet().containsKey(m.to))
+			gain -= 1;
 		
-		// Return the expected Idt change
-		return expected_idt_change;
+		return gain;
 	}
 	
 	// Returns the expected load balance variance gain per data migration
 	static double getLbGain(Cluster cluster, SimpleTr t, MigrationPlan m) {	
 		
-		DescriptiveStatistics expected_server_data = new DescriptiveStatistics();
+		// Before migration
+		DescriptiveStatistics current_server_data = new DescriptiveStatistics();		
+		for(Server s : cluster.getServers())
+			if(t.serverDataSet.containsKey(s.getServer_id()))
+				current_server_data.addValue(s.getServer_total_data());
 		
+		// After migration		
+		DescriptiveStatistics expected_server_data = new DescriptiveStatistics();		
 		for(Server s : cluster.getServers()) {
-			if(t.dataMap.containsKey(s.getServer_id())) {
+			if(t.serverDataSet.containsKey(s.getServer_id())) {
 				
 				if(m.fromSet.contains(s.getServer_id())) {
-					int data_count = s.getServer_total_data() - t.dataMap.get(s.getServer_id()).size();
+					int data_count = s.getServer_total_data() - t.serverDataSet.get(s.getServer_id()).size();
 					expected_server_data.addValue(data_count);
 					
 				} else if(m.to == s.getServer_id()) {
-					int data_count = s.getServer_total_data() + t.dataMap.get(s.getServer_id()).size();
+					int data_count = s.getServer_total_data() + t.serverDataSet.get(s.getServer_id()).size();
 					expected_server_data.addValue(data_count);
 				}
 			}
 		}
- 		
-		return ((double)expected_server_data.getVariance()/m.req_data_mgr);
+		
+		double net_gain = current_server_data.getVariance() - expected_server_data.getVariance(); 		
+		return ((double)net_gain/m.req_data_mgr);
 	}	
 	
 	// Returns the expected association gain per data migration
@@ -427,7 +430,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	
 	// Sorting migration plans
 	private void sortMigrationPlanList() {
-		if(Global.spanReduction) {
+		/*if(Global.spanReduction) {
 			// Sort in descending order
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
@@ -441,8 +444,9 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				}
 			});			
 			
-		} else {			
+		} else {*/			
 			// Sort in descending order
+			// Higher the better
 			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
 				@Override
 				public int compare(MigrationPlan m1, MigrationPlan m2) {
@@ -467,7 +471,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
 				}
 			});
-		} 	
+		//} 	
 	}
 	
 	// Descending order
@@ -482,7 +486,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}	
 	
 	// Descending order
-	static Comparator<SimpleTr> by_MAX_SPAN_REDUCTION_GAIN() {
+	/*static Comparator<SimpleTr> by_MAX_SPAN_REDUCTION_GAIN() {
 		return new Comparator<SimpleTr>() {
 			@Override
 			public int compare(SimpleTr t1, SimpleTr t2) {
@@ -490,7 +494,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					(t1.max_span_reduction_gain < t2.max_span_reduction_gain) ? 1 : 0);
 			}			
 		};
-	}	
+	}	*/
 	
 	// Descending order
 	static Comparator<SimpleTr> by_MAX_IDT_REDUCTION_GAIN() {
@@ -549,6 +553,6 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					+ "| Max Idt gain ("+this.max_idt_gain+") "
 					+ "| Max Lb gain ("+this.max_lb_gain+") "
 						+ "| Max Association gain ("+this.max_association_gain+") "
-							+ "| "+this.dataMap);
+							+ "| "+this.serverDataSet);
 	}
 }

@@ -1,8 +1,8 @@
-simulation.name=C-T-HGR-MC-A-ARHC-IDT
+simulation.name=C-T-AARHC-TPCC-COM-0.5
 
 setup=consistenthash
 
-analysis = false
+analysis=false
 
 static.repartitioning=false
 hourly.repartitioning=false
@@ -14,6 +14,8 @@ workload.aware=true
 incremental.repartitioning=true
 graphcutbased.repartitioning=true
 
+dynamic.partitioning=false
+
 workload.representation=hgr
 
 stream.collection=true
@@ -22,7 +24,7 @@ stream.collector.size.factor=3
 associative=true
 adaptive=true
 
-transaction.classification=false
+transaction.classification=true
 transaction.classification.strategy=fcimining
 
 data.migration.strategy=improved_mc
@@ -32,8 +34,10 @@ compression.before.setup=false
 compression.ratio=6
 
 initial.servers=4
-server.capacity=100000
-fixed.partitions=32
+server.ssd=2
+server.ssd.capacity=40000
+fixed.partitions=64
+fixed.partition.capacity=100000
 number.of.replicas=1
 
 simulation.period=97200
@@ -47,9 +51,12 @@ adjustment=0.6
 observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4
+unique.enable=false
 
-span.reduction=1
-idt.priority=1.0
-lb.priority=0.0
+span.reduction=false
+span.reduce=1
+
+idt.priority=0.5
+lb.priority=0.5
 
 idt.threshold=0.5

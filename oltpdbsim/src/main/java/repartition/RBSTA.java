@@ -27,7 +27,7 @@ import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
-import main.java.entry.Global;
+//import main.java.entry.Global;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
@@ -45,9 +45,9 @@ public class RBSTA {
 	// Populates a priority queue to keep the potential transactions 
 	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
 		
-		if(Global.spanReduction)
+		/*if(Global.spanReduction)
 			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION_GAIN());			
-		else
+		else*/
 			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_COMBINED_WEIGHT());		
 		
 
@@ -70,10 +70,10 @@ public class RBSTA {
 
 		t.populateServerSet(cluster, tr);
 				
-		if(t.dataMap.size() > 1) {	 // DTs
-			if(Global.spanReduction)
-				t.populateMigrationList(cluster, wb, Global.spanReduce);			
-			else
+		if(t.serverDataSet.size() > 1) {	 // DTs
+			//if(Global.spanReduction)
+				//t.populateMigrationList(cluster, wb, Global.spanReduce);			
+			//else
 				t.populateMigrationList(cluster, wb);
 			
 		} else {					// Non-DTs
@@ -88,7 +88,7 @@ public class RBSTA {
 	// Checks whether processing current transaction affect any other transaction adversely
 	public static boolean isAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
 		// Search the incident transactions for the targeted data rows to be moved
-		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
+		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
 			for(int d : entry.getValue()) {
 				SimpleVertex v = wb.hgr.getVertex(d);
 				
@@ -96,7 +96,7 @@ public class RBSTA {
 					SimpleTr incidentT = tMap.get(h.getId());				
 					
 					if(!incidentT.equals(t) && incidentT.isProcessed) {					
-						if(incidentT.dataMap.containsKey(m.to)) { // Either no change or potential reduction in the impact  
+						if(incidentT.serverDataSet.containsKey(m.to)) { // Either no change or potential reduction in the impact  
 							return false;
 						} else { // Destination server is not covered by the incident transaction						
 							if(!isContainsAll(incidentT, m)) // Either no change or potential reduction in the impact
@@ -117,8 +117,8 @@ public class RBSTA {
 		boolean contains = false;
 		
 		for(int s_id : m.fromSet) {
-			if(incidentT.dataMap.containsKey(s_id))
-				if(incidentT.dataMap.get(s_id).containsAll(m.dataMap.get(s_id)))
+			if(incidentT.serverDataSet.containsKey(s_id))
+				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
 					contains = true;
 		}
 		
@@ -131,19 +131,19 @@ public class RBSTA {
 	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
 						
 		// Data migrations
-		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.dataMap);			
+		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.serverDataSet);			
 		dataMigration(cluster, m.to, dataMap);
 		
 		// Adjust transaction's serverSet				
 		for(int s_id : m.fromSet) {
-			for(int d : t.dataMap.get(s_id))
-				t.dataMap.get(m.to).add(d);			
+			for(int d : t.serverDataSet.get(s_id))
+				t.serverDataSet.get(m.to).add(d);			
 			
-			t.dataMap.remove(s_id);
+			t.serverDataSet.remove(s_id);
 		}
 		
 		// Update incident transactions
-		for(Entry<Integer, HashSet<Integer>> entry : m.dataMap.entrySet()) {
+		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
 			for(int d : entry.getValue()) {
 				SimpleVertex v = wb.hgr.getVertex(d);
 				
@@ -159,7 +159,7 @@ public class RBSTA {
 						tMap.put(new_incidentT.id, new_incidentT);				
 						
 						 // Only DTs will be added back after recalculations
-						if(new_incidentT.dataMap.size() > 1)				
+						if(new_incidentT.serverDataSet.size() > 1)				
 							pq.add(tMap.get(new_incidentT.id));						
 					}
 				}

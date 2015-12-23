@@ -70,6 +70,9 @@ public class Metric {
 	public static ArrayList<Double> sd_pairwise_inter_server_data_mgr;
 	public static ArrayList<Integer> estimated_data_mgr;
 	
+	// New -- computational time
+	public static ArrayList<Long> repartitioning_time;
+	
 	public static ArrayList<Integer> current_tr;
 	public static ArrayList<Integer> current_dt;
 	public static ArrayList<Integer> current_ndt;
@@ -107,11 +110,14 @@ public class Metric {
 		inter_server_data_mgr = new ArrayList<Integer>();
 		intra_server_data_mgr = new ArrayList<Integer>();		
 				
-		// new -- mutually exclusive server sets
+		// New -- mutually exclusive server sets
 		mutually_exclusive_serverSets = new HashMap<Pair<Integer, Integer>, Integer>();
 		mean_pairwise_inter_server_data_mgr = new ArrayList<Double>();
 		sd_pairwise_inter_server_data_mgr = new ArrayList<Double>();
 		estimated_data_mgr = new ArrayList<Integer>();
+		
+		// New -- computational time
+		repartitioning_time = new ArrayList<Long>();
 		
 		current_tr = new ArrayList<Integer>();
 		current_dt = new ArrayList<Integer>();
@@ -128,7 +134,8 @@ public class Metric {
 		prWriter = Utility.getPrintWriter(Global.metric_dir, file);		
 	}
 	
-	public static void initServerSet(Cluster cluster) {		
+	public static void initServerSet(Cluster cluster) {
+		
 		ICombinatoricsVector<Integer> initialVector = Factory.createVector(cluster.getServerSet());		
 		Generator<Integer> gen = Factory.createSimpleCombinationGenerator(initialVector, 2);
 		
@@ -177,6 +184,8 @@ public class Metric {
 		
 		getServerStatistic(cluster);
 		getPartitionStatistic(cluster);
+		
+		repartitioning_time.add(wb.get_repartitioning_time());
 	}
 	
 	// Returns the Coefficient of Variance on server data
@@ -326,7 +335,7 @@ public class Metric {
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Intra-server data movements: "+intra_server_data_mgr);
 		Global.LOGGER.info("Inter-server data movements: "+inter_server_data_mgr);
-		Global.LOGGER.info("Total data count: "+total_data);
+		Global.LOGGER.info("Total data count: "+total_data);			
 		//Global.LOGGER.info("*****************************************************************************");		
 	}
 
@@ -361,7 +370,8 @@ public class Metric {
 			prWriter.append(total_data.get(index)+" ");
 			prWriter.append(mean_pairwise_inter_server_data_mgr.get(index)+" ");
 			prWriter.append(sd_pairwise_inter_server_data_mgr.get(index)+" ");
-			prWriter.append(estimated_data_mgr.get(index)+"\n");
+			prWriter.append(estimated_data_mgr.get(index)+" ");
+			prWriter.append(repartitioning_time.get(index)+"\n");
 			
 			/*prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");

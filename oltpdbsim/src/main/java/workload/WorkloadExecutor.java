@@ -238,7 +238,10 @@ public class WorkloadExecutor {
 			double prev_time = Time.get(tr.getTr_id());
 			
 		    double new_period = prev_period * Global.expAvgWt 
-		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt);
+		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt); 	// Need to check according to the formula
+		    
+		    /*double new_period = prev_period * Global.expAvgWt 
+		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt);*/		    
 		    
 		    perfm.Period.remove(tr.getTr_id());
 		    perfm.Period.put(tr.getTr_id(), new_period);
@@ -417,6 +420,7 @@ public class WorkloadExecutor {
 			// Reset each time	
 			wb.set_intra_dmv(0);
 			wb.set_inter_dmv(0);
+			wb.set_repartitioning_time(0);			
 			
 			for(Server s : cluster.getServers()) { 
 				s.setServer_inflow(0);
@@ -448,19 +452,20 @@ public class WorkloadExecutor {
 		}
 	}
 	
-	public static void runRepartitioner(Cluster cluster, WorkloadBatch wb) {
+	public static boolean runRepartitioner(Cluster cluster, WorkloadBatch wb) {
 		// Generate workload file
-		boolean empty = false;
+		boolean isWrlFileEmpty = false;
+		boolean isPartFileProcessed = false;
 		
 		if(!Global.associative) {
 			try {
-				empty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
+				isWrlFileEmpty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 		
-		if(!empty) {
+		if(!isWrlFileEmpty) {
 			
 			int k_clusters = 0;
 			
@@ -485,24 +490,28 @@ public class WorkloadExecutor {
 			Global.LOGGER.info("Applying data migration strategy ...");
 			
 			try {
-				WorkloadBatchProcessor.processPartFile(cluster, wb, k_clusters);
+				isPartFileProcessed = WorkloadBatchProcessor.processPartFile(cluster, wb, k_clusters);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			
 			WorkloadExecutor.noChangeIsRequired = false;
-			
-		} else {			
+		} 
+		
+		if(isWrlFileEmpty || !isPartFileProcessed) {			
 			// Update server-level load statistic and show
 			cluster.updateLoad();								
 			//cluster.show();
 			
 			WorkloadExecutor.noChangeIsRequired = true;
+			isPartFileProcessed = true;
 			
 			Global.LOGGER.info("No changes are required !!!");
 			Global.LOGGER.info("Repartitioning run aborting ...");
-			Global.LOGGER.info("=======================================================================================================================");
+			Global.LOGGER.info("=======================================================================================================================");		
 		}
+		
+		return isPartFileProcessed;
 	}
 	
 	public static void startRepartitioning(Cluster cluster, WorkloadBatch wb) {
@@ -512,6 +521,8 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());												
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Starting database repartitioning ...");
+		
+		long start_time = System.currentTimeMillis();
 		
 		if(!Global.dataMigrationStrategy.equals("rbpta")) {						
 			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
@@ -549,13 +560,20 @@ public class WorkloadExecutor {
 						+wb.hgr.getVertexCount()+" data tuples have identified for repartitioning.");
 				Global.LOGGER.info("-----------------------------------------------------------------------------");
 		
+				boolean isRepartCompleted = false;
 				if(Global.graphcutBasedRepartitioning || Global.swordInitial)
-					WorkloadExecutor.runRepartitioner(cluster, wb);
+					isRepartCompleted = WorkloadExecutor.runRepartitioner(cluster, wb);
+				else
+					isRepartCompleted = true;
 								
 				// Perform data migrations
-				DataMigration.performDataMigration(cluster, wb);
+				if(isRepartCompleted)
+					DataMigration.performDataMigration(cluster, wb);
 			}
 		}
+		
+		long end_time = System.currentTimeMillis();
+		wb.set_repartitioning_time(end_time - start_time);
 	}
 	
 	static boolean beginning = true;

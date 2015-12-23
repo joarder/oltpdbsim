@@ -451,7 +451,8 @@ public class WorkloadBatchProcessor {
 		}		
 	}
 	
-	public static void processPartFile(Cluster cluster, WorkloadBatch wb, int partition_numbers) 
+	// Returns true if the graph-cut libraries failed to partition the graph file
+	public static boolean processPartFile(Cluster cluster, WorkloadBatch wb, int partition_numbers) 
 			throws IOException {
 		
 		Map<Integer, Integer> keyMap = new HashMap<Integer, Integer>();		
@@ -463,24 +464,30 @@ public class WorkloadBatchProcessor {
 			
 		File part_file = new File(Global.part_dir+Global.getRunDir()+part_file_name);
 		
-		int key = 1;		
-		//System.out.println("@ - "+part_file_name);
-		Scanner scanner = new Scanner(part_file);
-		try {
-			while(scanner.hasNextLine()) {
-				int cluster_id = Integer.valueOf(scanner.nextLine());								
-				keyMap.put(key, cluster_id);	
-				//System.out.println("@debug >> key: "+key+" | Cluster: "+cluster_id);				
-				++key;
-			}						
-		} finally {
-			scanner.close();
-		}					
+		if(part_file.exists()) {
+			int key = 1;		
+			//System.out.println("@ - "+part_file_name);
+			Scanner scanner = new Scanner(part_file);
+			try {
+				while(scanner.hasNextLine()) {
+					int cluster_id = Integer.valueOf(scanner.nextLine());								
+					keyMap.put(key, cluster_id);	
+					//System.out.println("@debug >> key: "+key+" | Cluster: "+cluster_id);				
+					++key;
+				}						
+			} finally {
+				scanner.close();
+			}					
+			
+			if(Global.associative)
+				WorkloadBatchProcessor.processClusterElements(cluster, wb, Global.dsm.hgr, keyMap);
+			else
+				WorkloadBatchProcessor.processClusterElements(cluster, wb, wb.hgr, keyMap);
+			
+			return true;
+		}
 		
-		if(Global.associative)
-			WorkloadBatchProcessor.processClusterElements(cluster, wb, Global.dsm.hgr, keyMap);
-		else
-			WorkloadBatchProcessor.processClusterElements(cluster, wb, wb.hgr, keyMap);
+		return false;
 	}
 	
 	private static void processClusterElements(Cluster cluster, WorkloadBatch wb, 

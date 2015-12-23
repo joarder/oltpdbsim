@@ -76,8 +76,7 @@ public class WorkloadBatch {
 	private double _percentage_ndt;
 	private int _intra_dmv;
 	private int _inter_dmv;
-	private double _percentage_intra_dmv;
-	private double _percentage_inter_dmv;
+	private long _repartitioning_time;
 	
 	public WorkloadBatch(int id) {
 		this.setWrl_id(id);		
@@ -260,20 +259,12 @@ public class WorkloadBatch {
 		this._inter_dmv = wrl_inter_dmv;
 	}
 
-	public double get_percentage_intra_dmv() {
-		return _percentage_intra_dmv;
+	public long get_repartitioning_time() {
+		return _repartitioning_time;
 	}
 
-	public void set_percentage_intra_dmv(double wrl_percentage_intra_dmv) {
-		this._percentage_intra_dmv = wrl_percentage_intra_dmv;
-	}
-
-	public double get_percentage_inter_dmv() {
-		return _percentage_inter_dmv;
-	}
-
-	public void set_percentage_inter_dmv(double wrl_percentage_inter_dmv) {
-		this._percentage_inter_dmv = wrl_percentage_inter_dmv;
+	public void set_repartitioning_time(long _repartitioning_time) {
+		this._repartitioning_time = _repartitioning_time;
 	}
 
 	public Map<Integer, Integer> getWrl_dataId_clusterId_map() {

@@ -30,7 +30,7 @@ public class MigrationPlan {
 	public double association_gain_per_data_mgr;	
 	
 	public double combined_weight;	
-	public HashMap<Integer, HashSet<Integer>> dataMap;	
+	public HashMap<Integer, HashSet<Integer>> serverDataSet;	
 	
 	public MigrationPlan(HashSet<Integer> fromSet, int to, HashMap<Integer, HashSet<Integer>> dataMap, int req_data_mgr) {
 		this.fromSet = new HashSet<Integer>(fromSet);
@@ -43,7 +43,7 @@ public class MigrationPlan {
 		this.association_gain_per_data_mgr = 0.0;		
 		
 		this.combined_weight = 0.0;		
-		this.dataMap = new HashMap<Integer, HashSet<Integer>>(dataMap);		
+		this.serverDataSet = new HashMap<Integer, HashSet<Integer>>(dataMap);		
 	}	
 	
 	@Override
