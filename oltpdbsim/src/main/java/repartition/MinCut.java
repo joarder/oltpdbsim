@@ -28,51 +28,38 @@ import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.WorkloadBatch;
 
-public class MinCut {
-
-	// gpmets GraphFile Nparts
-	// khmetis HGraphFile Nparts UBfactor Nruns CType OType Vcycle dbglvl
-		
+public class MinCut {		
 	private static ArrayList<String> getArgList(WorkloadBatch wb, int partitions) {
 		ArrayList<String> arg_list = new ArrayList<String>();
 		
 		switch(Global.workloadRepresentation) {
-			case "gr":
-				
-				// Graph clustering parameters				
+			case "gr": // GR and CGR				
+				// Graph clustering parameters
+				// gpmets GraphFile Nparts
 				if(Utility.isWindows()) {
 		        	arg_list.add("cmd");
 					arg_list.add("/c");
-		        	arg_list.add(Global.metis_dir+Global.metis_gr_exec);
-		        }
+				}
 		        
-		        if(Utility.isUnix()) {		        	
-		        	arg_list.add(Global.metis_dir+Global.metis_gr_exec);
-		        }
-		        
+				arg_list.add(Global.metis_dir+Global.metis_gr_exec);		        
 		        arg_list.add(wb.getWrl_file_name());				// Workload file
 				arg_list.add(Integer.toString(partitions));			// Nparts
 				
 				//if(Global.compressionEnabled)
-					//arg_list.add("-ptype=rb");						// ptype -- Multilevel recursive bisectioning. Default is kway -- Multilevel k-way partitioning	
+					//arg_list.add("-ptype=rb");					// ptype -- Multilevel recursive bisectioning. Default is kway -- Multilevel k-way partitioning	
 	        	
 				break;
 				 
-			default: // "hgr" and "chg"
-				
+			default: // HR and CHR				
 				// Hypergraph clustering parameters
+				// khmetis HGraphFile Nparts UBfactor Nruns CType OType Vcycle dbglvl
 		        if(Utility.isWindows()) {
 		        	arg_list.add("cmd");
 					arg_list.add("/c");
-		        	arg_list.add(Global.metis_dir+Global.metis_hgr_exec);
 		        }
 		        
-		        if(Utility.isUnix()) {
-		        	arg_list.add(Global.metis_dir+Global.metis_hgr_exec);
-		        }
-		        
+		        arg_list.add(Global.metis_dir+Global.metis_hgr_exec);
 				arg_list.add(wb.getWrl_file_name());				// Workload file
-				//arg_list.add(wb.getWrl_fixfile_name());			// Fixfile
 				arg_list.add(Integer.toString(partitions));			// Nparts
 				arg_list.add("5");									// UBfactor(>=5)
 				arg_list.add("20");									// Nruns(>=1)
@@ -88,11 +75,10 @@ public class MinCut {
 	}
 	
 	public static void runMinCut(WorkloadBatch wb, int partitions, boolean waitForResponse) {		
-		long startTime = 0;
+		long startTime = System.currentTimeMillis();
 		long duration = 0;
 		String response = "";
 		
-		startTime = System.currentTimeMillis();
 		Global.LOGGER.info("Clustering workload file ...");
 		
 		// Get corresponding argument list
@@ -133,7 +119,7 @@ public class MinCut {
 	* produce the string.
 	*/
 	 
-	public static String convertStreamToStr(InputStream is) throws IOException {	 
+	static String convertStreamToStr(InputStream is) throws IOException {	 
 		if (is != null) {			
 			Writer writer = new StringWriter();			 
 			char[] buffer = new char[1024];

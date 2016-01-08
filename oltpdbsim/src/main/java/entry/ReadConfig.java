@@ -130,7 +130,7 @@ public class ReadConfig {
 			Global.meanServiceTime = Double.parseDouble((String) config_param.getProperty("inverse.of.mean.service.time"));
 			
 			Global.percentageChangeInWorkload = Double.parseDouble((String) config_param.getProperty("percentage.change.in.workload"));
-			Global.adjustment = Double.parseDouble((String) config_param.getProperty("adjustment"));			
+			//Global.adjustment = Double.parseDouble((String) config_param.getProperty("adjustment"));			
 			Global.observationWindow = Integer.parseInt((String) config_param.getProperty("observation.window.size"));
 			Global.uniqueMaxFixed = Integer.parseInt((String) config_param.getProperty("unique.max.fixed"));
 			Global.expAvgWt = Double.parseDouble((String) config_param.getProperty("exponential.Avg.Weight"));
@@ -145,9 +145,7 @@ public class ReadConfig {
 	    	Global.LOGGER.info("Mean inter Transaction arrival time: "+Global.meanInterArrivalTime);
 	    	Global.LOGGER.info("Mean Transaction service time: "+Global.meanServiceTime);			
 						
-			// Read configuration parameters			
-			Global.analysis = Boolean.parseBoolean((String) config_param.getProperty("analysis"));
-			Global.workloadVariation = Boolean.parseBoolean((String) config_param.getProperty("workload.variation"));
+			// Read configuration parameters
 			Global.workloadAware = Boolean.parseBoolean((String) config_param.getProperty("workload.aware"));
 			Global.workloadRepresentation = (String) config_param.getProperty("workload.representation");
 			

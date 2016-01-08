@@ -90,7 +90,7 @@ public final class Global {
     public static double meanServiceTime;
     
 	public static double percentageChangeInWorkload;
-	public static double adjustment;
+	//public static double adjustment;
 	public static double expAvgWt; // Defines how far we need to look back while repeating transactions
 	public static int observationWindow;
 	public static int uniqueMaxFixed;
@@ -109,8 +109,7 @@ public final class Global {
     
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)
-    
-    public static boolean workloadVariation;
+        
     public static boolean workloadAware; // true/false
     public static boolean incrementalRepartitioning; // true/false
 	public static boolean graphcutBasedRepartitioning; // true/false

@@ -34,7 +34,6 @@ package main.java.workload;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -52,7 +51,6 @@ import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
-import main.java.repartition.Analysis;
 import main.java.repartition.DataMigration;
 import main.java.repartition.DataStreamMining;
 import main.java.repartition.MinCut;
@@ -91,13 +89,9 @@ public class WorkloadExecutor {
     static boolean noChangeIsRequired = false;
     static boolean repartitioningCoolingOff = false;
     public static boolean isAdaptive = false;
-    
-	static int uniqueMax;	
+    		
 	static double nextStatCollection = Global.observationWindow;
 	static double nextHourlyRepartition = Global.warmupPeriod;
-	
-	static boolean varyWorkload = false;
-	static double nextWorkloadVariation = Global.warmupPeriod + 2*Global.observationWindow;
 	
 // New improvements------------------------------------------------------------------------------
 	static ArrayList<Integer> T = new ArrayList<Integer>();
@@ -116,6 +110,15 @@ public class WorkloadExecutor {
 	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
 	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
 	
+	// Workload generation
+	static int W = 0;
+	static int uNmax = 0;
+	static int uNmaxT = 0;
+	static double R = 1;
+	static double p = 0.0;	
+	static double eta = 0.0;
+	static double q = 2.0;	
+	
     public WorkloadExecutor() {
         
         MRG32k3a rand = new MRG32k3a();                
@@ -127,17 +130,18 @@ public class WorkloadExecutor {
         genArr = new ExponentialGen(rand, Global.meanInterArrivalTime); // mean inter arrival rate = 1/lambda        
 		genServ = new ExponentialGen(rand, Global.meanServiceTime); // mean service time = 1/mu
 
+		uNmaxT = Global.uniqueMaxFixed;
+		W = Global.observationWindow;
+		eta = R*W*p;
+		
 		if(Global.uniqueEnabled)
-			uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
+			uNmax = Math.max(1, (int) (uNmaxT*(1 - Math.pow((eta/uNmaxT),q))));
 		else
-			uniqueMax = Global.observationWindow;
+			uNmax = W;
     }
 	
 	public static Transaction streamOneTransaction(Database db, Cluster cluster, 
 			Workload wrl, WorkloadBatch wb) {
-
-		if(varyWorkload)
-			varyWorkload();
 		
 		Set<Integer> trTupleSet = null;
 		Set<Integer> trDataSet = null;
@@ -175,10 +179,10 @@ public class WorkloadExecutor {
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
 			
 // New improvements------------------------------------------------------------------------------
-			double initial_period = (double) WorkloadExecutor.uniqueMax;
-			perfm.Period.put(tr.getTr_id(), initial_period);	
+			double initial_period = (double) WorkloadExecutor.uNmax; // initialisation			
 			tr.setTr_period(initial_period);
 			
+			perfm.Period.put(tr.getTr_id(), initial_period);
 			Time.put(tr.getTr_id(), Sim.time());
 
 		// Transaction repetition and retention of old transaction
@@ -191,7 +195,7 @@ public class WorkloadExecutor {
 			TreeMap<Integer, Integer> idx2 = new TreeMap<Integer, Integer>(new ValueComparator<Integer>(idx));
 			idx2.putAll(idx);			
 			
-			min = Math.min(idx.size(), Global.uniqueMaxFixed);
+			min = Math.min(idx.size(), uNmax); // uNmax or uNmaxT
 			
 			i = 0;
 			Iterator<Entry<Integer, Integer>> itr = idx2.entrySet().iterator();
@@ -236,17 +240,15 @@ public class WorkloadExecutor {
 // New improvements------------------------------------------------------------------------------
 			double prev_period = perfm.Period.get(tr.getTr_id());			
 			double prev_time = Time.get(tr.getTr_id());
-			
-		    double new_period = prev_period * Global.expAvgWt 
-		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt); 	// Need to check according to the formula
 		    
-		    /*double new_period = prev_period * Global.expAvgWt 
-		    		+ (Sim.time() - prev_time) * (1 - Global.expAvgWt);*/		    
+		    double new_period = Global.expAvgWt * prev_period 
+		    		+ (1 - Global.expAvgWt) * (Sim.time() - prev_time);		    
+		    
+		    tr.setTr_period(new_period);
 		    
 		    perfm.Period.remove(tr.getTr_id());
 		    perfm.Period.put(tr.getTr_id(), new_period);
-		    tr.setTr_period(new_period);
-		    
+		    		    
 		    Time.remove(tr.getTr_id());		
 		    Time.put(tr.getTr_id(), Sim.time());
 		    
@@ -441,10 +443,6 @@ public class WorkloadExecutor {
 		
 		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {				
 			Global.LOGGER.info("<-- Hourly Statistics -->");			
-			
-			if(Global.analysis && !WorkloadExecutor.warmingUp)
-				Analysis.analyse(wb, perfm);
-			
 			WorkloadExecutor.collectStatistics(cluster, wb);
 			
 			// Always schedule an hourly collection
@@ -475,7 +473,7 @@ public class WorkloadExecutor {
 			} else {
 				if(Global.dynamicPartitioning) {
 					k_clusters = Global.dynamicPartitions;
-					// Logics to be implemented in the upcoming version 4.5.1
+					// Logics to be implemented in the future
 					
 				} else 
 					k_clusters = cluster.getPartitions().size();
@@ -515,14 +513,14 @@ public class WorkloadExecutor {
 	}
 	
 	public static void startRepartitioning(Cluster cluster, WorkloadBatch wb) {
+		long start_time = System.currentTimeMillis();
+		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
 		Global.LOGGER.info("Total transactions processed so far: "+Global.total_transactions);
 		Global.LOGGER.info("Total unique transactions processed so far: "+Global.global_trSeq);
 		Global.LOGGER.info("Total unique transactions in the current observation window: "+wb.get_tr_nums());												
 		Global.LOGGER.info("-----------------------------------------------------------------------------");
-		Global.LOGGER.info("Starting database repartitioning ...");
-		
-		long start_time = System.currentTimeMillis();
+		Global.LOGGER.info("Starting database repartitioning ...");	
 		
 		if(!Global.dataMigrationStrategy.equals("rbpta")) {						
 			//Perform Data Stream Mining to find the transactions containing Distributed Semi-Frequent Closed Itemsets (tuples)
@@ -572,94 +570,9 @@ public class WorkloadExecutor {
 			}
 		}
 		
-		long end_time = System.currentTimeMillis();
-		wb.set_repartitioning_time(end_time - start_time);
+		// Record repartitioning time in milliseconds
+		wb.set_repartitioning_time(System.currentTimeMillis() - start_time);
 	}
-	
-	static boolean beginning = true;
-	static boolean firstArrival1 = false;
-	static boolean firstArrival2 = false;
-	static boolean incline = false;
-	
-	private static void varyWorkload() {
-		if(Sim.time() >= nextWorkloadVariation) {			
-			
-			Global.LOGGER.info("-----------------------------------------------------------------------------");
-			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
-			Global.LOGGER.info("Current workload variation: "+Global.percentageChangeInWorkload);
-			Global.LOGGER.info("Current variation adjustment: "+Global.adjustment);
-			Global.LOGGER.info("Varying workload ...");
-			
-			if(Global.percentageChangeInWorkload > 0.01 &&  Global.percentageChangeInWorkload < 0.25) {
-				
-				if(incline) {
-					double val = Global.percentageChangeInWorkload + 0.05;
-					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
-				
-				} else {
-					double val = Global.percentageChangeInWorkload - 0.05;
-					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
-					
-					if(Global.percentageChangeInWorkload == 0)
-						Global.percentageChangeInWorkload = 0.01;
-				}
-				
-			} else if(Global.percentageChangeInWorkload == 0.25) {
-				if(!firstArrival2) {					
-					firstArrival2 = true;
-					
-				} else {
-					double val = Global.percentageChangeInWorkload - 0.05;
-					Global.percentageChangeInWorkload = (double)Math.round(val * 100)/100;
-					
-					firstArrival2 = false;
-					incline = false;
-				}
-				
-			} else if(Global.percentageChangeInWorkload == 0.01) {				
-				if(!firstArrival1) {					
-					firstArrival1 = true;
-					
-					if(beginning) {
-						Global.percentageChangeInWorkload = 0.05;
-						
-						incline = true;
-						beginning = false;
-					}
-					
-				} else {
-					Global.percentageChangeInWorkload = 0.05;
-					
-					firstArrival1 = false;
-					incline = true;
-				}
-			}
-			
-			Global.LOGGER.info("New workload variation: "+Global.percentageChangeInWorkload);
-			
-			Global.adjustment = wrlVarAdjustment.get(Global.percentageChangeInWorkload);
-			Global.LOGGER.info("New variation adjustment: "+Global.adjustment);
-			
-			uniqueMax = Global.uniqueMaxFixed - (int)(Global.observationWindow * Global.percentageChangeInWorkload * Global.adjustment);
-			
-			nextWorkloadVariation += 2*Global.observationWindow;			
-			Global.LOGGER.info("Workload vairation will occur again at "+(nextWorkloadVariation/Global.observationWindow)+" hrs.");			
-		}		
-	}
-	
-	private static final Map<Double, Double> wrlVarAdjustment;
-	static {
-		Map<Double, Double> map = new HashMap<Double, Double>();
-		
-		map.put(0.01, 0.1);
-		map.put(0.05, 0.2);
-		map.put(0.10, 0.4);
-		map.put(0.15, 0.6);
-		map.put(0.20, 0.8);
-		map.put(0.25, 1.0);
-		
-		wrlVarAdjustment = Collections.unmodifiableMap(map);
-	}	
 } // end-Class
 
 //=======================================================================================
@@ -720,9 +633,6 @@ class Arrival extends Event {
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
 			WorkloadExecutor.warmingUp = false;
-			
-			if(Global.workloadVariation)
-				WorkloadExecutor.varyWorkload = true;
 		}
 		
 		/**

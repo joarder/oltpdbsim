@@ -341,7 +341,13 @@ public class WorkloadBatch {
 	// Adding a hyperedge from a single transaction
 	public void addHGraphEdge(Cluster cluster, Transaction tr) {	
 		SimpleHEdge h = this.hgr.getHEdge(tr.getTr_id());		
-		int tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
+		int tr_frequency = 0;
+		
+		// Observed over the recent observed window
+		if(Global.observationWindow > tr.getTr_period())
+			tr_frequency = (int)(Global.observationWindow/tr.getTr_period());
+		else
+			tr_frequency = 1;
 				
 		if(h != null) {
 			this.hgr.updateHEdgeWeight(h, tr_frequency);

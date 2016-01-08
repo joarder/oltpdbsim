@@ -300,10 +300,7 @@ public class Metric {
 		
 		if(Global.incrementalRepartitioning)
 			Global.LOGGER.info("Incremental repartitioning cycle: "+Global.repartitioningCycle);
-		
-		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("Workload variation: "+Global.percentageChangeInWorkload);
-		Global.LOGGER.info("Variation adjustment: "+Global.adjustment);
+
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Total transactions processed: "+Global.total_transactions);
 		Global.LOGGER.info("Total unique transactions processed: "+Global.global_trSeq);
