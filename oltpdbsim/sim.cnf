@@ -1,33 +1,29 @@
-simulation.name=C-T-CH5-TPCC-IDT-1.0
+simulation.name=R-T-ARHC-TPCC-MC-IDT-1.0
 
-setup=consistenthash
-
-analysis=false
+setup=range
 
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
 
-workload.variation=false
-
 workload.aware=true
 incremental.repartitioning=true
-graphcutbased.repartitioning=false
+graphcutbased.repartitioning=true
 
 dynamic.partitioning=false
 
 workload.representation=hgr
 
-stream.collection=false
+stream.collection=true
 stream.collector.size.factor=3
 
-associative=false
+associative=true
 adaptive=false
 
-transaction.classification=false
-transaction.classification.strategy=basic
+transaction.classification=true
+transaction.classification.strategy=fcimining
 
-data.migration.strategy=rbsta
+data.migration.strategy=improved_mc
 
 compression.enabled=false
 compression.before.setup=false
@@ -40,21 +36,19 @@ fixed.partitions=64
 fixed.partition.capacity=100000
 number.of.replicas=1
 
-simulation.period=97200
+simulation.period=43200
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
+unique.enable=false
 percentage.change.in.workload=0.15
-adjustment=0.6
 observation.window.size=3600
 unique.max.fixed=900
-exponential.Avg.Weight=0.6
+exponential.Avg.Weight=0.4
 
-unique.enable=false
-
-span.reduction=true
+span.reduction=false
 span.reduce=3
 
 idt.priority=1.0

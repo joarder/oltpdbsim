@@ -45,14 +45,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import main.java.cluster.Cluster;
-import main.java.cluster.Partition;
-import main.java.cluster.Server;
 import main.java.db.Database;
 import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.DataMigration;
 import main.java.repartition.DataStreamMining;
+import main.java.repartition.MDRepartitioning;
 import main.java.repartition.MinCut;
 import main.java.repartition.RBPTA;
 import main.java.repartition.SimpleTr;
@@ -71,46 +70,15 @@ import umontreal.iro.lecuyer.simevents.Sim;
 import umontreal.iro.lecuyer.stat.Tally;
 
 public class WorkloadExecutor {
-
-	static EnumeratedIntegerDistribution trDistribution;
-
-	static RandomVariateGen genArr;
-	static RandomVariateGen genServ;
-
-	static LinkedList<Transaction> waitList = new LinkedList<Transaction> ();
-	static LinkedList<Transaction> servList = new LinkedList<Transaction> ();
-
-	static Tally transactionWaits = new Tally("Waiting times");
-	static Accumulate totalWait = new Accumulate("Size of queue");
-
-	// State observation and statistic collectors
-	static boolean warmingUp = true;
-    static boolean changeDetected = false;
-    static boolean noChangeIsRequired = false;
-    static boolean repartitioningCoolingOff = false;
-    public static boolean isAdaptive = false;
-    		
-	static double nextStatCollection = Global.observationWindow;
-	static double nextHourlyRepartition = Global.warmupPeriod;
-	
-// New improvements------------------------------------------------------------------------------
-	static ArrayList<Integer> T = new ArrayList<Integer>();
-	static Map<Integer, Double> Time = new HashMap<Integer, Double>();
-	static PerfMetric perfm = new PerfMetric();
-	static int _i = 0;
-	static int _W = 0;
-	
-	static double currentIDt = 0.0;
-	static double RepartitioningCoolingOffPeriod = Global.observationWindow;
-	
-	// Seed
-	static long[] seed = new long[10];
-	
-	// New (January 07, 2015)
-	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
-	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
 	
 	// Workload generation
+	static EnumeratedIntegerDistribution trDistribution;
+	static RandomVariateGen genArr;
+	static RandomVariateGen genServ;
+	static LinkedList<Transaction> waitList = new LinkedList<Transaction> ();
+	static LinkedList<Transaction> servList = new LinkedList<Transaction> ();
+	static Tally transactionWaits = new Tally("Waiting times");
+	static Accumulate totalWait = new Accumulate("Size of queue");
 	static int W = 0;
 	static int uNmax = 0;
 	static int uNmaxT = 0;
@@ -118,10 +86,29 @@ public class WorkloadExecutor {
 	static double p = 0.0;	
 	static double eta = 0.0;
 	static double q = 2.0;	
+	static Map<Integer, Integer> idx = new HashMap<Integer, Integer>();	
+	static Set<Integer> toBeRemoved = new TreeSet<Integer>();
+	static long[] seed = new long[10];
+	static ArrayList<Integer> T = new ArrayList<Integer>();
+	static Map<Integer, Double> Time = new HashMap<Integer, Double>();
+	public static double currentIDt = 0.0;
+	static PerfMetric perfm = new PerfMetric();
+	static int _i = 0;
+	static int _W = 0;
+	
+	// State observers
+	static boolean warmingUp = true;
+    static boolean changeDetected = false;
+    static boolean noChangeIsRequired = false;
+    public static boolean repartitioningCoolingOff = false;
+    public static boolean isAdaptive = false;
+    public static double RepartitioningCoolingOffPeriod = Global.observationWindow;    			
+	static double nextHourlyRepartition = Global.warmupPeriod;
 	
     public WorkloadExecutor() {
         
-        MRG32k3a rand = new MRG32k3a();                
+        MRG32k3a rand = new MRG32k3a();
+        
         for(int i = 0; i < 4; i++)
         	seed[i] = 1; //(long) Global.repeated_runs + i;
 
@@ -132,10 +119,11 @@ public class WorkloadExecutor {
 
 		uNmaxT = Global.uniqueMaxFixed;
 		W = Global.observationWindow;
+		p = Global.percentageChangeInWorkload;
 		eta = R*W*p;
 		
 		if(Global.uniqueEnabled)
-			uNmax = Math.max(1, (int) (uNmaxT*(1 - Math.pow((eta/uNmaxT),q))));
+			uNmax = Math.max(1, (int) (uNmaxT*(1-Math.pow((eta/uNmaxT),q))));
 		else
 			uNmax = W;
     }
@@ -158,9 +146,10 @@ public class WorkloadExecutor {
 		double rand_val = Global.rand.nextDouble();
 		int toBeRemovedKey = -1;
 
-/**
- *  Implementing the new Workload Generation model (Finalised as per November 20, 2014 and later improved on February 13-14, 2015)		
- */		
+		/**
+		 *  Implementing the new Workload Generation model 
+		 *  (Finalised as per November 20, 2014 and later improved on February 13-14, 2015)		
+		 */		
 		++Global.global_trCount;
 		
 		// Transaction birth
@@ -178,7 +167,7 @@ public class WorkloadExecutor {
 			// Add the newly created Transaction in the Workload Transaction map	
 			wb.getTrMap().get(type).put(tr.getTr_id(), tr);
 			
-// New improvements------------------------------------------------------------------------------
+			// New improvements------------------------------------------------------------------------------
 			double initial_period = (double) WorkloadExecutor.uNmax; // initialisation			
 			tr.setTr_period(initial_period);
 			
@@ -237,7 +226,7 @@ public class WorkloadExecutor {
 			tr = wb.getTransaction(tr_id);
 			tr.setProcessed(false);			
 			
-// New improvements------------------------------------------------------------------------------
+			// New improvements------------------------------------------------------------------------------
 			double prev_period = perfm.Period.get(tr.getTr_id());			
 			double prev_time = Time.get(tr.getTr_id());
 		    
@@ -269,7 +258,7 @@ public class WorkloadExecutor {
 		idx.put(tr.getTr_id(), Global.global_trCount);
 		T.add(tr.getTr_id());		
 		
-// New improvements------------------------------------------------------------------------------
+		// New improvements------------------------------------------------------------------------------
 		if(Global.global_trCount > Global.observationWindow) {
 			
 			_i = Global.global_trCount;		// _i ~ Sim.time() 
@@ -309,8 +298,9 @@ public class WorkloadExecutor {
 			else
 				currentIDt = i_dt;
 			
-			// Resetting repartitioning cooling off period
-			if(WorkloadExecutor.repartitioningCoolingOff && Sim.time() >= WorkloadExecutor.RepartitioningCoolingOffPeriod) {
+			// Reset repartitioning cooling off period
+			if(WorkloadExecutor.repartitioningCoolingOff 
+					&& Sim.time() >= WorkloadExecutor.RepartitioningCoolingOffPeriod) {
 				
 				WorkloadExecutor.repartitioningCoolingOff = false;				
 				
@@ -326,25 +316,25 @@ public class WorkloadExecutor {
 					Global.LOGGER.info("Continuing transaction processing ...");
 					
 					// Adaptive ARHC
-					if(Global.adaptive) {
-						WorkloadExecutor.isAdaptive = false;
-						
-						wb.set_intra_dmv(DataMigration.intra_server_dmgr);
-						wb.set_inter_dmv(DataMigration.inter_server_dmgr);
-						
-						Global.LOGGER.info("-----------------------------------------------------------------------------");												
-						WorkloadExecutor.collectStatistics(cluster, wb);
-					}					
+//					if(Global.adaptive) {
+//						WorkloadExecutor.isAdaptive = false;
+//						
+//						wb.set_intra_dmv(DataMigration.intra_server_dmgr);
+//						wb.set_inter_dmv(DataMigration.inter_server_dmgr);
+//						
+//						//Global.LOGGER.info("-----------------------------------------------------------------------------");												
+//						//WorkloadExecutor.collectStatistics(cluster, wb);
+//					}					
 				}
 			}
 			
 			perfm.time.put((_i - _W), Sim.time());		
 		}
 		
-		// Add a hyperedge to Workload Hypergraph
+		// Add a hyperedge to workload hypergraph
 		wb.addHGraphEdge(cluster, tr);
 		
-		// Collect transaction stream if data stream mining is enabled
+		// Collect transactional streams if data stream mining is enabled
 		if(Global.streamCollection)
 			Global.dsm.collectStream(cluster, tr);
 		
@@ -399,55 +389,10 @@ public class WorkloadExecutor {
 		Global.LOGGER.info("Total time: "+(Sim.time()/Global.observationWindow)+" hrs");		
 					
 		// Statistic preparation, calculation, and reporting		
-		collectStatistics(cluster, wb);
+		Metric.collectMetrics(cluster, wb);
 		cluster.show();
 		
 		perfm.write();
-	}	
-
-	// On-repartition Statistics Collection
-	public static void collectStatistics(Cluster cluster, WorkloadBatch wb) {
-		if(!WorkloadExecutor.noChangeIsRequired) { 
-			cluster.updateLoad();
-
-			wb.setIdt(currentIDt);
-			wb.calculateDTI(cluster);		
-			wb.calculateThroughput(Global.total_transactions);
-			
-			Metric.collect(cluster, wb);			
-			Metric.report();
-			Metric.write();
-			Metric.reInitServerSet();
-			
-			// Reset each time	
-			wb.set_intra_dmv(0);
-			wb.set_inter_dmv(0);
-			wb.set_repartitioning_time(0);			
-			
-			for(Server s : cluster.getServers()) { 
-				s.setServer_inflow(0);
-				s.setServer_outflow(0);
-			}
-			
-			for(Partition p : cluster.getPartitions()) {
-				p.setPartition_inflow(0);
-				p.setPartition_outflow(0);
-			}						
-			
-			Global.LOGGER.info("=======================================================================================================================");
-		}
-	}
-	
-	// Hourly Statistics Collection
-	public static void collectHourlyStatistics(Cluster cluster, WorkloadBatch wb) {	
-		
-		if(Sim.time() >= WorkloadExecutor.nextStatCollection) {				
-			Global.LOGGER.info("<-- Hourly Statistics -->");			
-			WorkloadExecutor.collectStatistics(cluster, wb);
-			
-			// Always schedule an hourly collection
-			WorkloadExecutor.nextStatCollection += Global.observationWindow;
-		}
 	}
 	
 	public static boolean runRepartitioner(Cluster cluster, WorkloadBatch wb) {
@@ -460,7 +405,7 @@ public class WorkloadExecutor {
 				isWrlFileEmpty = WorkloadBatchProcessor.generateWorkloadFile(cluster, wb);
 			} catch (IOException e) {
 				e.printStackTrace();
-			}
+			}	
 		}
 		
 		if(!isWrlFileEmpty) {
@@ -493,7 +438,7 @@ public class WorkloadExecutor {
 				e.printStackTrace();
 			}
 			
-			WorkloadExecutor.noChangeIsRequired = false;
+			//WorkloadExecutor.noChangeIsRequired = false;
 		} 
 		
 		if(isWrlFileEmpty || !isPartFileProcessed) {			
@@ -501,7 +446,7 @@ public class WorkloadExecutor {
 			cluster.updateLoad();								
 			//cluster.show();
 			
-			WorkloadExecutor.noChangeIsRequired = true;
+			//WorkloadExecutor.noChangeIsRequired = true;
 			isPartFileProcessed = true;
 			
 			Global.LOGGER.info("No changes are required !!!");
@@ -544,7 +489,7 @@ public class WorkloadExecutor {
 						
 					case "fcimining":	
 						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
-						Global.dsm.performDSM(cluster, wb);
+						Global.dsm.performDSM(cluster, wb); // This should be appear only once
 						break;
 						
 					default:
@@ -617,22 +562,18 @@ class Arrival extends Event {
 			
 			new Departure().schedule(tr.getTr_service_time());
 		}
-
-		// Hourly statistic collection while the database is warming up
-		if(WorkloadExecutor.warmingUp) {
-			if(!(Sim.time() >= Global.warmupPeriod))
-				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
-		}
 		
-		// Checks when initial warm up state is reached
+		// Checks when initial warm up period is completed
 		if(Sim.time() >= Global.warmupPeriod && WorkloadExecutor.warmingUp) {
-			WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+			Metric.collectMetrics(cluster, wb);
 			
 			Global.LOGGER.info("-----------------------------------------------------------------------------");			
 			Global.LOGGER.info("Database finished warming up.");
 			Global.LOGGER.info("Simulation time: "+Sim.time()/(double)Global.observationWindow+" hrs");
 			
 			WorkloadExecutor.warmingUp = false;
+		} else { // Collect hourly metrics while the database is warming up
+			Metric.collectMetrics(cluster, wb);
 		}
 		
 		/**
@@ -684,29 +625,29 @@ class Arrival extends Event {
 						}
 						
 						// Repartition the database in an incremental manner
-						if(Global.associative && Global.adaptive) {
-							wb.set_intra_dmv(DataMigration.intra_server_dmgr);
-							wb.set_inter_dmv(DataMigration.inter_server_dmgr);
-							
-							Global.LOGGER.info("-----------------------------------------------------------------------------");												
-							WorkloadExecutor.collectStatistics(cluster, wb);
-							
-							Global.LOGGER.info("-----------------------------------------------------------------------------");
-							Global.LOGGER.info("Starting adaptive data stream mining ...");
-							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
-							
-							Global.dsm.performDSM(cluster, wb);
-							
-							WorkloadExecutor.isAdaptive = true;
-							
-						} else {
-							WorkloadExecutor.startRepartitioning(cluster, wb);
-						}
+//						if(Global.associative && Global.adaptive) {// This is for A-ARHC only not ARHC
+//							wb.set_intra_dmv(DataMigration.intra_server_dmgr);
+//							wb.set_inter_dmv(DataMigration.inter_server_dmgr);
+//							
+//							Global.LOGGER.info("-----------------------------------------------------------------------------");												
+//							//WorkloadExecutor.collectStatistics(cluster, wb);
+//							
+//							Global.LOGGER.info("-----------------------------------------------------------------------------");
+//							Global.LOGGER.info("Starting adaptive data stream mining ...");
+//							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
+//							
+//							//Global.dsm.performDSM(cluster, wb);
+//							
+//							//WorkloadExecutor.isAdaptive = true;
+//							
+//						} else {
+							WorkloadExecutor.startRepartitioning(cluster, wb);							
+						//}
 						
-						if(!Global.adaptive) {
-							Global.LOGGER.info("-----------------------------------------------------------------------------");												
-							WorkloadExecutor.collectStatistics(cluster, wb);
-						}
+//						if(!Global.adaptive) {
+//							Global.LOGGER.info("-----------------------------------------------------------------------------");												
+//							WorkloadExecutor.collectMetrics(cluster, wb);
+//						}
 						
 						if(Global.repartThreshold) {
 							WorkloadExecutor.repartitioningCoolingOff = true;
@@ -716,13 +657,17 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off has started. No further repartitioning will take place within the next hour.");
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 							
+							// Continue on-demand transaction-level repartitioning
 							if(Global.adaptive && Global.isAssociationRequired)
 								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
 						}
+						
+						// Metrics collection after each repartitioning cycle
+						Metric.collectMetrics(cluster, wb);
+						
 					} else {						
-						// Added 17/10/2015
-						// Hourly statistic collection
-						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+						// Hourly metrics collection
+						Metric.collectMetrics(cluster, wb);
 					}					
 					
 				} else { // 2. Static Repartitioning
@@ -737,7 +682,7 @@ class Arrival extends Event {
 						WorkloadExecutor.startRepartitioning(cluster, wb);
 						
 						// Statistics collection
-						WorkloadExecutor.collectStatistics(cluster, wb);
+						//WorkloadExecutor.collectStatistics(cluster, wb);
 						
 						// Prevents future repartitioning
 						Global.repartStatic = false;
@@ -758,24 +703,25 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 						}						
 					} else { 						
-						// Hourly statistic collection
-						WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+						// Hourly metrics collection
+						Metric.collectMetrics(cluster, wb);
 					}
-				}
-				
+				}				
 			} else { // 1. Baseline
-				// Hourly statistic collection				
-				WorkloadExecutor.collectHourlyStatistics(cluster, wb);
+				// Hourly metrics collection				
+				Metric.collectMetrics(cluster, wb);
 			}						
 			
 			// Adaptive ARHC
-			if(Global.associative && Global.adaptive && WorkloadExecutor.isAdaptive  && Global.isAssociationRequired) {
-				// Redistribute transactional tuples in an adaptive manner using DSM/ARHC
-				SimpleTr t = DataStreamMining.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
+			if(Global.associative && Global.adaptive) { 
+					//&& WorkloadExecutor.isAdaptive  && Global.isAssociationRequired) {
+				
+				// Redistribute tuples in an adaptive manner using DSM/ARHC
+				SimpleTr t = MDRepartitioning.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
 				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
 				
 				if(t.isAssociated)
-					DataStreamMining.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
+					MDRepartitioning.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
 			}
 		}
 		
@@ -785,19 +731,15 @@ class Arrival extends Event {
 	
 	private boolean isRepartRequired() {
 		
-		if(Global.repartHourly) {
-			
+		if(Global.repartHourly) { // Hourly repartitioning
 			if(Sim.time() >= WorkloadExecutor.nextHourlyRepartition) {				
 				WorkloadExecutor.nextHourlyRepartition += Global.observationWindow;
 				return true;
-			}
-				
-		} else if(Global.repartThreshold) {			
-			
+			}				
+		} else if(Global.repartThreshold) {	// Threshold based repartitioning					
 			if(WorkloadExecutor.currentIDt > Global.userDefinedIDtThreshold 
 					&& !WorkloadExecutor.repartitioningCoolingOff)					
-				return true;
-			
+				return true;			
 		} else 
 			Global.LOGGER.error("Check the simulation configuration file 'sim.cnf' for 'repartitioning.strategy' the value of which can either be 'hourly' or 'threshodl'.");			
 		

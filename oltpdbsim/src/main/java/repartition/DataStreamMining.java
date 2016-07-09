@@ -19,18 +19,13 @@ package main.java.repartition;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
 import java.util.Queue;
 
 import main.java.cluster.Cluster;
-import main.java.cluster.Data;
-import main.java.cluster.Partition;
-import main.java.cluster.Server;
 import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.incmine.core.SemiFCI;
@@ -166,9 +161,9 @@ public class DataStreamMining {
 		int hEdgeId = 0;
 		
 		for(SemiFCI semiFCI : this.dsm_learner.getFCITable()){
-			System.out.println("\t-- "+semiFCI.getItems());
-			System.out.println("\t-- Current Support = "+semiFCI.currentSupport());
-			System.out.println("\t-- Approximate Support = "+semiFCI.getApproximateSupport());
+			//System.out.println("\t-- "+semiFCI.getItems());
+			//System.out.println("\t-- Current Support = "+semiFCI.currentSupport());
+			//System.out.println("\t-- Approximate Support = "+semiFCI.getApproximateSupport());
 			
 			int fci_support = semiFCI.getApproximateSupport();
 			int fci_weight = 0;
@@ -208,8 +203,8 @@ public class DataStreamMining {
 			hgr.addHEdge(new SimpleHEdge(h.id, h.weight), wb.getVertices(cluster, h.vMap));
 		} // end-for()
 		
-		Global.LOGGER.info("Total "+hgr.getEdgeCount()+" transactions containing "
-				+hgr.getVertexCount()+" data objects have identified for repartitioning.");
+		Global.LOGGER.info("An association rule hypergraph is created containing "+hgr.getEdgeCount()+" hyperedges containing "
+				+hgr.getVertexCount()+" vertices for clustering.");
 		
 		// Workload file
 		String wrl_file_name = Global.repartitioningCycle+"-"+Global.simulation; 
@@ -221,6 +216,7 @@ public class DataStreamMining {
 		wb.setWrl_file(workloadFile);
 		
 		// Performing ARHP and data migration
+		Global.LOGGER.info("Redistributing the frequently occurred tuplesets after ARHC ...");
 		WorkloadBatchProcessor.generateHGraphWorkloadFile(cluster, wb, hgr);
 		WorkloadExecutor.runRepartitioner(cluster, wb);		
 		DataMigration.performDataMigration(cluster, wb);		
@@ -233,6 +229,7 @@ public class DataStreamMining {
 		}*/
 		
 		// Preparing the clusters with their associated weights
+		Global.LOGGER.info("Preparing the ARHC clusters with their associated weights ...");
 		double maxClusterWeight = Double.MIN_VALUE;
 		for(Entry<Integer, FCICluster> fci_cluster : fci_clusters.entrySet()) {
 			// Get the FCI weight
@@ -247,174 +244,18 @@ public class DataStreamMining {
 		}
 		
 		// Normalizing cluster Weights
+		Global.LOGGER.info("Normalizing the ARHC clusters' weights ...");
 		for(Entry<Integer, FCICluster> fci_cluster : fci_clusters.entrySet()) {
 			fci_cluster.getValue().weight = fci_cluster.getValue().weight/maxClusterWeight;
-			System.out.println(fci_cluster);
+			Global.LOGGER.info(""+fci_cluster);
 		}
 				
 		// Execution - Data migration
-		if(!Global.adaptive)
+		if(!Global.adaptive) {			
+			Global.LOGGER.info("Start processing all DTs within the current workload observation window ...");
 			DataMigration.strategyARHC(cluster, wb);
-	}
-	
-	public static PriorityQueue<SimpleTr> pq;
-	public static HashMap<Integer, SimpleTr> tMap;
-	
-	// Populates a priority queue to keep the potential transactions 
-	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		if(Global.idt_priority >= Global.lb_priority)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_GAIN());
-		else
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_GAIN());		
-		
-		tMap = new HashMap<Integer, SimpleTr>();
-				
-		for(SimpleHEdge h : wb.hgr.getEdges()) {			
-			SimpleTr t = prepare(cluster, wb, h);
-			tMap.put(t.id, t);
-			
-			if(!t.isProcessed && t.isAssociated)
-				pq.add(tMap.get(t.id));
-		}
-	}		
-	
-	// Prepares current transaction for processing
-	public static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
-		Transaction tr = wb.getTransaction(h.getId());			
-		SimpleTr t = new SimpleTr(tr.getTr_id(), tr.getTr_period());
-
-		t.populateServerSet(cluster, tr);
-				
-		if(t.serverDataSet.size() > 1) {	 // DTs
-			t.populateAssociationList(cluster, wb, fci_clusters);
-			//System.out.println("-->"+t.associationMap);
-		} else {					// non-DTs
-			t.min_data_mgr = 0;
-			t.max_association_gain = 0.0;
-			t.isProcessed = true;
-		}
-		
-		return t;
-	}
-	
-	private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {
-		
-		boolean contains = false;
-		
-		for(int s_id : m.fromSet) {
-			if(incidentT.serverDataSet.containsKey(s_id))
-				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
-					contains = true;
-		}
-		
-		if(contains)
-			return false;
-		else
-			return true;
-	}	
-	
-	// Checks whether processing current transaction affect any other transaction adversely
-	public static boolean isAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
-		// Search the incident transactions for the targeted data rows to be moved
-		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
-			for(int d : entry.getValue()) {
-				SimpleVertex v = wb.hgr.getVertex(d);
-				
-				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-					SimpleTr incidentT = tMap.get(h.getId());				
-					
-					if(!incidentT.equals(t) && incidentT.isProcessed) {					
-						if(incidentT.serverDataSet.containsKey(m.to)) { // Either no change or potential reduction in the impact  
-							return false;
-						} else { // Destination server is not covered by the incident transaction						
-							if(!isContainsAll(incidentT, m)) // Either no change or potential reduction in the impact
-								return false;
-							else // Not all of the data ids from the source servers are included in the migration plan
-								return true;
-						}
-					}
-				}
-			}
-		}
-		
-		return false;		
-	}
-	
-	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
-		
-		// Data migrations
-		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.serverDataSet);			
-		dataMigration(cluster, m.to, dataMap);
-		
-		// Adjust transaction's serverSet				
-		for(int s_id : m.fromSet) {
-			for(int d : t.serverDataSet.get(s_id))
-				t.serverDataSet.get(m.to).add(d);			
-			
-			t.serverDataSet.remove(s_id);
-		}
-		
-		// Update incident transactions
-		if(!Global.adaptive) {
-			for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
-				for(int d : entry.getValue()) {
-					SimpleVertex v = wb.hgr.getVertex(d);
-					
-					for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-						SimpleTr incidentT = tMap.get(h.getId());
-						//System.out.println("\t\t--> "+incidentT.toString());
-						
-						if(!incidentT.equals(t) && !incidentT.isProcessed) {				
-							pq.remove(incidentT);
-							tMap.remove(h.getId());
-							
-							SimpleTr new_incidentT = prepare(cluster, wb, h);
-							tMap.put(new_incidentT.id, new_incidentT);				
-							
-							 // Only DTs will be added back after recalculations
-							if(new_incidentT.serverDataSet.size() > 1)				
-								pq.add(tMap.get(new_incidentT.id));						
-						}
-					}
-				}
-			} //end-for()
-		}
-		
-		t.isProcessed = true;
-	} 
-	
-	// Perform data migrations
-	private static void dataMigration(Cluster cluster, int dst_server_id, HashMap<Integer, HashSet<Integer>> dataMap) {
-		// Chose the destination partition ids
-		Server dst_server = cluster.getServer(dst_server_id);
-		ArrayList<Partition> dst_partitionList = new ArrayList<Partition>();		
-		
-		for(int p : dst_server.getServer_partitions())
-			dst_partitionList.add(cluster.getPartition(p));	
-
-		Collections.sort(dst_partitionList, Partition.BY_DATA_SIZE());
-		
-		int dst_partition_id = 0;
-		int r = 0;
-		
-		for(Entry<Integer, HashSet<Integer>> entry : dataMap.entrySet()) {
-			for(int d : entry.getValue()) {
-				Data data = cluster.getData(d);
-		
-				if(dataMap.size() > 1) {				
-					if(r == dst_partitionList.size())
-						r = 0;
-					
-					dst_partition_id = dst_partitionList.get(r).getPartition_id();				
-					++r;
-					
-				} else {
-					dst_partition_id = dst_partitionList.get(0).getPartition_id();
-				}
-				
-				DataMigration.migrateSingleData(cluster, data, dst_server_id, dst_partition_id);		
-			}
-		}
+			Global.LOGGER.info("Done with transaction processing and required data migrations!!");
+		}			
 	}
 }
 

@@ -295,8 +295,8 @@ public class DataMigration {
 				t.isProcessed = true;			
 		}		
 		
-		wb.set_intra_dmv(intra_server_dmgr);
-		wb.set_inter_dmv(inter_server_dmgr);
+		wb.set_intra_dmg(intra_server_dmgr);
+		wb.set_inter_dmg(inter_server_dmgr);
 	}
 		
 	// FCIMining and ARHC - incremental repartitioning	
@@ -304,23 +304,29 @@ public class DataMigration {
 		if(!WorkloadExecutor.isAdaptive)
 			setEnvironment(cluster);		
 		
-		DataStreamMining.populatePQ(cluster, wb);
-
-		while(!DataStreamMining.pq.isEmpty()) {			
+		MDRepartitioning.populatePQ(cluster, wb);
+		
+		int count_processed = 0;
+		while(!MDRepartitioning.pq.isEmpty()) {			
 			// Get a transaction from the priority queue
-			SimpleTr t = DataStreamMining.pq.poll();
+			SimpleTr t = MDRepartitioning.pq.poll();
 			MigrationPlan m = t.migrationPlanList.get(0);
 			
 			// Check whether processing this transaction may increase the impact of any other already processed transactions
-			if(!DataStreamMining.isAffected(wb, t, m))
-				DataStreamMining.processTransaction(cluster, wb, t, m);
-			else
+			if(!MDRepartitioning.isAffected(wb, t, m)) {
+				MDRepartitioning.processTransaction(cluster, wb, t, m);
+				++count_processed;
+			} else
 				t.isProcessed = true;			
 		}		
 		
+		Global.LOGGER.info("In total "+count_processed+" DTs have been processed from priority queue!!");
+		
 		if(!Global.adaptive) {
-			wb.set_intra_dmv(intra_server_dmgr);
-			wb.set_inter_dmv(inter_server_dmgr);
+			wb.set_intra_dmg(intra_server_dmgr);
+			wb.set_inter_dmg(inter_server_dmgr);
+			
+			Global.LOGGER.info("Total data migrations: Intra-server("+wb.get_intra_dmv()+"); Inter-server("+wb.get_inter_dmv()+")");
 		}
 	}
 	
@@ -349,8 +355,8 @@ public class DataMigration {
 			
 			Global.LOGGER.info("Total "+swaps+" compressed vertices have been swapped ...");
 			
-			wb.set_intra_dmv(intra_server_dmgr);
-			wb.set_inter_dmv(inter_server_dmgr);
+			wb.set_intra_dmg(intra_server_dmgr);
+			wb.set_inter_dmg(inter_server_dmgr);
 		}
 	}
 	
@@ -414,8 +420,8 @@ public class DataMigration {
 		cluster.updateLoad();
 		//cluster.show();
 		
-		wb.set_intra_dmv(intra_server_dmgr);
-		wb.set_inter_dmv(inter_server_dmgr);
+		wb.set_intra_dmg(intra_server_dmgr);
+		wb.set_inter_dmg(inter_server_dmgr);
 	}
 	
 	// Updates Data
@@ -652,8 +658,8 @@ public class DataMigration {
 			} // end -- if()-Data
 		} // end -- for()-Data	
 					
-		wb.set_intra_dmv(intra_server_dmgr);
-		wb.set_inter_dmv(inter_server_dmgr);	
+		wb.set_intra_dmg(intra_server_dmgr);
+		wb.set_inter_dmg(inter_server_dmgr);	
 	}
 		
 	private static int selectPartitionId(Cluster cluster, int server_id) {

@@ -31,6 +31,7 @@ import main.java.entry.Global;
 import main.java.utils.Utility;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
+import main.java.workload.WorkloadExecutor;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,8 +84,10 @@ public class Metric {
 	
 	private static File file;
 	private static PrintWriter prWriter;
-		
+	
+	// Metrics collection
 	public static int metricCollectionCycle = 0;
+	static double nextMetricsCollection = Global.observationWindow;
 	
 	public static void init(Cluster cluster) {
 		time = new ArrayList<Double>();
@@ -292,6 +295,42 @@ public class Metric {
 		sd_partition_data.add(_data.getStandardDeviation());		
 	}
 	
+	// Metrics collection
+	public static void collectMetrics(Cluster cluster, WorkloadBatch wb) {
+		if(Sim.time() >= nextMetricsCollection) {			
+			Global.LOGGER.info("=======================================================================================================================");
+			Global.LOGGER.info("Collecting and reporting metrics ...");
+			
+			cluster.updateLoad();
+			wb.setIdt(WorkloadExecutor.currentIDt);
+			wb.calculateDTI(cluster);		
+			wb.calculateThroughput(Global.total_transactions);
+			
+			Metric.collect(cluster, wb);			
+			Metric.report();
+			Metric.write();
+			Metric.reInitServerSet();
+			
+			// Reset each time	
+			wb.set_intra_dmg(0);
+			wb.set_inter_dmg(0);
+			wb.set_repartitioning_time(0);			
+			
+			for(Server s : cluster.getServers()) { 
+				s.setServer_inflow(0);
+				s.setServer_outflow(0);
+			}
+			
+			for(Partition p : cluster.getPartitions()) {
+				p.setPartition_inflow(0);
+				p.setPartition_outflow(0);
+			}
+			
+			nextMetricsCollection += Global.observationWindow;
+		}
+	}
+	
+	// Metrics reporting
 	public static void report() {
 		
 		Global.LOGGER.info("-----------------------------------------------------------------------------");		
@@ -368,7 +407,9 @@ public class Metric {
 			prWriter.append(mean_pairwise_inter_server_data_mgr.get(index)+" ");
 			prWriter.append(sd_pairwise_inter_server_data_mgr.get(index)+" ");
 			prWriter.append(estimated_data_mgr.get(index)+" ");
-			prWriter.append(repartitioning_time.get(index)+"\n");
+			prWriter.append(repartitioning_time.get(index)+" ");
+			prWriter.append(total_edges.get(index)+" ");
+			prWriter.append(total_vertices.get(index)+"\n");			
 			
 			/*prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");

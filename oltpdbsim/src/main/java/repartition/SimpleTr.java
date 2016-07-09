@@ -69,6 +69,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	static TreeSet<Double> lbGainRank;
 	static TreeSet<Double> associationRank;
 	
+	HashSet<Integer> dataSet;
 	HashMap<Integer, HashSet<Integer>> serverDataSet;
 	public List<MigrationPlan> migrationPlanList;
 	public boolean isAssociated;	
@@ -88,6 +89,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				
 		this.isProcessed = false;
 		
+		this.dataSet = new HashSet<Integer>();
 		this.serverDataSet = new HashMap<Integer, HashSet<Integer>>();
 		this.migrationPlanList = new ArrayList<MigrationPlan>();
 		this.isAssociated = false;
@@ -105,6 +107,9 @@ public class SimpleTr implements Comparable<SimpleTr> {
 				dataSet.add(d.getData_id());
 				this.serverDataSet.put(s_id, dataSet);
 			}
+			
+			// Also populate the data set
+			this.dataSet.add(d.getData_id());
 		}
 	}
 	
@@ -262,10 +267,10 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		associationRank = new TreeSet<Double>();
 		lbGainRank = new TreeSet<Double>();
 		
-		for(Entry<Integer, HashSet<Integer>> entry : this.serverDataSet.entrySet()) {
+		for(Entry<Integer, HashSet<Integer>> server : this.serverDataSet.entrySet()) {
 			HashMap<Integer, HashSet<Integer>> dataMap;
 			HashSet<Integer> fromSet = new HashSet<Integer>();			
-			int to = entry.getKey();
+			int to = server.getKey();
 			int req_dmgr = 0;
 			
 			// Get the 'from' server set 
@@ -284,7 +289,7 @@ public class SimpleTr implements Comparable<SimpleTr> {
 			MigrationPlan m = new MigrationPlan(fromSet,to, dataMap, req_dmgr);
 			this.migrationPlanList.add(m); // From Source Server
 			
-			m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, entry, m);						
+			m.association_gain_per_data_mgr = getAssociationGain(fci_clusters, server, m);			
 			m.lb_gain_per_data_mgr = getLbGain(cluster, this, m);						
 						
 			associationRank.add(m.association_gain_per_data_mgr);
@@ -302,10 +307,12 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.max_lb_gain = this.migrationPlanList.get(0).lb_gain_per_data_mgr;
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
 		this.max_combined_weight = this.migrationPlanList.get(0).combined_weight;
-				
+			
 		if(this.max_association_gain > 0)
 			this.isAssociated = true;
-		
+		else
+			this.isProcessed = true;
+				
 		// Testing
 		/*System.out.println("-------------------------------------------------------------------------");
 		System.out.println("Sorting based on combined ranking ...");
@@ -415,18 +422,22 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	
 	// Returns the expected association gain per data migration
 	private double getAssociationGain(HashMap<Integer, FCICluster> fci_clusters, 
-			Entry<Integer, HashSet<Integer>> entry, MigrationPlan m) {
+			Entry<Integer, HashSet<Integer>> server, MigrationPlan m) {
 		
+		// For a particular server
+		FCICluster c_i = fci_clusters.get(server.getKey());
 		double expected_association_gain = 0.0;
-		
-		if(fci_clusters.containsKey(entry.getKey())) {
-			double C_i = fci_clusters.get(entry.getKey()).fci.size();
-			double T_C_i = Sets.intersection(fci_clusters.get(entry.getKey()).fci, entry.getValue()).size();		
-			expected_association_gain = (double) (fci_clusters.get(entry.getKey()).weight * (T_C_i/C_i));			
+			
+		if(c_i != null) {
+			int C_i = c_i.fci.size();
+			int T_C_i = Sets.intersection(c_i.fci, this.dataSet).size();
+			
+			double association_value = (double)T_C_i/C_i;
+			expected_association_gain = (double)c_i.weight * association_value;		
 		}
 		
 		return ((double)expected_association_gain/m.req_data_mgr);
-	}
+	}	
 	
 	// Sorting migration plans
 	private void sortMigrationPlanList() {
@@ -455,8 +466,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 					double m2_left = 0.0d;
 					
 					if(Global.associative) {
-						m1_left = (m1.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						m2_left = (m2.association_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
+						m1_left = (m1.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
+						m2_left = (m2.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
 					} else {
 						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
 						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
@@ -549,10 +560,12 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	@Override
 	public String toString() {
 		return (">> T"+this.id+": Min data migrations require ("+this.min_data_mgr+") "
-				+ "| Max span reduction gain ("+this.max_span_reduction_gain+") "
-					+ "| Max Idt gain ("+this.max_idt_gain+") "
-					+ "| Max Lb gain ("+this.max_lb_gain+") "
+//				+ "| Max span reduction gain ("+this.max_span_reduction_gain+") "
+//					+ "| Max Idt gain ("+this.max_idt_gain+") "
+//					+ "| Max Lb gain ("+this.max_lb_gain+") "
 						+ "| Max Association gain ("+this.max_association_gain+") "
-							+ "| "+this.serverDataSet);
+//							+ "| "+this.serverDataSet
+								+  "|A-"+this.isAssociated
+								 + "|P-"+this.isProcessed);
 	}
 }

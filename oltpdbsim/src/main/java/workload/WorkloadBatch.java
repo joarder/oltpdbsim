@@ -247,7 +247,7 @@ public class WorkloadBatch {
 		return _intra_dmv;
 	}
 
-	public void set_intra_dmv(int wrl_intra_dmv) {
+	public void set_intra_dmg(int wrl_intra_dmv) {
 		this._intra_dmv = wrl_intra_dmv;
 	}
 
@@ -255,7 +255,7 @@ public class WorkloadBatch {
 		return _inter_dmv;
 	}
 
-	public void set_inter_dmv(int wrl_inter_dmv) {
+	public void set_inter_dmg(int wrl_inter_dmv) {
 		this._inter_dmv = wrl_inter_dmv;
 	}
 
