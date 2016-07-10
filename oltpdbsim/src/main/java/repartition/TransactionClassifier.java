@@ -109,13 +109,13 @@ public class TransactionClassifier {
 	}*/
 	
 	// DSM (FD) - Transactions containing frequent distributed tuple pairs only
-	public static void classifyFD(Cluster cluster, WorkloadBatch wb) {				
+	public static void classifyFD(Cluster cluster, WorkloadBatch wb, long start_time) {				
 		// Initialisation
 		//init();
 		
 		//Find the list of semi-FCI
 		//mine(cluster, wb);
-		Global.dsm.performDSM(cluster, wb);
+		Global.dsm.performDSM(cluster, wb, start_time);
 		//System.out.println(incMine_learner);
 	
 		//Find the list of distributed semi-FCI (Frequent Closed Itemsets)
@@ -192,7 +192,7 @@ public class TransactionClassifier {
 	}
 	
 	// DSM - (FD+FND)
-	public static void classifyFDFND(Cluster cluster, WorkloadBatch wb) {
+	public static void classifyFDFND(Cluster cluster, WorkloadBatch wb, long start_time) {
 		
 		toBeRemoved = new TreeSet<Integer>();
 		
@@ -200,7 +200,7 @@ public class TransactionClassifier {
 		
 		//Find the list of semi-FCI
 		//mine(cluster, wb);
-		Global.dsm.performDSM(cluster, wb);
+		Global.dsm.performDSM(cluster, wb, start_time);
 		//System.out.println(incMine_learner);
 	
 		//Find the list of semi-FCI

@@ -308,10 +308,8 @@ public class SimpleTr implements Comparable<SimpleTr> {
 		this.min_data_mgr = this.migrationPlanList.get(0).req_data_mgr;
 		this.max_combined_weight = this.migrationPlanList.get(0).combined_weight;
 			
-		if(this.max_association_gain > 0)
+		if(this.max_association_gain > 0.0d || this.max_lb_gain < 0.0d)
 			this.isAssociated = true;
-		else
-			this.isProcessed = true;
 				
 		// Testing
 		/*System.out.println("-------------------------------------------------------------------------");
@@ -440,49 +438,36 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	}	
 	
 	// Sorting migration plans
-	private void sortMigrationPlanList() {
-		/*if(Global.spanReduction) {
-			// Sort in descending order
-			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
-				@Override
-				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					
-					m1.combined_weight = (m1.span_reduction_per_data_mgr/max_span_reduction_value) * m1.fromSet.size();
-					m2.combined_weight = (m2.span_reduction_per_data_mgr/max_span_reduction_value) * m2.fromSet.size();
-		            
-					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
-						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
+	private void sortMigrationPlanList() {			
+		// Sort in descending order
+		// Higher the better
+		Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
+			@Override
+			public int compare(MigrationPlan m1, MigrationPlan m2) {
+				
+				double m1_left = 0.0d;
+				double m2_left = 0.0d;
+				double m1_right = 0.0d;
+				double m2_right = 0.0d;
+				
+				if(Global.associative) {
+					m1_left = (m1.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
+					m2_left = (m2.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
+				} else {
+					m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
+					m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
 				}
-			});			
-			
-		} else {*/			
-			// Sort in descending order
-			// Higher the better
-			Collections.sort(this.migrationPlanList, new Comparator<MigrationPlan>(){				
-				@Override
-				public int compare(MigrationPlan m1, MigrationPlan m2) {
-					
-					double m1_left = 0.0d;
-					double m2_left = 0.0d;
-					
-					if(Global.associative) {
-						m1_left = (m1.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
-						m2_left = (m2.association_gain_per_data_mgr/max_association_value) * Global.idt_priority;
-					} else {
-						m1_left = (m1.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-						m2_left = (m2.idt_gain_per_data_mgr/max_idt_reduction_value) * Global.idt_priority;
-					}
-					
-					m1.combined_weight = m1_left
-							- (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
-					m2.combined_weight = m2_left
-							- (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;					
-		            
-					return ((m1.combined_weight > m2.combined_weight) ? -1 : 
-						(m1.combined_weight < m2.combined_weight) ? 1 : 0);
-				}
-			});
-		//} 	
+				
+				m1_right = (m1.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority; 
+				m2_right = (m2.lb_gain_per_data_mgr/max_lb_value) * Global.lb_priority;
+				
+				m1.combined_weight = m1_left - m1_right;
+				m2.combined_weight = m2_left - m2_right;					
+	            
+				return ((m1.combined_weight > m2.combined_weight) ? -1 : 
+					(m1.combined_weight < m2.combined_weight) ? 1 : 0);
+			}
+		});	
 	}
 	
 	// Descending order
@@ -560,11 +545,11 @@ public class SimpleTr implements Comparable<SimpleTr> {
 	@Override
 	public String toString() {
 		return (">> T"+this.id+": Min data migrations require ("+this.min_data_mgr+") "
-//				+ "| Max span reduction gain ("+this.max_span_reduction_gain+") "
-//					+ "| Max Idt gain ("+this.max_idt_gain+") "
-//					+ "| Max Lb gain ("+this.max_lb_gain+") "
+				+ "| Max span reduction gain ("+this.max_span_reduction_gain+") "
+					+ "| Max Idt gain ("+this.max_idt_gain+") "
+					+ "| Max Lb gain ("+this.max_lb_gain+") "
 						+ "| Max Association gain ("+this.max_association_gain+") "
-//							+ "| "+this.serverDataSet
+							+ "| "+this.serverDataSet
 								+  "|A-"+this.isAssociated
 								 + "|P-"+this.isProcessed);
 	}

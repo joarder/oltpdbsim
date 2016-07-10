@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import main.java.repartition.DataStreamMining;
+import main.java.dsm.DataStreamMining;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
 import org.slf4j.Logger;
@@ -105,7 +105,7 @@ public final class Global {
     // ARHC and A-ARHC specific
     public static boolean adaptive;	// A-ARHC
     public static boolean associative; // ARHC
-    public static boolean isAssociationRequired = true; // A-ARHC/ARHC
+    public static boolean isFrequentClustersFound = true; // A-ARHC/ARHC
     
     // Simulation specific
     public static String simulation; // none/static/(gr/cgr/hgr/chg-basic/fd/fdfnd-random/mc/msm/sword)

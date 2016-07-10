@@ -30,6 +30,7 @@ import main.java.cluster.CompressedData;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
+import main.java.dsm.DataStreamMining;
 import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.metric.Metric;
@@ -40,6 +41,7 @@ import main.java.utils.Utility;
 import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
+import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 import main.java.workload.WorkloadExecutor;
 
@@ -295,12 +297,12 @@ public class DataMigration {
 				t.isProcessed = true;			
 		}		
 		
-		wb.set_intra_dmg(intra_server_dmgr);
-		wb.set_inter_dmg(inter_server_dmgr);
+		wb.set_intra_server_mgr(intra_server_dmgr);
+		wb.set_inter_server_mgr(inter_server_dmgr);
 	}
 		
 	// FCIMining and ARHC - incremental repartitioning	
-	public static void strategyARHC(Cluster cluster, WorkloadBatch wb) {	
+	public static void strategyARHC(Cluster cluster, WorkloadBatch wb, long start_time) {	
 		if(!WorkloadExecutor.isAdaptive)
 			setEnvironment(cluster);		
 		
@@ -320,14 +322,30 @@ public class DataMigration {
 				t.isProcessed = true;			
 		}		
 		
-		Global.LOGGER.info("In total "+count_processed+" DTs have been processed from priority queue!!");
+		Global.LOGGER.info("In total "+count_processed+" DTs have been processed from the priority queue!!");
+				
+		wb.set_intra_server_mgr(intra_server_dmgr);
+		wb.set_inter_server_mgr(inter_server_dmgr);
+		wb.set_repartitioning_time(System.currentTimeMillis() - start_time);		
+	}
+	
+	// A-ARHC
+	public static void strategyAARHC(Cluster cluster, WorkloadBatch wb, Transaction tr) {
+		// Redistribute tuples in an adaptive manner using DSM/ARHC
+		SimpleTr t = MDRepartitioning.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
+		t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
 		
-		if(!Global.adaptive) {
-			wb.set_intra_dmg(intra_server_dmgr);
-			wb.set_inter_dmg(inter_server_dmgr);
-			
-			Global.LOGGER.info("Total data migrations: Intra-server("+wb.get_intra_dmv()+"); Inter-server("+wb.get_inter_dmv()+")");
-		}
+		int temp1 = wb.get_intra_server_mgr();
+		int temp2 = wb.get_inter_server_mgr();
+		
+		if(t.isAssociated)
+			MDRepartitioning.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
+		
+		wb.set_intra_server_mgr(temp1+DataMigration.intra_server_dmgr);
+		wb.set_inter_server_mgr(temp2+DataMigration.inter_server_dmgr);
+		
+		DataMigration.intra_server_dmgr = 0;
+		DataMigration.inter_server_dmgr = 0;
 	}
 	
 	// Sword - incremental repartitioning	
@@ -355,8 +373,8 @@ public class DataMigration {
 			
 			Global.LOGGER.info("Total "+swaps+" compressed vertices have been swapped ...");
 			
-			wb.set_intra_dmg(intra_server_dmgr);
-			wb.set_inter_dmg(inter_server_dmgr);
+			wb.set_intra_server_mgr(intra_server_dmgr);
+			wb.set_inter_server_mgr(inter_server_dmgr);
 		}
 	}
 	
@@ -420,8 +438,8 @@ public class DataMigration {
 		cluster.updateLoad();
 		//cluster.show();
 		
-		wb.set_intra_dmg(intra_server_dmgr);
-		wb.set_inter_dmg(inter_server_dmgr);
+		wb.set_intra_server_mgr(intra_server_dmgr);
+		wb.set_inter_server_mgr(inter_server_dmgr);
 	}
 	
 	// Updates Data
@@ -619,7 +637,7 @@ public class DataMigration {
 				
 				//System.out.println("@debug >> P"+dst_partition_id);
 				
-				if(Global.associative) {
+				if(Global.associative) { // This only runs when we need to perform the ARHC not afterwards
 					// Decide destination server
 					dst_server_id = dst_partition_id;
 
@@ -658,8 +676,8 @@ public class DataMigration {
 			} // end -- if()-Data
 		} // end -- for()-Data	
 					
-		wb.set_intra_dmg(intra_server_dmgr);
-		wb.set_inter_dmg(inter_server_dmgr);	
+		wb.set_intra_server_mgr(intra_server_dmgr);
+		wb.set_inter_server_mgr(inter_server_dmgr);	
 	}
 		
 	private static int selectPartitionId(Cluster cluster, int server_id) {

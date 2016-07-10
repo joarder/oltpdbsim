@@ -1,4 +1,4 @@
-simulation.name=R-T-ARHC-TPCC-MC-IDT-1.0
+simulation.name=R-T-ARHC-TPCC-MCM-COM-0.5
 
 setup=range
 
@@ -36,7 +36,7 @@ fixed.partitions=64
 fixed.partition.capacity=100000
 number.of.replicas=1
 
-simulation.period=43200
+simulation.period=54000
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
@@ -51,7 +51,7 @@ exponential.Avg.Weight=0.4
 span.reduction=false
 span.reduce=3
 
-idt.priority=1.0
-lb.priority=0.0
+idt.priority=0.5
+lb.priority=0.5
 
 idt.threshold=0.5

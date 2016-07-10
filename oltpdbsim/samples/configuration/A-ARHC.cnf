@@ -1,14 +1,10 @@
-simulation.name=C-T-AARHC-TPCC-COM-0.5
+simulation.name=R-T-AARHC-TPCC-MC-IDT-1.0
 
-setup=consistenthash
-
-analysis=false
+setup=range
 
 static.repartitioning=false
 hourly.repartitioning=false
 threshold.repartitioning=true
-
-workload.variation=false
 
 workload.aware=true
 incremental.repartitioning=true
@@ -40,23 +36,22 @@ fixed.partitions=64
 fixed.partition.capacity=100000
 number.of.replicas=1
 
-simulation.period=97200
+simulation.period=43200
 warmup.period=10800
 
 inverse.of.mean.inter.arrival.time=1
 inverse.of.mean.service.time=1000
 
+unique.enable=false
 percentage.change.in.workload=0.15
-adjustment=0.6
 observation.window.size=3600
 unique.max.fixed=900
 exponential.Avg.Weight=0.4
-unique.enable=false
 
 span.reduction=false
-span.reduce=1
+span.reduce=3
 
-idt.priority=0.5
-lb.priority=0.5
+idt.priority=1.0
+lb.priority=0.0
 
 idt.threshold=0.5

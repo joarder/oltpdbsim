@@ -243,19 +243,19 @@ public class WorkloadBatch {
 		this._response_time = wrl_response_time;
 	}
 
-	public int get_intra_dmv() {
+	public int get_intra_server_mgr() {
 		return _intra_dmv;
 	}
 
-	public void set_intra_dmg(int wrl_intra_dmv) {
+	public void set_intra_server_mgr(int wrl_intra_dmv) {
 		this._intra_dmv = wrl_intra_dmv;
 	}
 
-	public int get_inter_dmv() {
+	public int get_inter_server_mgr() {
 		return _inter_dmv;
 	}
 
-	public void set_inter_dmg(int wrl_inter_dmv) {
+	public void set_inter_server_mgr(int wrl_inter_dmv) {
 		this._inter_dmv = wrl_inter_dmv;
 	}
 

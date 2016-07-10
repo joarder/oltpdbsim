@@ -19,7 +19,7 @@ package main.java.entry;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-import main.java.repartition.DataStreamMining;
+import main.java.dsm.DataStreamMining;
 import main.java.utils.Utility;
 
 import org.apache.commons.configuration.AbstractFileConfiguration;

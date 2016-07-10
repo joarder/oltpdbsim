@@ -14,7 +14,7 @@
  *    limitations under the License.
  *******************************************************************************/
 
-package main.java.repartition;
+package main.java.dsm;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -26,11 +26,12 @@ import java.util.Map.Entry;
 import java.util.Queue;
 
 import main.java.cluster.Cluster;
-import main.java.dsm.FCICluster;
 import main.java.entry.Global;
 import main.java.incmine.core.SemiFCI;
 import main.java.incmine.learners.IncMine;
 import main.java.incmine.streams.ZakiFileStream;
+import main.java.repartition.DataMigration;
+import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.Utility;
 import main.java.utils.graph.ISimpleHypergraph;
 import main.java.utils.graph.SimpleHEdge;
@@ -124,7 +125,7 @@ public class DataStreamMining {
 		this.dsm_PrintWriter.close();
 	}
 	
-	public void performDSM(Cluster cluster, WorkloadBatch wb) {		
+	public void performDSM(Cluster cluster, WorkloadBatch wb, long start_time) {		
 		// Read the stream input
 		this.dsm_stream = new ZakiFileStream(this.dsm_dumpfilename);
 		this.dsm_stream.prepareForUse();				
@@ -139,17 +140,17 @@ public class DataStreamMining {
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
 		if(this.dsm_learner.getFCITable().size() == 0) {
-			Global.isAssociationRequired = false;
+			Global.isFrequentClustersFound = false;
 			Global.LOGGER.info("No frequent tuple sets have been identified !!! Nothing to do at this moment.");
 		} else 
-			Global.isAssociationRequired = true;
+			Global.isFrequentClustersFound = true;
 		
-		if(Global.associative && Global.isAssociationRequired)
-			this.performARHC(cluster, wb);
+		if(Global.associative && Global.isFrequentClustersFound)
+			this.performARHC(cluster, wb, start_time);
 	} 
 	
 	// Association Rule Hypergraph Clustering (ARHC) for both adaptive and non-adaptive algorithms
-	private void performARHC(Cluster cluster, WorkloadBatch wb) {
+	private void performARHC(Cluster cluster, WorkloadBatch wb, long start_time) {
 		// Create a hypergraph from the FCI list
 		Global.LOGGER.info("Creating association rule hypergraph ...");
 		
@@ -250,10 +251,10 @@ public class DataStreamMining {
 			Global.LOGGER.info(""+fci_cluster);
 		}
 				
-		// Execution - Data migration
+		// Execution - Data migration -- this is where ARHC and A-ARHC MD repartitioning separate
 		if(!Global.adaptive) {			
 			Global.LOGGER.info("Start processing all DTs within the current workload observation window ...");
-			DataMigration.strategyARHC(cluster, wb);
+			DataMigration.strategyARHC(cluster, wb, start_time);
 			Global.LOGGER.info("Done with transaction processing and required data migrations!!");
 		}			
 	}

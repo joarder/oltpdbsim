@@ -174,8 +174,8 @@ public class Metric {
 		percentage_dt.add(wb.get_percentage_dt());
 		percentage_ndt.add(wb.get_percentage_ndt());
 		
-		intra_server_data_mgr.add(wb.get_intra_dmv());
-		inter_server_data_mgr.add(wb.get_inter_dmv());
+		intra_server_data_mgr.add(wb.get_intra_server_mgr());
+		inter_server_data_mgr.add(wb.get_inter_server_mgr());
 
 		current_tr.add(wb.get_tr_nums());
 		current_dt.add(wb.get_dt_nums());
@@ -312,8 +312,8 @@ public class Metric {
 			Metric.reInitServerSet();
 			
 			// Reset each time	
-			wb.set_intra_dmg(0);
-			wb.set_inter_dmg(0);
+			wb.set_intra_server_mgr(0);
+			wb.set_inter_server_mgr(0);
 			wb.set_repartitioning_time(0);			
 			
 			for(Server s : cluster.getServers()) { 
@@ -355,7 +355,6 @@ public class Metric {
 		Global.LOGGER.info("_____________________________________________________________________________");
 		Global.LOGGER.info("Average throughput: "+mean_throughput+" TPS");
 		Global.LOGGER.info("_____________________________________________________________________________");
-		Global.LOGGER.info("IDt: "+idt);
 		Global.LOGGER.info("Percentage of distributed transactions: "+percentage_dt+" %");
 		Global.LOGGER.info("Percentage of non-distributed transactions: "+percentage_ndt+" %");
 		Global.LOGGER.info("_____________________________________________________________________________");
@@ -364,14 +363,18 @@ public class Metric {
 		Global.LOGGER.info("Average Partition's data count: "+mean_partition_data);
 		Global.LOGGER.info("Standard deviation of Partition's data count: "+sd_partition_data);
 		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("Total data count: "+total_data);
 		Global.LOGGER.info("Average Server's data inflow: "+mean_server_inflow);
 		Global.LOGGER.info("Average Server's data outflow: "+mean_server_outflow);
 		Global.LOGGER.info("Average Server's data count: "+mean_server_data);
 		Global.LOGGER.info("Standard deviation of Server's data count: "+sd_server_data);
 		Global.LOGGER.info("_____________________________________________________________________________");
+		Global.LOGGER.info("IDt: "+idt);
 		Global.LOGGER.info("Intra-server data movements: "+intra_server_data_mgr);
 		Global.LOGGER.info("Inter-server data movements: "+inter_server_data_mgr);
-		Global.LOGGER.info("Total data count: "+total_data);			
+		Global.LOGGER.info("Incremental repartitioning cycle: "+Global.repartitioningCycle);
+		Global.LOGGER.info("Incremental repartitioning time: "+repartitioning_time);
+			
 		//Global.LOGGER.info("*****************************************************************************");		
 	}
 
@@ -409,7 +412,8 @@ public class Metric {
 			prWriter.append(estimated_data_mgr.get(index)+" ");
 			prWriter.append(repartitioning_time.get(index)+" ");
 			prWriter.append(total_edges.get(index)+" ");
-			prWriter.append(total_vertices.get(index)+"\n");			
+			prWriter.append(total_vertices.get(index)+" ");
+			prWriter.append(Global.global_trSeq+"\n"); // Total unique transactions			
 			
 			/*prWriter.append(mean_throughput.get(index)+" ");
 			prWriter.append(current_dt.get(index)+" ");

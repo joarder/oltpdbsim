@@ -50,11 +50,8 @@ import main.java.entry.Global;
 import main.java.metric.Metric;
 import main.java.metric.PerfMetric;
 import main.java.repartition.DataMigration;
-import main.java.repartition.DataStreamMining;
-import main.java.repartition.MDRepartitioning;
 import main.java.repartition.MinCut;
 import main.java.repartition.RBPTA;
-import main.java.repartition.SimpleTr;
 import main.java.repartition.TransactionClassifier;
 import main.java.repartition.WorkloadBatchProcessor;
 import main.java.utils.ValueComparator;
@@ -312,19 +309,15 @@ public class WorkloadExecutor {
 				Global.LOGGER.info("User defined IDt threshold: "+Global.userDefinedIDtThreshold);
 				
 				if(currentIDt < Global.userDefinedIDtThreshold) {
-					Global.LOGGER.info("Repartitioning is not required at this moment.");
-					Global.LOGGER.info("Continuing transaction processing ...");
+					Global.LOGGER.info("Repartitioning is not required at this moment.");					
 					
-					// Adaptive ARHC
-//					if(Global.adaptive) {
-//						WorkloadExecutor.isAdaptive = false;
-//						
-//						wb.set_intra_dmv(DataMigration.intra_server_dmgr);
-//						wb.set_inter_dmv(DataMigration.inter_server_dmgr);
-//						
-//						//Global.LOGGER.info("-----------------------------------------------------------------------------");												
-//						//WorkloadExecutor.collectStatistics(cluster, wb);
-//					}					
+					//This is to disable on-demand atomic repartitioning for A-ARHC only
+					if(Global.adaptive) {
+						Global.LOGGER.info("Disabling on-demand atomic repartitioning for A-ARHC ...");						
+						WorkloadExecutor.isAdaptive = false;
+					}					
+					
+					Global.LOGGER.info("Continuing transaction processing ...");
 				}
 			}
 			
@@ -408,8 +401,7 @@ public class WorkloadExecutor {
 			}	
 		}
 		
-		if(!isWrlFileEmpty) {
-			
+		if(!isWrlFileEmpty) {			
 			int k_clusters = 0;
 			
 			if(Global.associative) {
@@ -479,17 +471,17 @@ public class WorkloadExecutor {
 						
 					case "fd":
 						Global.LOGGER.info("Discarding transactions which are not frequent ...");						
-						TransactionClassifier.classifyFD(cluster, wb);
+						TransactionClassifier.classifyFD(cluster, wb, start_time);
 						break;
 						
 					case "fdfnd":
 						Global.LOGGER.info("Discarding transactions which are not frequent ...");
-						TransactionClassifier.classifyFDFND(cluster, wb);
+						TransactionClassifier.classifyFDFND(cluster, wb, start_time);
 						break;
 						
 					case "fcimining":	
 						Global.LOGGER.info("Mining frequent tuple sets from transactional streams ...");						
-						Global.dsm.performDSM(cluster, wb); // This should be appear only once
+						Global.dsm.performDSM(cluster, wb, start_time); // This should be appear only once
 						break;
 						
 					default:
@@ -516,7 +508,8 @@ public class WorkloadExecutor {
 		}
 		
 		// Record repartitioning time in milliseconds
-		wb.set_repartitioning_time(System.currentTimeMillis() - start_time);
+		if(!Global.associative && !Global.adaptive)
+			wb.set_repartitioning_time(System.currentTimeMillis() - start_time);
 	}
 } // end-Class
 
@@ -624,30 +617,14 @@ class Arrival extends Event {
 							Global.LOGGER.info("Hourly repartitioning will start now ...");
 						}
 						
-						// Repartition the database in an incremental manner
-//						if(Global.associative && Global.adaptive) {// This is for A-ARHC only not ARHC
-//							wb.set_intra_dmv(DataMigration.intra_server_dmgr);
-//							wb.set_inter_dmv(DataMigration.inter_server_dmgr);
-//							
-//							Global.LOGGER.info("-----------------------------------------------------------------------------");												
-//							//WorkloadExecutor.collectStatistics(cluster, wb);
-//							
-//							Global.LOGGER.info("-----------------------------------------------------------------------------");
-//							Global.LOGGER.info("Starting adaptive data stream mining ...");
-//							Global.LOGGER.info("Identifying most frequently occurred transactions ...");
-//							
-//							//Global.dsm.performDSM(cluster, wb);
-//							
-//							//WorkloadExecutor.isAdaptive = true;
-//							
-//						} else {
-							WorkloadExecutor.startRepartitioning(cluster, wb);							
-						//}
+						//This is to enable on-demand atomic repartitioning for A-ARHC only
+						if(Global.adaptive) {
+							Global.LOGGER.info("Enabling on-demand atomic repartitioning for A-ARHC ...");
+							WorkloadExecutor.isAdaptive = true;
+						}
 						
-//						if(!Global.adaptive) {
-//							Global.LOGGER.info("-----------------------------------------------------------------------------");												
-//							WorkloadExecutor.collectMetrics(cluster, wb);
-//						}
+						// Run the repartitioning schemes
+						WorkloadExecutor.startRepartitioning(cluster, wb);							
 						
 						if(Global.repartThreshold) {
 							WorkloadExecutor.repartitioningCoolingOff = true;
@@ -658,11 +635,12 @@ class Arrival extends Event {
 							Global.LOGGER.info("Repartitioning cooling off period will end at "+WorkloadExecutor.RepartitioningCoolingOffPeriod/(double)Global.observationWindow+" hrs.");
 							
 							// Continue on-demand transaction-level repartitioning
-							if(Global.adaptive && Global.isAssociationRequired)
-								Global.LOGGER.info("Starting adaptive data redistribution while processing each transactions ...");
+							if(Global.adaptive && Global.isFrequentClustersFound)
+								Global.LOGGER.info("Starting on-demand atomic repartitioning while processing each transactions in the background ...");
 						}
 						
 						// Metrics collection after each repartitioning cycle
+						// This one never runs - will be removed
 						Metric.collectMetrics(cluster, wb);
 						
 					} else {						
@@ -681,8 +659,8 @@ class Arrival extends Event {
 						// Repartition the database for a single time
 						WorkloadExecutor.startRepartitioning(cluster, wb);
 						
-						// Statistics collection
-						//WorkloadExecutor.collectStatistics(cluster, wb);
+						// Metrics collection
+						Metric.collectMetrics(cluster, wb);
 						
 						// Prevents future repartitioning
 						Global.repartStatic = false;
@@ -713,15 +691,9 @@ class Arrival extends Event {
 			}						
 			
 			// Adaptive ARHC
-			if(Global.associative && Global.adaptive) { 
-					//&& WorkloadExecutor.isAdaptive  && Global.isAssociationRequired) {
-				
-				// Redistribute tuples in an adaptive manner using DSM/ARHC
-				SimpleTr t = MDRepartitioning.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
-				t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
-				
-				if(t.isAssociated)
-					MDRepartitioning.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
+			if(Global.associative && Global.adaptive 
+					&& WorkloadExecutor.isAdaptive && Global.isFrequentClustersFound) {
+				DataMigration.strategyAARHC(cluster, wb, tr);				
 			}
 		}
 		
