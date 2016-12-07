@@ -66,7 +66,7 @@ public class DataMigration {
 		}
 	}
 	
-	public static void performDataMigration(Cluster cluster, WorkloadBatch wb) {
+	public static void performDataMigration(Cluster cluster, WorkloadBatch wb, long start_time) {
 		
 		String partitioner = Global.workloadRepresentation;
 		migratedDataSet = new HashSet<Data>();
@@ -92,9 +92,9 @@ public class DataMigration {
 				strategyMSM(cluster, wb, partitioner);				
 				break;
 				
-			case "rbsta":
-				Global.LOGGER.info("Applying Repartitioning Based on Server-level Transactional Association (RBSTA) Strategy ...");
-				strategyRBSTA(cluster, wb, partitioner);				
+			case "greedy":
+				Global.LOGGER.info("Applying greedy heuristics based incremental repartitioning scheme ...");
+				strategyGreedy(cluster, wb, start_time);				
 				break;				
 				
 			case "rbpta":
@@ -280,25 +280,46 @@ public class DataMigration {
 			migrate(cluster, wb, wb.hgr, keyMap, partitioner);
 	}
 	
-	// RBSTA - incremental repartitioning	
-	private static void strategyRBSTA(Cluster cluster, WorkloadBatch wb, String partitioner) {	
-		setEnvironment(cluster);		
-		RBSTA.populatePQ(cluster, wb);
+	// Greedy incremental repartitioning	
+	private static void strategyGreedy(Cluster cluster, WorkloadBatch wb, long start_time) {	
+		setEnvironment(cluster);
 
-		while(RBSTA.pq.size() != 0) {			
+		GreedyRepartition.populatePQ(cluster, wb);
+		Global.LOGGER.debug("PQ is populated.");
+		
+		int count_processed = 0;
+		while(GreedyRepartition.pq.size() != 0) {			
 			// Get a transaction from the priority queue
-			SimpleTr t = RBSTA.pq.poll();
-			MigrationPlan m = t.migrationPlanList.get(0);
+			SimpleTr t = GreedyRepartition.pq.poll();
 			
-			// Check whether processing this transaction may increase the impact of any other already processed transactions
-			if(!RBSTA.isAffected(wb, t, m))
-				RBSTA.processTransaction(cluster, wb, t, m);
-			else
-				t.isProcessed = true;			
+			if(!t.isProcessed) {
+				if(t.migrationPlanList.size() == 0) {// Checks if there is any contradicting migration plan exists
+					break;
+					
+				} else {					
+					Global.LOGGER.debug("--> Processing T-"+t.id);
+					
+					MigrationPlan m = t.migrationPlanList.get(0);
+					
+					// Check whether processing this transaction may increase the impact of any other already processed transactions
+					if(!GreedyRepartition.isIncidentsAffected(wb, t, m)) {
+						GreedyRepartition.processTransaction(cluster, wb, t, m);						
+						++count_processed;						
+					}
+					
+					t.isProcessed = true;
+				}
+			}
+			
+			Global.LOGGER.debug("--> PQ Size = "+GreedyRepartition.pq.size());
+			Global.LOGGER.debug("--> TMap Size = "+GreedyRepartition.tMap.size());
 		}		
+		
+		Global.LOGGER.info("In total "+count_processed+" DTs have been processed from the priority queue!!");
 		
 		wb.set_intra_server_mgr(intra_server_dmgr);
 		wb.set_inter_server_mgr(inter_server_dmgr);
+		wb.set_repartitioning_time(System.currentTimeMillis() - start_time);
 	}
 		
 	// FCIMining and ARHC - incremental repartitioning	
@@ -306,17 +327,17 @@ public class DataMigration {
 		if(!WorkloadExecutor.isAdaptive)
 			setEnvironment(cluster);		
 		
-		MDRepartitioning.populatePQ(cluster, wb);
+		ARHCRepartition.populatePQ(cluster, wb);
 		
 		int count_processed = 0;
-		while(!MDRepartitioning.pq.isEmpty()) {			
+		while(!ARHCRepartition.pq.isEmpty()) {			
 			// Get a transaction from the priority queue
-			SimpleTr t = MDRepartitioning.pq.poll();
+			SimpleTr t = ARHCRepartition.pq.poll();
 			MigrationPlan m = t.migrationPlanList.get(0);
 			
 			// Check whether processing this transaction may increase the impact of any other already processed transactions
-			if(!MDRepartitioning.isAffected(wb, t, m)) {
-				MDRepartitioning.processTransaction(cluster, wb, t, m);
+			if(!ARHCRepartition.isAffected(wb, t, m)) {
+				ARHCRepartition.processTransaction(cluster, wb, t, m);
 				++count_processed;
 			} else
 				t.isProcessed = true;			
@@ -332,17 +353,17 @@ public class DataMigration {
 	// A-ARHC
 	public static void strategyAARHC(Cluster cluster, WorkloadBatch wb, Transaction tr) {
 		// Redistribute tuples in an adaptive manner using DSM/ARHC
-		SimpleTr t = MDRepartitioning.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
+		SimpleTr t = ARHCRepartition.prepare(cluster, wb, wb.hgr.getHEdge(tr.getTr_id()));
 		t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
 		
 		int temp1 = wb.get_intra_server_mgr();
 		int temp2 = wb.get_inter_server_mgr();
 		
 		if(t.isAssociated)
-			MDRepartitioning.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
+			ARHCRepartition.processTransaction(cluster, wb, t, t.migrationPlanList.get(0));
 		
-		wb.set_intra_server_mgr(temp1+DataMigration.intra_server_dmgr);
-		wb.set_inter_server_mgr(temp2+DataMigration.inter_server_dmgr);
+		wb.set_intra_server_mgr(temp1 + DataMigration.intra_server_dmgr);
+		wb.set_inter_server_mgr(temp2 + DataMigration.inter_server_dmgr);
 		
 		DataMigration.intra_server_dmgr = 0;
 		DataMigration.inter_server_dmgr = 0;

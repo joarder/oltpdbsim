@@ -20,83 +20,61 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.PriorityQueue;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
-import main.java.dsm.DataStreamMining;
 import main.java.entry.Global;
+//import main.java.entry.Global;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
-public class MDRepartitioning {
+/*
+ * Repartition Based on Server-level Transactional Association (RBSTA)
+ */
 
+public class GreedyRepartition {
+	
 	public static PriorityQueue<SimpleTr> pq;
 	public static HashMap<Integer, SimpleTr> tMap;
 	
 	// Populates a priority queue to keep the potential transactions 
-	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
-		if(Global.idt_priority >= Global.lb_priority)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_ASSOCIATION_GAIN());
-		else
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_LB_GAIN());		
+	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
 		
-		Global.LOGGER.info("Total edges in the hypergraph: "+wb.hgr.getEdges().size());
-		
+		pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_COMBINED_WEIGHT());		
 		tMap = new HashMap<Integer, SimpleTr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
-			SimpleTr t = prepare(cluster, wb, h);
-			//System.out.println(t.toString());
+			SimpleTr t = prepare(cluster, wb, h);		
 			tMap.put(t.id, t);
 			
-			if(t.isAssociated && !t.isProcessed)
+			if(!t.isProcessed)
 				pq.add(tMap.get(t.id));
-		}
-				
-		Global.LOGGER.info("Total transactions in the priority queue: "+pq.size());
-	}		
+		}			
+	}
 	
 	// Prepares current transaction for processing
-	public static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
+	private static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
 		Transaction tr = wb.getTransaction(h.getId());			
 		SimpleTr t = new SimpleTr(tr.getTr_id(), tr.getTr_period());
 
+		// Populate server-data sets for all Ts
 		t.populateServerSet(cluster, tr);
 				
-		if(t.serverDataSet.size() > 1) {// DTs
-			t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
-		} else {// non-DTs
-			t.min_data_mgr = 0;
-			t.max_association_gain = 0.0;
-			t.isProcessed = true;
-		}
-		
+		// Only generate migration lists for DTs
+		if(t.serverDataSet.size() > 1)	 
+			t.populateMigrationList(cluster, wb);
+				
 		return t;
 	}
 	
-	private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {		
-		boolean contains = false;
-		
-		for(int s_id : m.fromSet) {
-			if(incidentT.serverDataSet.containsKey(s_id))
-				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
-					contains = true;
-		}
-		
-		if(contains)
-			return false;
-		else
-			return true;
-	}	
-	
 	// Checks whether processing current transaction affect any other transaction adversely
-	public static boolean isAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
+	public static boolean isIncidentsAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
 		// Search the incident transactions for the targeted data rows to be moved
 		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
 			for(int d : entry.getValue()) {
@@ -105,16 +83,8 @@ public class MDRepartitioning {
 				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
 					SimpleTr incidentT = tMap.get(h.getId());				
 					
-					if(!incidentT.equals(t) && incidentT.isProcessed) {					
-						if(incidentT.serverDataSet.containsKey(m.to)) { // Either no change or potential reduction in the impact  
-							return false;
-						} else { // Destination server is not covered by the incident transaction						
-							if(!isContainsAll(incidentT, m)) // Either no change or potential reduction in the impact
-								return false;
-							else // Not all of the data ids from the source servers are included in the migration plan
-								return true;
-						}
-					}
+					if(!incidentT.equals(t) && incidentT.isProcessed)					
+						return true;
 				}
 			}
 		}
@@ -122,7 +92,8 @@ public class MDRepartitioning {
 		return false;		
 	}
 	
-	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {		
+	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
+						
 		// Data migrations
 		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.serverDataSet);			
 		dataMigration(cluster, m.to, dataMap);
@@ -136,33 +107,62 @@ public class MDRepartitioning {
 		}
 		
 		// Update incident transactions
-		if(!Global.adaptive) {
-			for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
-				for(int d : entry.getValue()) {
-					SimpleVertex v = wb.hgr.getVertex(d);
+		Global.LOGGER.debug("--> Updating incident transactions of T-"+t.id);
+		
+		HashSet<Integer> uniqueIncidents = new HashSet<Integer>();
+		int incident_count = 0;
+		
+		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
+			for(int id : entry.getValue()) {
+				SimpleVertex v = wb.hgr.getVertex(id);				
+				
+				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
 					
-					for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-						SimpleTr incidentT = tMap.get(h.getId());
-						//System.out.println("\t\t--> "+incidentT.toString());
+					if(!uniqueIncidents.contains(h.getId())) {					
+						uniqueIncidents.add(h.getId());
 						
-						if(!incidentT.equals(t) && !incidentT.isProcessed) {				
-							pq.remove(incidentT);
-							tMap.remove(h.getId());
-							
-							SimpleTr new_incidentT = prepare(cluster, wb, h);
-							tMap.put(new_incidentT.id, new_incidentT);				
-							
-							 // Only DTs will be added back after recalculations
-							if(new_incidentT.serverDataSet.size() > 1)				
-								pq.add(tMap.get(new_incidentT.id));						
+						Transaction tr = wb.getTransaction(h.getId());
+						SimpleTr incidentT = tMap.get(h.getId());
+						
+						if(!incidentT.equals(t)) { 
+							if(!incidentT.isProcessed) {							
+								pq.remove(incidentT);
+								tMap.remove(incidentT.id);
+								
+								SimpleTr new_incidentT = prepare(cluster, wb, h);
+								tMap.put(new_incidentT.id, new_incidentT);
+									
+								pq.add(new_incidentT);
+									
+								//Global.LOGGER.debug("\t\t Updating incident T-"+new_incidentT.id);
+								++incident_count;
+								} else {
+									incidentT.populateServerSet(cluster, tr);
+								}
 						}
 					}
 				}
-			} //end-for()
+			}
 		}
 		
+		Global.LOGGER.debug("\t\t Updated "+incident_count+" incident transactions");
 		t.isProcessed = true;
 	} 
+		
+	/*private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {		
+		boolean contains = false;
+		
+		for(int s_id : m.fromSet) {
+			if(incidentT.serverDataSet.containsKey(s_id))
+				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
+					contains = true;
+		}
+		
+		if(contains)
+			return false;
+		else
+			return true;
+	}*/
 	
 	// Perform data migrations
 	private static void dataMigration(Cluster cluster, int dst_server_id, HashMap<Integer, HashSet<Integer>> dataMap) {
@@ -197,5 +197,4 @@ public class MDRepartitioning {
 			}
 		}
 	}
-	
 }

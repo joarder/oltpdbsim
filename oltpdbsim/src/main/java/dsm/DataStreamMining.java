@@ -136,7 +136,7 @@ public class DataStreamMining {
         }
 		
 		// Testing
-		//System.out.println(this.dsm_learner);		
+		//Global.LOGGER.debug(this.dsm_learner);		
 		Global.LOGGER.info("Total "+this.dsm_learner.getFCITable().size()+" frequent tuple sets have been identified.");
 		
 		if(this.dsm_learner.getFCITable().size() == 0) {
@@ -162,9 +162,9 @@ public class DataStreamMining {
 		int hEdgeId = 0;
 		
 		for(SemiFCI semiFCI : this.dsm_learner.getFCITable()){
-			//System.out.println("\t-- "+semiFCI.getItems());
-			//System.out.println("\t-- Current Support = "+semiFCI.currentSupport());
-			//System.out.println("\t-- Approximate Support = "+semiFCI.getApproximateSupport());
+			//Global.LOGGER.debug("\t-- "+semiFCI.getItems());
+			//Global.LOGGER.debug("\t-- Current Support = "+semiFCI.currentSupport());
+			//Global.LOGGER.debug("\t-- Approximate Support = "+semiFCI.getApproximateSupport());
 			
 			int fci_support = semiFCI.getApproximateSupport();
 			int fci_weight = 0;
@@ -220,13 +220,13 @@ public class DataStreamMining {
 		Global.LOGGER.info("Redistributing the frequently occurred tuplesets after ARHC ...");
 		WorkloadBatchProcessor.generateHGraphWorkloadFile(cluster, wb, hgr);
 		WorkloadExecutor.runRepartitioner(cluster, wb);		
-		DataMigration.performDataMigration(cluster, wb);		
+		DataMigration.performDataMigration(cluster, wb, start_time);		
 				
 		// Testing
 		/*for(SimpleVertex v : this.hgr.getVertices()) {
 			Data data = cluster.getData(v.getId());
-			System.out.println(">> V"+v.getId()+"|W="+v.getWeight()+"|S"+v.getSid()+"|P"+v.getPid()+"|Incident h="+wb.hgr.getIncidentEdges(v).size());
-			System.out.println(data.toString());
+			Global.LOGGER.debug(">> V"+v.getId()+"|W="+v.getWeight()+"|S"+v.getSid()+"|P"+v.getPid()+"|Incident h="+wb.hgr.getIncidentEdges(v).size());
+			Global.LOGGER.debug(data.toString());
 		}*/
 		
 		// Preparing the clusters with their associated weights

@@ -20,70 +20,77 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.PriorityQueue;
+import java.util.Map.Entry;
 
 import main.java.cluster.Cluster;
 import main.java.cluster.Data;
 import main.java.cluster.Partition;
 import main.java.cluster.Server;
-//import main.java.entry.Global;
+import main.java.dsm.DataStreamMining;
+import main.java.entry.Global;
 import main.java.utils.graph.SimpleHEdge;
 import main.java.utils.graph.SimpleVertex;
 import main.java.workload.Transaction;
 import main.java.workload.WorkloadBatch;
 
-/*
- * Repartition Based on Server-level Transactional Association (RBSTA)
- */
+public class ARHCRepartition {
 
-public class RBSTA {
-	
 	public static PriorityQueue<SimpleTr> pq;
 	public static HashMap<Integer, SimpleTr> tMap;
 	
 	// Populates a priority queue to keep the potential transactions 
-	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {
+	public static void populatePQ(Cluster cluster, WorkloadBatch wb) {		
+		pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_COMBINED_WEIGHT());		
 		
-		/*if(Global.spanReduction)
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_SPAN_REDUCTION_GAIN());			
-		else*/
-			pq = new PriorityQueue<SimpleTr>(wb.hgr.getEdges().size(), SimpleTr.by_MAX_COMBINED_WEIGHT());		
+		Global.LOGGER.info("Total edges in the hypergraph: "+wb.hgr.getEdges().size());
 		
-
 		tMap = new HashMap<Integer, SimpleTr>();
 				
 		for(SimpleHEdge h : wb.hgr.getEdges()) {			
 			SimpleTr t = prepare(cluster, wb, h);
-			
 			tMap.put(t.id, t);
 			
-			if(!t.isProcessed)
+			if(t.isAssociated && !t.isProcessed)
 				pq.add(tMap.get(t.id));
 		}
-	}
+				
+		Global.LOGGER.info("Total transactions in the priority queue: "+pq.size());
+	}		
 	
 	// Prepares current transaction for processing
-	private static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
+	public static SimpleTr prepare(Cluster cluster, WorkloadBatch wb, SimpleHEdge h) {
 		Transaction tr = wb.getTransaction(h.getId());			
 		SimpleTr t = new SimpleTr(tr.getTr_id(), tr.getTr_period());
 
 		t.populateServerSet(cluster, tr);
 				
-		if(t.serverDataSet.size() > 1) {	 // DTs
-			//if(Global.spanReduction)
-				//t.populateMigrationList(cluster, wb, Global.spanReduce);			
-			//else
-				t.populateMigrationList(cluster, wb);
+		if(t.serverDataSet.size() > 1) {// DTs
+			t.populateAssociationList(cluster, wb, DataStreamMining.fci_clusters);
 			
-		} else {					// Non-DTs
+		} else {// non-DTs
 			t.min_data_mgr = 0;
-			t.max_idt_gain = 0.0;
+			t.max_association_gain = 0.0;
 			t.isProcessed = true;
 		}
-				
+		
 		return t;
 	}
+	
+	private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {		
+		boolean contains = false;
+		
+		for(int s_id : m.fromSet) {
+			if(incidentT.serverDataSet.containsKey(s_id))
+				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
+					contains = true;
+		}
+		
+		if(contains)
+			return false;
+		else
+			return true;
+	}	
 	
 	// Checks whether processing current transaction affect any other transaction adversely
 	public static boolean isAffected(WorkloadBatch wb, SimpleTr t, MigrationPlan m) {			
@@ -112,24 +119,7 @@ public class RBSTA {
 		return false;		
 	}
 	
-	private static boolean isContainsAll(SimpleTr incidentT, MigrationPlan m) {
-		
-		boolean contains = false;
-		
-		for(int s_id : m.fromSet) {
-			if(incidentT.serverDataSet.containsKey(s_id))
-				if(incidentT.serverDataSet.get(s_id).containsAll(m.serverDataSet.get(s_id)))
-					contains = true;
-		}
-		
-		if(contains)
-			return false;
-		else
-			return true;
-	}
-	
-	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {
-						
+	public static void processTransaction(Cluster cluster, WorkloadBatch wb, SimpleTr t, MigrationPlan m) {		
 		// Data migrations
 		HashMap<Integer, HashSet<Integer>> dataMap = new HashMap<Integer, HashSet<Integer>>(m.serverDataSet);			
 		dataMigration(cluster, m.to, dataMap);
@@ -143,27 +133,29 @@ public class RBSTA {
 		}
 		
 		// Update incident transactions
-		for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
-			for(int d : entry.getValue()) {
-				SimpleVertex v = wb.hgr.getVertex(d);
-				
-				for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
-					SimpleTr incidentT = tMap.get(h.getId());
-					//System.out.println("\t\t--> "+incidentT.toString());
+		if(!Global.adaptive) {
+			for(Entry<Integer, HashSet<Integer>> entry : m.serverDataSet.entrySet()) {
+				for(int d : entry.getValue()) {
+					SimpleVertex v = wb.hgr.getVertex(d);
 					
-					if(!incidentT.equals(t) && !incidentT.isProcessed) {				
-						pq.remove(incidentT);
-						tMap.remove(h.getId());
+					for(SimpleHEdge h : wb.hgr.getIncidentEdges(v)) {
+						SimpleTr incidentT = tMap.get(h.getId());
+						//System.out.println("\t\t--> "+incidentT.toString());
 						
-						SimpleTr new_incidentT = prepare(cluster, wb, h);
-						tMap.put(new_incidentT.id, new_incidentT);				
-						
-						 // Only DTs will be added back after recalculations
-						if(new_incidentT.serverDataSet.size() > 1)				
-							pq.add(tMap.get(new_incidentT.id));						
+						if(!incidentT.equals(t) && !incidentT.isProcessed) {				
+							pq.remove(incidentT);
+							tMap.remove(h.getId());
+							
+							SimpleTr new_incidentT = prepare(cluster, wb, h);
+							tMap.put(new_incidentT.id, new_incidentT);				
+							
+							 // Only DTs will be added back after recalculations
+							if(new_incidentT.serverDataSet.size() > 1)				
+								pq.add(tMap.get(new_incidentT.id));						
+						}
 					}
 				}
-			}
+			} //end-for()
 		}
 		
 		t.isProcessed = true;
@@ -202,4 +194,5 @@ public class RBSTA {
 			}
 		}
 	}
+	
 }

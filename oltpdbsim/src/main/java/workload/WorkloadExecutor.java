@@ -101,6 +101,7 @@ public class WorkloadExecutor {
     public static boolean isAdaptive = false;
     public static double RepartitioningCoolingOffPeriod = Global.observationWindow;    			
 	static double nextHourlyRepartition = Global.warmupPeriod;
+	public static double sum_of_one_by_period = 0.0;
 	
     public WorkloadExecutor() {
         
@@ -271,7 +272,7 @@ public class WorkloadExecutor {
 			
 			// Calculate the impact of distributed transaction per transaction basis					
 			double sum_of_span_by_period = 0.0;
-			double sum_of_one_by_period = 0.0;
+			sum_of_one_by_period = 0.0;
 					
 			Iterator<Integer> unq_itr = unq.iterator();
 			while(unq_itr.hasNext()) {
@@ -503,7 +504,7 @@ public class WorkloadExecutor {
 								
 				// Perform data migrations
 				if(isRepartCompleted)
-					DataMigration.performDataMigration(cluster, wb);
+					DataMigration.performDataMigration(cluster, wb, start_time);
 			}
 		}
 		

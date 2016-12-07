@@ -136,8 +136,7 @@ public final class Global {
 	public static boolean spanReduction;
 	public static int spanReduce;	
 	
-	public static double idt_priority;
-	public static double lb_priority;
+	public static double lambda;
 
 	// For Sword
 	public static int compressedVertices;

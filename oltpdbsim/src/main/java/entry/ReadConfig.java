@@ -63,7 +63,7 @@ public class ReadConfig {
 			Global.metis_hgr_exec = "khmetis";
 			Global.metis_gr_exec = "gpmetis";
 			
-		} else if (Utility.isOSX()) { // Not fully tested yet
+		} else if (Utility.isOSX()) {
 			Global.dir_sep = "/";
 			
 			Global.wrl_dir = System.getProperty("user.dir")+"/workload"+"/"+Global.wrl+"/";
@@ -192,16 +192,12 @@ public class ReadConfig {
 					if(Global.spanReduction)
 						Global.spanReduce = Integer.parseInt((String) config_param.getProperty("span.reduce"));
 					
-					Global.idt_priority = Double.parseDouble((String) config_param.getProperty("idt.priority"));
-					Global.lb_priority = Double.parseDouble((String) config_param.getProperty("lb.priority"));
+					Global.lambda = Double.parseDouble((String) config_param.getProperty("lambda"));
 						
-					if(Global.idt_priority < 0 || Global.idt_priority > 1) {
-						Global.LOGGER.error("Wrong value set for the Idt priority !!");
-						Global.idt_priority = 0.5;
-					} else if(Global.lb_priority < 0 || Global.lb_priority > 1) {
-						Global.LOGGER.error("Wrong value set for the Lb priority !!");
-						Global.lb_priority = 0.5;
-					} 								
+					if(Global.lambda < 0 || Global.lambda > 1) {
+						Global.LOGGER.error("Wrong value set for 'lambda' !!");
+						System.exit(400);
+					}
 				}
 				
 				Global.LOGGER.info("-----------------------------------------------------------------------------");

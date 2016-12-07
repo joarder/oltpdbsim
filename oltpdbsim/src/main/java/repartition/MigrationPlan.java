@@ -25,9 +25,9 @@ public class MigrationPlan {
 	public int req_data_mgr;
 	
 	public double span_reduction_per_data_mgr;
-	public double idt_gain_per_data_mgr;
-	public double lb_gain_per_data_mgr;
-	public double association_gain_per_data_mgr;	
+	public double delta_idt;
+	public double delta_lb;
+	public double associativity;	
 	
 	public double combined_weight;	
 	public HashMap<Integer, HashSet<Integer>> serverDataSet;	
@@ -38,9 +38,9 @@ public class MigrationPlan {
 		this.req_data_mgr = req_data_mgr;
 		
 		this.span_reduction_per_data_mgr = 0.0;
-		this.idt_gain_per_data_mgr = 0.0;
-		this.lb_gain_per_data_mgr = 0.0;
-		this.association_gain_per_data_mgr = 0.0;		
+		this.delta_idt = 0.0;
+		this.delta_lb = 0.0;
+		this.associativity = 0.0;		
 		
 		this.combined_weight = 0.0;		
 		this.serverDataSet = new HashMap<Integer, HashSet<Integer>>(dataMap);		
@@ -49,11 +49,11 @@ public class MigrationPlan {
 	@Override
 	public String toString() {
 		return ("-- From("+this.fromSet+") | To("+this.to+") "
+				+ "| Combined Weight ("+this.combined_weight+") "
 				+ "| Required data migrations ("+this.req_data_mgr+") "
 					+ "| Span reduction gain ("+this.span_reduction_per_data_mgr+") "
-						+ "| Idt gain ("+this.idt_gain_per_data_mgr+") "								
-							+ "| Lb gain ("+this.lb_gain_per_data_mgr+") "
-								+ "| Association gain ("+this.association_gain_per_data_mgr+") "
-									+ "| Combined Weight ("+this.combined_weight+")");
+						+ "| Idt gain ("+this.delta_idt+") "								
+							+ "| Lb gain ("+this.delta_lb+") "
+								+ "| Association gain ("+this.associativity+")");
 	}
 }

@@ -362,7 +362,7 @@ public class Utility {
 	}
 	 
 	public static boolean isOSX() {
-		return (Global.OS.indexOf("osx") >= 0);
+		return (Global.OS.indexOf("mac") >= 0);
 	}	
 	
 	/**
